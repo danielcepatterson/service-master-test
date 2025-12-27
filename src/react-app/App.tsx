@@ -1,10 +1,5 @@
-// ...existing code...
-
-function App() {
-  // ...existing code...
 import React from "react";
 import "./App.css";
-
 function App() {
     // Handler for inventory item form
     const handleItemFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
