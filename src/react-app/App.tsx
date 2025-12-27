@@ -3,6 +3,7 @@ import "./App.css";
 
 function App() {
   // All state declarations must be at the top
+  const [page, setPage] = React.useState("home");
   // Inventory Category state
   const [inventoryCategories, setInventoryCategories] = React.useState<string[]>(() => {
     const saved = localStorage.getItem('inventoryCategories');
