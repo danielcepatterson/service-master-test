@@ -17,11 +17,11 @@ function App() {
   // Inventory Item state
   const [itemForm, setItemForm] = React.useState({
     name: '',
-    upc: '',
+    internalNumber: '',
     sku: '',
-    partNumber: '',
     cost: '',
-    category: '',
+    price: '',
+    note: '',
   });
   const [itemSubmitted, setItemSubmitted] = React.useState(false);
   // Saved inventory items
@@ -57,29 +57,24 @@ function App() {
               <input name="name" value={itemForm.name} onChange={handleItemFormChange} required />
             </label>
             <label>
-              UPC
-              <input name="upc" value={itemForm.upc} onChange={handleItemFormChange} required />
+              Internal Number
+              <input name="internalNumber" value={itemForm.internalNumber} onChange={handleItemFormChange} required />
             </label>
             <label>
               SKU
               <input name="sku" value={itemForm.sku} onChange={handleItemFormChange} required />
             </label>
             <label>
-              Internal Part Number
-              <input name="partNumber" value={itemForm.partNumber} onChange={handleItemFormChange} required />
-            </label>
-            <label>
               Cost
               <input name="cost" value={itemForm.cost} onChange={handleItemFormChange} required type="number" min="0" step="0.01" />
             </label>
             <label>
-              Category
-              <select name="category" value={itemForm.category} onChange={handleItemFormChange} required>
-                <option value="" disabled>Select a category</option>
-                {inventoryCategories.map((cat, idx) => (
-                  <option key={idx} value={cat}>{cat}</option>
-                ))}
-              </select>
+              Price
+              <input name="price" value={itemForm.price} onChange={handleItemFormChange} required type="number" min="0" step="0.01" />
+            </label>
+            <label>
+              Note
+              <input name="note" value={itemForm.note} onChange={handleItemFormChange} />
             </label>
             <button type="submit">Add Inventory Item</button>
             <button type="button" onClick={() => setPage("home")}>Back to Home</button>
