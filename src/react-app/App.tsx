@@ -11,33 +11,6 @@ function App() {
 }
 
 export default App;
-
-import React from "react";
-import "./App.css";
-
-
-const NAV_ITEMS = [
-  { label: "Create Property", action: "create-property" },
-  { label: "Create Work Order", action: "create-work-order" },
-  { label: "Create Inspection", action: "create-inspection" },
-  { label: "Create Purchase", action: "create-purchase" },
-  { label: "Inventory Manager", action: "inventory-manager" },
-  { label: "Vendor Manager", action: "vendor-manager" },
-  { label: "View Work Order List", action: "view-work-orders" },
-  { label: "View Inspection List", action: "view-inspections" },
-  { label: "View Property List", action: "view-properties" },
-];
-
-	function App() {
-	  const [workOrders, setWorkOrders] = React.useState<any[]>([]);
-	  const [loading, setLoading] = React.useState(false);
-	  const [error, setError] = React.useState<string | null>(null);
-
-	  // Fetch work orders from API (placeholder)
-	  const fetchWorkOrders = async () => {
-	    setLoading(true);
-	    setError(null);
-	    try {
 	      // TODO: Replace with real API call
 	      setTimeout(() => {
 	        setWorkOrders([
