@@ -91,6 +91,8 @@ export default App;
           </form>
         )}
       </div>
+    </div>
+  );
     );
   }
   if (page === "vendorlist") {
@@ -395,4 +397,3 @@ export default App;
           <button onClick={() => setPage("purchaselist")}>Purchase List</button>
         </div>
       </div>
-    </div>
