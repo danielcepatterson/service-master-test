@@ -36,6 +36,14 @@ type Purchase = {
   purchaser: string;
   purpose: string;
 };
+type InventoryItem = {
+  id: string;
+  name: string;
+  category: string;
+  price: string;
+  cost: string;
+  partNumber: string;
+};
 
 function App() {
   // Navigation
@@ -102,6 +110,21 @@ function App() {
   });
   const [purchaseSubmitted, setPurchaseSubmitted] = React.useState(false);
 
+  // Inventory item state
+  const [inventoryItemForm, setInventoryItemForm] = React.useState<InventoryItem>({
+    id: '',
+    name: '',
+    category: '',
+    price: '',
+    cost: '',
+    partNumber: '',
+  });
+  const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>(() => {
+    const saved = localStorage.getItem('inventoryItems');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [inventoryItemSubmitted, setInventoryItemSubmitted] = React.useState(false);
+
   // Handlers
   const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -158,13 +181,32 @@ function App() {
     setPurchaseSubmitted(true);
     setPurchaseForm({ date: '', workOrderNumber: '', vendor: '', price: '', purchaser: '', purpose: '' });
   };
-
-  // Generators
+  const handleInventoryItemFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setInventoryItemForm((prev: InventoryItem) => ({ ...prev, [name]: value }));
+  };
+  const handleInventoryItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const newItem: InventoryItem = {
+      ...inventoryItemForm,
+      id: generateInventoryItemId(),
+    };
+    setInventoryItems((prev: InventoryItem[]) => {
+      const updated = [...prev, newItem];
+      localStorage.setItem('inventoryItems', JSON.stringify(updated));
+      return updated;
+    });
+    setInventoryItemSubmitted(true);
+    setInventoryItemForm({ id: '', name: '', category: '', price: '', cost: '', partNumber: '' });
+  };
   const generateWorkOrderNumber = () => {
     const last = workOrders.length > 0 ? workOrders[workOrders.length - 1].number : null;
     if (!last) return 'WO-1001';
     const num = parseInt(last.replace('WO-', '')) + 1;
     return `WO-${num}`;
+  };
+  const generateInventoryItemId = () => {
+    return 'INV-' + (inventoryItems.length + 1).toString().padStart(4, '0');
   };
 
   // Render logic
@@ -500,6 +542,89 @@ function App() {
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.price}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.purchaser}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.purpose}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Back to Home</button>
+      </div>
+    );
+  }
+  if (page === "createinventorycategory") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Create Inventory Category</h1>
+        {/* Category creation form will go here */}
+        <button onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+  if (page === "createinventoryitem") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Create Inventory Item</h1>
+        {inventoryItemSubmitted ? (
+          <>
+            <p style={{ color: 'green' }}>Inventory item submitted!</p>
+            <button onClick={() => { setPage("home"); setInventoryItemSubmitted(false); }}>Return to Home</button>
+          </>
+        ) : (
+          <form onSubmit={handleInventoryItemFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
+            <label>
+              Item Name
+              <input name="name" value={inventoryItemForm.name} onChange={handleInventoryItemFormChange} required />
+            </label>
+            <label>
+              Category
+              <input name="category" value={inventoryItemForm.category} onChange={handleInventoryItemFormChange} required />
+            </label>
+            <label>
+              Price
+              <input name="price" type="number" step="0.01" value={inventoryItemForm.price} onChange={handleInventoryItemFormChange} required />
+            </label>
+            <label>
+              Cost
+              <input name="cost" type="number" step="0.01" value={inventoryItemForm.cost} onChange={handleInventoryItemFormChange} required />
+            </label>
+            <label>
+              Part Number
+              <input name="partNumber" value={inventoryItemForm.partNumber} onChange={handleInventoryItemFormChange} required />
+            </label>
+            <button type="submit">Submit Inventory Item</button>
+            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+          </form>
+        )}
+      </div>
+    );
+  }
+  if (page === "inventorylist") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Inventory Items</h1>
+        {inventoryItems.length === 0 ? (
+          <p>No inventory items have been added yet.</p>
+        ) : (
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>ID</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Name</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Category</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Price</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Cost</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Part Number</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryItems.map((item: InventoryItem, idx: number) => (
+                <tr key={idx}>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.id}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.name}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.category}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.price}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.cost}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.partNumber}</td>
                 </tr>
               ))}
             </tbody>
