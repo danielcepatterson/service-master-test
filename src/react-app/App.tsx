@@ -44,6 +44,9 @@ type InventoryItem = {
   cost: string;
   partNumber: string;
 };
+type InventoryCategory = {
+  name: string;
+};
 
 function App() {
   // Navigation
@@ -125,6 +128,15 @@ function App() {
   });
   const [inventoryItemSubmitted, setInventoryItemSubmitted] = React.useState(false);
 
+  // Inventory category state
+  const [inventoryCategoryForm, setInventoryCategoryForm] = React.useState<InventoryCategory>({ name: '' });
+  const [inventoryCategories, setInventoryCategories] = React.useState<InventoryCategory[]>(() => {
+    const saved = localStorage.getItem('inventoryCategories');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [inventoryCategorySubmitted, setInventoryCategorySubmitted] = React.useState(false);
+  const [showCategoryList, setShowCategoryList] = React.useState(false);
+
   // Handlers
   const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -198,6 +210,20 @@ function App() {
     });
     setInventoryItemSubmitted(true);
     setInventoryItemForm({ id: '', name: '', category: '', price: '', cost: '', partNumber: '' });
+  };
+  const handleInventoryCategoryFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setInventoryCategoryForm((prev: InventoryCategory) => ({ ...prev, [name]: value }));
+  };
+  const handleInventoryCategoryFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setInventoryCategories((prev: InventoryCategory[]) => {
+      const updated = [...prev, inventoryCategoryForm];
+      localStorage.setItem('inventoryCategories', JSON.stringify(updated));
+      return updated;
+    });
+    setInventoryCategorySubmitted(true);
+    setInventoryCategoryForm({ name: '' });
   };
   const generateWorkOrderNumber = () => {
     const last = workOrders.length > 0 ? workOrders[workOrders.length - 1].number : null;
@@ -555,8 +581,38 @@ function App() {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <h1>Create Inventory Category</h1>
-        {/* Category creation form will go here */}
-        <button onClick={() => setPage("home")}>Return to Home</button>
+        {inventoryCategorySubmitted ? (
+          <>
+            <p style={{ color: 'green' }}>Category submitted!</p>
+            <button onClick={() => { setInventoryCategorySubmitted(false); setPage("home"); }}>Return to Home</button>
+          </>
+        ) : (
+          <form onSubmit={handleInventoryCategoryFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
+            <label>
+              Category Name
+              <input name="name" value={inventoryCategoryForm.name} onChange={handleInventoryCategoryFormChange} required />
+            </label>
+            <button type="submit">Submit Category</button>
+            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+          </form>
+        )}
+        <button style={{ marginTop: 16 }} onClick={() => setShowCategoryList((show) => !show)}>
+          {showCategoryList ? 'Hide Category List' : 'Show Category List'}
+        </button>
+        {showCategoryList && (
+          <div style={{ marginTop: 16, minWidth: 350 }}>
+            <h2>Saved Categories</h2>
+            {inventoryCategories.length === 0 ? (
+              <p>No categories have been added yet.</p>
+            ) : (
+              <ul>
+                {inventoryCategories.map((cat: InventoryCategory, idx: number) => (
+                  <li key={idx}>{cat.name}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     );
   }
