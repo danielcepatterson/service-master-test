@@ -15,14 +15,6 @@ function App() {
   // All state declarations must be at the top
   const [page, setPage] = React.useState("home");
   // Inventory Item state
-  type InventoryItem = {
-    name: string;
-    upc: string;
-    sku: string;
-    partNumber: string;
-    cost: string;
-    category: string;
-  };
   const [itemForm, setItemForm] = React.useState({
     name: '',
     upc: '',
