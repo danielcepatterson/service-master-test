@@ -18,6 +18,7 @@ function App() {
   const [itemForm, setItemForm] = React.useState({
     name: '',
     internalNumber: '',
+    upc: '',
     sku: '',
     cost: '',
     price: '',
