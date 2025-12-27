@@ -509,15 +509,42 @@ function App() {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
       <h1>Welcome to the Service Master App</h1>
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "2rem" }}>
-        <button onClick={() => setPage("property")}>Create a Property</button>
-        <button onClick={() => setPage("workorder")}>Create a Work Order</button>
-        <button onClick={() => setPage("propertylist")}>Property List</button>
-        <button onClick={() => setPage("workorderlist")}>Work Order List</button>
-        <button onClick={() => setPage("vendor")}>Create a Vendor</button>
-        <button onClick={() => setPage("vendorlist")}>Vendor List</button>
-        <button onClick={() => setPage("createinventorycategory")}>Create Inventory Category</button>
-        <button onClick={() => setPage("createinventoryitem")}>Create Inventory Item</button>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+        gap: "2rem",
+        marginTop: "2rem",
+        width: "100%",
+        maxWidth: 900
+      }}>
+        {/* Properties */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🏠</div>
+          <h2 style={{ margin: 0, marginBottom: 16 }}>Properties</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("property")}>Create a Property</button>
+          <button onClick={() => setPage("propertylist")}>Property List</button>
+        </div>
+        {/* Work Orders */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🚚</div>
+          <h2 style={{ margin: 0, marginBottom: 16 }}>Work Orders</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
+          <button onClick={() => setPage("workorderlist")}>Work Order List</button>
+        </div>
+        {/* Inventory */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
+          <h2 style={{ margin: 0, marginBottom: 16 }}>Inventory</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("createinventorycategory")}>Create Inventory Category</button>
+          <button onClick={() => setPage("createinventoryitem")}>Create Inventory Item</button>
+        </div>
+        {/* Vendors */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
+          <h2 style={{ margin: 0, marginBottom: 16 }}>Vendors</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("vendor")}>Create a Vendor</button>
+          <button onClick={() => setPage("vendorlist")}>Vendor List</button>
+        </div>
       </div>
     </div>
   );
