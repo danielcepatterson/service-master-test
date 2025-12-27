@@ -1,3 +1,8 @@
+// ...existing code...
+
+function App() {
+  // ...existing state and handlers...
+
   if (page === "createinventoryitem") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -7,6 +12,8 @@
       </div>
     );
   }
+
+// ...existing code...
 import * as React from "react";
 // @ts-ignore
 import "./App.css";
