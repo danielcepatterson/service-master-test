@@ -51,7 +51,7 @@ function App() {
         {itemSubmitted ? (
           <>
             <p style={{ color: 'green' }}>Inventory item submitted!</p>
-            <button onClick={() => { setPage("home"); setItemSubmitted(false); setItemForm({ name: '', upc: '', sku: '', partNumber: '', cost: '', category: '' }); }}>Return to Home</button>
+            <button onClick={() => { setPage("home"); setItemSubmitted(false); setItemForm({ name: '', internalNumber: '', upc: '', partNumber: '', sku: '', cost: '', price: '', note: '', category: '' }); }}>Return to Home</button>
           </>
         ) : (
           <form onSubmit={handleItemFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
