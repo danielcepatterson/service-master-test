@@ -57,10 +57,6 @@ function App() {
               <input name="name" value={itemForm.name} onChange={handleItemFormChange} required />
             </label>
             <label>
-              Internal Number
-              <input name="internalNumber" value={itemForm.internalNumber} onChange={handleItemFormChange} required />
-            </label>
-            <label>
               SKU
               <input name="sku" value={itemForm.sku} onChange={handleItemFormChange} required />
             </label>
