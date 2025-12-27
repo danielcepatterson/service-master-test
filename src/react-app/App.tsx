@@ -82,7 +82,7 @@ function App() {
               </select>
             </label>
             <button type="submit">Add Inventory Item</button>
-            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+            <button type="button" onClick={() => setPage("home")}>Back to Home</button>
           </form>
         )}
       </div>
@@ -132,7 +132,7 @@ function App() {
             )}
           </div>
         )}
-        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Back to Home</button>
       </div>
     );
   }
@@ -331,7 +331,7 @@ function App() {
             </tbody>
           </table>
         )}
-        <button onClick={() => setPage("home")}>Return to Home</button>
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Back to Home</button>
       </div>
     );
   }
