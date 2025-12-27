@@ -1,52 +1,94 @@
 // src/App.tsx
 
+
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import cloudflareLogo from "./assets/Cloudflare_Logo.svg";
-import honoLogo from "./assets/hono.svg";
 import "./App.css";
 
 function App() {
 	const [count, setCount] = useState(0);
 	const [name, setName] = useState("unknown");
 
-	return (
-		<>
+
+	const NAV_ITEMS = [
+		{ label: "Create Property", action: "create-property" },
+		{ label: "Create Work Order", action: "create-work-order" },
+		{ label: "Create Inspection", action: "create-inspection" },
+		{ label: "Create Purchase", action: "create-purchase" },
+		{ label: "Inventory Manager", action: "inventory-manager" },
+		{ label: "Vendor Manager", action: "vendor-manager" },
+		{ label: "View Work Order List", action: "view-work-orders" },
+		{ label: "View Inspection List", action: "view-inspections" },
+		{ label: "View Property List", action: "view-properties" },
+	];
+
+	function App() {
+		const [workOrders, setWorkOrders] = useState<any[]>([]);
+		const [loading, setLoading] = useState(false);
+		const [error, setError] = useState<string | null>(null);
+
+		// Fetch work orders from API (placeholder)
+		const fetchWorkOrders = async () => {
+			setLoading(true);
+			setError(null);
+			try {
+				// TODO: Replace with real API call
+				// const res = await fetch("/api/work-orders");
+				// const data = await res.json();
+				// setWorkOrders(data);
+				setTimeout(() => {
+					setWorkOrders([
+						{ id: 1, property: "123 Main St", status: "Open", description: "Leaky faucet" },
+						{ id: 2, property: "456 Oak Ave", status: "In Progress", description: "Broken window" },
+					]);
+					setLoading(false);
+				}, 500);
+			} catch (e: any) {
+				setError("Failed to load work orders");
+				setLoading(false);
+			}
+		};
+
+		// Initial load
+		React.useEffect(() => {
+			fetchWorkOrders();
+		}, []);
+
+		// Handler for header title click
+		const handleTitleClick = () => {
+			fetchWorkOrders();
+		};
+
+		return (
 			<div>
-				<a href="https://vite.dev" target="_blank">
-					<img src={viteLogo} className="logo" alt="Vite logo" />
-				</a>
-				<a href="https://react.dev" target="_blank">
-					<img src={reactLogo} className="logo react" alt="React logo" />
-				</a>
-				<a href="https://hono.dev/" target="_blank">
-					<img src={honoLogo} className="logo cloudflare" alt="Hono logo" />
-				</a>
-				<a href="https://workers.cloudflare.com/" target="_blank">
-					<img
-						src={cloudflareLogo}
-						className="logo cloudflare"
-						alt="Cloudflare logo"
-					/>
-				</a>
+				<header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 0" }}>
+					<h1 style={{ cursor: "pointer", margin: 0 }} onClick={handleTitleClick}>
+						Work Order Manager
+					</h1>
+					<nav>
+						{NAV_ITEMS.map((item) => (
+							<button key={item.action} style={{ margin: "0 0.5rem" }}>
+								{item.label}
+							</button>
+						))}
+					</nav>
+				</header>
+				<main>
+					<h2>All Work Orders</h2>
+					{loading && <p>Loading...</p>}
+					{error && <p style={{ color: "red" }}>{error}</p>}
+					<ul style={{ listStyle: "none", padding: 0 }}>
+						{workOrders.map((wo) => (
+							<li key={wo.id} style={{ border: "1px solid #444", borderRadius: 8, margin: "1rem 0", padding: "1rem", textAlign: "left" }}>
+								<strong>Property:</strong> {wo.property} <br />
+								<strong>Status:</strong> {wo.status} <br />
+								<strong>Description:</strong> {wo.description}
+							</li>
+						))}
+					</ul>
+				</main>
 			</div>
-			<h1>Vite + React + Hono + Cloudflare</h1>
-			<div className="card">
-				<button
-					onClick={() => setCount((count) => count + 1)}
-					aria-label="increment"
-				>
-					count is {count}
-				</button>
-				<p>
-					Edit <code>src/App.tsx</code> and save to test HMR
-				</p>
-			</div>
-			<div className="card">
-				<button
-					onClick={() => {
-						fetch("/api/")
+		);
+	}
 							.then((res) => res.json() as Promise<{ name: string }>)
 							.then((data) => setName(data.name));
 					}}
