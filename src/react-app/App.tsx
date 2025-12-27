@@ -7,6 +7,10 @@ type Purchase = {
   purchaser: string;
   purpose: string;
 };
+
+function App() {
+  // ...existing state...
+
   // Purchases state
   const [purchaseForm, setPurchaseForm] = React.useState<Purchase>({
     date: '',
@@ -37,6 +41,9 @@ type Purchase = {
     setPurchaseSubmitted(true);
     setPurchaseForm({ date: '', workOrderNumber: '', vendor: '', price: '', purchaser: '', purpose: '' });
   };
+
+  // ...existing page logic...
+
   if (page === "createpurchase") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
