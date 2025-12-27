@@ -398,16 +398,6 @@ function App() {
     );
   }
   export default App;
-      <h1>Welcome to the Service Master App</h1>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-        gap: "2rem",
-        marginTop: "2rem",
-        width: "100%",
-        maxWidth: 900
-      }}>
-        {/* Properties */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
             {/* Sleek Electric Blue House Icon */}
