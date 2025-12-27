@@ -10,7 +10,6 @@ function App() {
 
     const handleItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      setInventoryItems((prev) => [...prev, itemForm]);
       setItemSubmitted(true);
     };
   // All state declarations must be at the top
