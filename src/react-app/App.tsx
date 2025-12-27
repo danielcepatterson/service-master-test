@@ -2,6 +2,17 @@ import React from "react";
 import "./App.css";
 
 function App() {
+    // Handler for inventory item form
+    const handleItemFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setItemForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setInventoryItems((prev) => [...prev, itemForm]);
+      setItemSubmitted(true);
+    };
   // All state declarations must be at the top
   const [page, setPage] = React.useState("home");
   // Inventory Item state
