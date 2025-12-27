@@ -476,4 +476,3 @@ function App() {
   );
 }
 export default App;
-//note for push
