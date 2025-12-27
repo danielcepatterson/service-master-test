@@ -220,6 +220,8 @@ function App() {
       localStorage.setItem('workOrders', JSON.stringify(updated));
       return updated;
     });
+    setViewHistoryWO(null); // Close any open history modal
+    setPage('closedworkorders'); // Redirect to closed work orders page
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
