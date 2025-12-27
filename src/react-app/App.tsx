@@ -24,6 +24,7 @@ function App() {
     cost: '',
     price: '',
     note: '',
+    category: '',
   });
   const [itemSubmitted, setItemSubmitted] = React.useState(false);
   // Saved inventory items
