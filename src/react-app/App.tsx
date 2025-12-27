@@ -149,6 +149,9 @@ function App() {
   const [inventoryCategorySubmitted, setInventoryCategorySubmitted] = React.useState(false);
   const [showCategoryList, setShowCategoryList] = React.useState(false);
 
+  // Add state for viewing history (move this above all render logic)
+  const [viewHistoryWO, setViewHistoryWO] = React.useState<WorkOrder | null>(null);
+
   // Handlers
   const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
