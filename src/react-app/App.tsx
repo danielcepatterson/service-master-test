@@ -93,20 +93,34 @@ function App() {
         {properties.length === 0 ? (
           <p>No properties have been added yet.</p>
         ) : (
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {properties.map((prop, idx) => (
-              <li key={idx} style={{ border: "1px solid #444", borderRadius: 8, margin: "1rem 0", padding: "1rem", textAlign: "left" }}>
-                <strong>Property Name:</strong> {prop.propertyName}<br />
-                <strong>Address:</strong> {prop.address}<br />
-                <strong>Street:</strong> {prop.street}<br />
-                <strong>City:</strong> {prop.city}<br />
-                <strong>State:</strong> {prop.state}<br />
-                <strong>Zip:</strong> {prop.zip}<br />
-                <strong>Owner Name:</strong> {prop.ownerName}<br />
-                <strong>Owner Phone:</strong> {prop.ownerPhone}
-              </li>
-            ))}
-          </ul>
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Property Name</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Address</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Street</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>City</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>State</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Zip</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Owner Name</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Owner Phone</th>
+              </tr>
+            </thead>
+            <tbody>
+              {properties.map((prop, idx) => (
+                <tr key={idx}>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.propertyName}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.address}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.street}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.city}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.state}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.zip}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerName}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerPhone}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
       </div>
