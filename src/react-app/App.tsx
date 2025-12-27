@@ -111,9 +111,8 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {vendors.map((vendor, idx) => (
-                {vendors.map((vendor: any, idx: number) => (
-                 <tr key={idx}>
+              {vendors.map((vendor: any, idx: number) => (
+                <tr key={idx}>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.name}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.category}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.contactName}</td>
@@ -292,9 +291,8 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {workOrders.map((wo, idx) => (
-                {workOrders.map((wo: any, idx: number) => (
-                  <tr key={idx}>
+              {workOrders.map((wo: any, idx: number) => (
+                <tr key={idx}>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.number}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.propertyName}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.title}</td>
