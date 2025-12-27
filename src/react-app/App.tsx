@@ -2,6 +2,90 @@ import React from "react";
 import "./App.css";
 
 function App() {
+    // Inventory Item state
+    type InventoryItem = {
+      name: string;
+      upc: string;
+      sku: string;
+      partNumber: string;
+      cost: string;
+      category: string;
+    };
+    const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>(() => {
+      const saved = localStorage.getItem('inventoryItems');
+      return saved ? JSON.parse(saved) : [];
+    });
+    const [itemForm, setItemForm] = React.useState({
+      name: '',
+      upc: '',
+      sku: '',
+      partNumber: '',
+      cost: '',
+      category: '',
+    });
+    const [itemSubmitted, setItemSubmitted] = React.useState(false);
+
+    React.useEffect(() => {
+      localStorage.setItem('inventoryItems', JSON.stringify(inventoryItems));
+    }, [inventoryItems]);
+
+    const handleItemFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setItemForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setInventoryItems((prev) => [...prev, itemForm]);
+      setItemSubmitted(true);
+    };
+    if (page === "createinventoryitem") {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+          <h1>Create Inventory Item</h1>
+          {itemSubmitted ? (
+            <>
+              <p style={{ color: 'green' }}>Inventory item submitted!</p>
+              <button onClick={() => { setPage("home"); setItemSubmitted(false); setItemForm({ name: '', upc: '', sku: '', partNumber: '', cost: '', category: '' }); }}>Return to Home</button>
+            </>
+          ) : (
+            <form onSubmit={handleItemFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
+              <label>
+                Item Name
+                <input name="name" value={itemForm.name} onChange={handleItemFormChange} required />
+              </label>
+              <label>
+                UPC
+                <input name="upc" value={itemForm.upc} onChange={handleItemFormChange} required />
+              </label>
+              <label>
+                SKU
+                <input name="sku" value={itemForm.sku} onChange={handleItemFormChange} required />
+              </label>
+              <label>
+                Internal Part Number
+                <input name="partNumber" value={itemForm.partNumber} onChange={handleItemFormChange} required />
+              </label>
+              <label>
+                Cost
+                <input name="cost" value={itemForm.cost} onChange={handleItemFormChange} required type="number" min="0" step="0.01" />
+              </label>
+              <label>
+                Category
+                <select name="category" value={itemForm.category} onChange={handleItemFormChange} required>
+                  <option value="" disabled>Select a category</option>
+                  {inventoryCategories.map((cat, idx) => (
+                    <option key={idx} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit">Add Inventory Item</button>
+              <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+            </form>
+          )}
+        </div>
+      );
+    }
   // All state declarations must be at the top
   const [page, setPage] = React.useState("home");
   // Inventory Category state
@@ -449,6 +533,7 @@ function App() {
         <button onClick={() => setPage("vendor")}>Create a Vendor</button>
         <button onClick={() => setPage("vendorlist")}>Vendor List</button>
         <button onClick={() => setPage("createinventorycategory")}>Create Inventory Category</button>
+        <button onClick={() => setPage("createinventoryitem")}>Create Inventory Item</button>
       </div>
     </div>
   );
