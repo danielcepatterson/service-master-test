@@ -110,12 +110,17 @@ export default App;
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Contact Number</th>
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Contact Email</th>
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Address</th>
-              </form>
-            )}
-          </div>
-        </div>
-      );
-      }
+              </tr>
+            </thead>
+            <tbody>
+              {vendors.map((vendor, idx) => (
+                <tr key={idx}>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.name}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.category}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.contactName}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.contactNumber}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.contactEmail}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.address}</td>
                 </tr>
               ))}
             </tbody>
@@ -174,6 +179,7 @@ export default App;
           </form>
         )}
       </div>
+    </div>
     </div>
     );
   }
