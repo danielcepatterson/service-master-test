@@ -27,38 +27,38 @@ function App() {
         setCategoryInput('');
       }
     };
-    if (page === "createinventorycategory") {
-      return (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-          <h1>Create Inventory Category</h1>
-          <form onSubmit={handleCategorySubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 300 }}>
-            <label>
-              Category Name
-              <input value={categoryInput} onChange={handleCategoryInputChange} required />
-            </label>
-            <button type="submit">Add Category</button>
-          </form>
-          <button style={{ marginTop: 16 }} onClick={() => setShowCategoryList((v) => !v)}>
-            {showCategoryList ? 'Hide Inventory Categories' : 'See Inventory Categories'}
-          </button>
-          {showCategoryList && (
-            <div style={{ marginTop: 16, minWidth: 300 }}>
-              <h2>Inventory Categories</h2>
-              {inventoryCategories.length === 0 ? (
-                <p>No categories created yet.</p>
-              ) : (
-                <ul>
-                  {inventoryCategories.map((cat, idx) => (
-                    <li key={idx}>{cat}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
-        </div>
-      );
-    }
+  if (page === "createinventorycategory") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Create Inventory Category</h1>
+        <form onSubmit={handleCategorySubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 300 }}>
+          <label>
+            Category Name
+            <input value={categoryInput} onChange={handleCategoryInputChange} required placeholder="Enter category name" />
+          </label>
+          <button type="submit">Add Category</button>
+        </form>
+        <button style={{ marginTop: 16 }} onClick={() => setShowCategoryList((v) => !v)}>
+          {showCategoryList ? 'Hide Inventory Categories' : 'See Inventory Categories'}
+        </button>
+        {showCategoryList && (
+          <div style={{ marginTop: 16, minWidth: 300 }}>
+            <h2>Inventory Categories</h2>
+            {inventoryCategories.length === 0 ? (
+              <p>No categories created yet.</p>
+            ) : (
+              <ul>
+                {inventoryCategories.map((cat, idx) => (
+                  <li key={idx}>{cat}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
   // Vendor state
   type Vendor = {
     name: string;
