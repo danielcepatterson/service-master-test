@@ -3,7 +3,6 @@ import "./App.css";
 
 function App() {
   // All state declarations must be at the top
-  const [page, setPage] = React.useState("home");
   // Inventory Category state
   const [inventoryCategories, setInventoryCategories] = React.useState<string[]>(() => {
     const saved = localStorage.getItem('inventoryCategories');
@@ -104,7 +103,6 @@ function App() {
   });
   const [woSubmitted, setWoSubmitted] = React.useState(false);
 
-  const [page, setPage] = React.useState("home");
   const [form, setForm] = React.useState({
     propertyName: "",
     address: "",
