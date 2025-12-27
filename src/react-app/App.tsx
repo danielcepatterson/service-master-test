@@ -12,7 +12,7 @@ type PropertyForm = {
   ownerName: string;
   ownerPhone: string;
 };
-type WorkOrderStatus = 'draft' | 'active' | 'completed';
+type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed';
 
 type WorkOrderHistoryEntry = {
   status: WorkOrderStatus;
@@ -201,6 +201,20 @@ function App() {
       const updated = prev.map((wo) =>
         wo.number === number
           ? { ...wo, status: 'completed' as WorkOrderStatus, completedAt: now, history: [...wo.history, { status: 'completed' as WorkOrderStatus, timestamp: now }] }
+          : wo
+      );
+      localStorage.setItem('workOrders', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Handler to mark work order as closed
+  const closeWorkOrder = (number: string) => {
+    setWorkOrders((prev) => {
+      const now = new Date().toISOString();
+      const updated = prev.map((wo) =>
+        wo.number === number
+          ? { ...wo, status: 'closed' as WorkOrderStatus, history: [...wo.history, { status: 'closed' as WorkOrderStatus, timestamp: now }] }
           : wo
       );
       localStorage.setItem('workOrders', JSON.stringify(updated));
@@ -611,7 +625,6 @@ function App() {
       </div>
     );
   }
-
   // Completed Work Orders
   if (page === "completedworkorders") {
     const completedOrders = workOrders.filter((wo) => wo.status === 'completed');
@@ -630,6 +643,8 @@ function App() {
                 <th>Instructions</th>
                 <th>Scheduled Date</th>
                 <th>Scheduled Time</th>
+                <th>Action</th>
+                <th>History</th>
               </tr>
             </thead>
             <tbody>
@@ -641,12 +656,86 @@ function App() {
                   <td>{wo.instructions}</td>
                   <td>{wo.scheduledDate}</td>
                   <td>{wo.scheduledTime}</td>
+                  <td>
+                    <button onClick={() => closeWorkOrder(wo.number)}>Close Work Order</button>
+                  </td>
+                  <td>
+                    <button onClick={() => setViewHistoryWO(wo)}>View History</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
+        {viewHistoryWO && (
+          <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, minWidth: 350 }}>
+            <h2>Work Order History: {viewHistoryWO.number}</h2>
+            <ul>
+              {viewHistoryWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
+                <li key={idx}>
+                  {entry.status} at {new Date(entry.timestamp).toLocaleString()}
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => setViewHistoryWO(null)}>Close</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+  // Closed Work Orders
+  if (page === "closedworkorders") {
+    const closedOrders = workOrders.filter((wo) => wo.status === 'closed');
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Closed Work Orders</h1>
+        {closedOrders.length === 0 ? (
+          <p>No work orders have been closed yet.</p>
+        ) : (
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th>WO Number</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Instructions</th>
+                <th>Scheduled Date</th>
+                <th>Scheduled Time</th>
+                <th>History</th>
+              </tr>
+            </thead>
+            <tbody>
+              {closedOrders.map((wo: WorkOrder, idx: number) => (
+                <tr key={idx}>
+                  <td>{wo.number}</td>
+                  <td>{wo.propertyName}</td>
+                  <td>{wo.title}</td>
+                  <td>{wo.instructions}</td>
+                  <td>{wo.scheduledDate}</td>
+                  <td>{wo.scheduledTime}</td>
+                  <td>
+                    <button onClick={() => setViewHistoryWO(wo)}>View History</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button onClick={() => setPage("home")}>Return to Home</button>
+        {viewHistoryWO && (
+          <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, minWidth: 350 }}>
+            <h2>Work Order History: {viewHistoryWO.number}</h2>
+            <ul>
+              {viewHistoryWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
+                <li key={idx}>
+                  {entry.status} at {new Date(entry.timestamp).toLocaleString()}
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => setViewHistoryWO(null)}>Close</button>
+          </div>
+        )}
       </div>
     );
   }
@@ -902,6 +991,7 @@ function App() {
           <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
           <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
           <button style={{ marginTop: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
+          <button style={{ marginTop: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
         </div>
         {/* Inventory */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
