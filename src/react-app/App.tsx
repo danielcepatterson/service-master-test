@@ -14,6 +14,11 @@ type PropertyForm = {
 };
 type WorkOrderStatus = 'draft' | 'active' | 'completed';
 
+type WorkOrderHistoryEntry = {
+  status: WorkOrderStatus;
+  timestamp: string; // ISO string
+};
+
 type WorkOrder = {
   number: string;
   propertyName: string;
@@ -22,6 +27,8 @@ type WorkOrder = {
   scheduledTime: string;
   scheduledDate: string;
   status: WorkOrderStatus;
+  completedAt?: string;
+  history: WorkOrderHistoryEntry[];
 };
 type VendorForm = {
   name: string;
@@ -73,13 +80,14 @@ function App() {
   const [submitted, setSubmitted] = React.useState(false);
 
   // Work order state
-  const [woForm, setWoForm] = React.useState<Omit<WorkOrder, 'number' | 'status'> & { status?: WorkOrderStatus }>({
+  const [woForm, setWoForm] = React.useState<Omit<WorkOrder, 'number' | 'status' | 'history'> & { status?: WorkOrderStatus, history?: WorkOrderHistoryEntry[] }>({
     propertyName: '',
     title: '',
     instructions: '',
     scheduledTime: '',
     scheduledDate: '',
     status: 'draft',
+    history: [],
   });
   const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>(() => {
     const saved = localStorage.getItem('workOrders');
@@ -149,6 +157,7 @@ function App() {
   // Update work order form submit to save as draft
   const handleWoFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const now = new Date().toISOString();
     const newWO: WorkOrder = {
       number: generateWorkOrderNumber(),
       propertyName: woForm.propertyName,
@@ -157,6 +166,7 @@ function App() {
       scheduledTime: woForm.scheduledTime,
       scheduledDate: woForm.scheduledDate,
       status: 'draft',
+      history: [{ status: 'draft', timestamp: now }],
     };
     setWorkOrders((prev: WorkOrder[]) => {
       const updated = [...prev, newWO];
@@ -164,14 +174,17 @@ function App() {
       return updated;
     });
     setWoSubmitted(true);
-    setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', status: 'draft' });
+    setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', status: 'draft', history: [] });
   };
 
   // Handler to move work order to active
   const activateWorkOrder = (number: string) => {
     setWorkOrders((prev) => {
+      const now = new Date().toISOString();
       const updated = prev.map((wo) =>
-        wo.number === number ? { ...wo, status: 'active' as WorkOrderStatus } : wo
+        wo.number === number
+          ? { ...wo, status: 'active' as WorkOrderStatus, history: [...wo.history, { status: 'active', timestamp: now }] }
+          : wo
       );
       localStorage.setItem('workOrders', JSON.stringify(updated));
       return updated;
@@ -181,8 +194,11 @@ function App() {
   // Handler to mark work order as completed
   const completeWorkOrder = (number: string) => {
     setWorkOrders((prev) => {
+      const now = new Date().toISOString();
       const updated = prev.map((wo) =>
-        wo.number === number ? { ...wo, status: 'completed' as WorkOrderStatus } : wo
+        wo.number === number
+          ? { ...wo, status: 'completed' as WorkOrderStatus, completedAt: now, history: [...wo.history, { status: 'completed', timestamp: now }] }
+          : wo
       );
       localStorage.setItem('workOrders', JSON.stringify(updated));
       return updated;
@@ -552,6 +568,7 @@ function App() {
                 <th>Scheduled Date</th>
                 <th>Scheduled Time</th>
                 <th>Action</th>
+                <th>History</th>
               </tr>
             </thead>
             <tbody>
@@ -566,12 +583,28 @@ function App() {
                   <td>
                     <button onClick={() => completeWorkOrder(wo.number)}>Mark Completed</button>
                   </td>
+                  <td>
+                    <button onClick={() => setViewHistoryWO(wo)}>View History</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
+        {viewHistoryWO && (
+          <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, minWidth: 350 }}>
+            <h2>Work Order History: {viewHistoryWO.number}</h2>
+            <ul>
+              {viewHistoryWO.history.map((entry, idx) => (
+                <li key={idx}>
+                  {entry.status} at {new Date(entry.timestamp).toLocaleString()}
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => setViewHistoryWO(null)}>Close</button>
+          </div>
+        )}
       </div>
     );
   }
