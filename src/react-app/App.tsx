@@ -24,10 +24,6 @@ function App() {
     cost: string;
     category: string;
   };
-  const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem('inventoryItems');
-    return saved ? JSON.parse(saved) : [];
-  });
   const [itemForm, setItemForm] = React.useState({
     name: '',
     upc: '',
