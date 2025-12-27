@@ -14,6 +14,7 @@ function App() {
     ownerPhone: "",
   });
   const [submitted, setSubmitted] = React.useState(false);
+  const [properties, setProperties] = React.useState<typeof form[]>([]);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -22,6 +23,7 @@ function App() {
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setProperties((prev) => [...prev, form]);
     setSubmitted(true);
   };
 
@@ -32,7 +34,7 @@ function App() {
         {submitted ? (
           <>
             <p style={{ color: 'green' }}>Property submitted!</p>
-            <button onClick={() => { setPage("home"); setSubmitted(false); }}>Return to Home</button>
+            <button onClick={() => { setPage("home"); setSubmitted(false); setForm({ propertyName: "", address: "", street: "", city: "", state: "", zip: "", ownerName: "", ownerPhone: "" }); }}>Return to Home</button>
           </>
         ) : (
           <form onSubmit={handleFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 300 }}>
@@ -88,7 +90,24 @@ function App() {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <h1>Property List</h1>
-        <p>List of properties will be shown here.</p>
+        {properties.length === 0 ? (
+          <p>No properties have been added yet.</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {properties.map((prop, idx) => (
+              <li key={idx} style={{ border: "1px solid #444", borderRadius: 8, margin: "1rem 0", padding: "1rem", textAlign: "left" }}>
+                <strong>Property Name:</strong> {prop.propertyName}<br />
+                <strong>Address:</strong> {prop.address}<br />
+                <strong>Street:</strong> {prop.street}<br />
+                <strong>City:</strong> {prop.city}<br />
+                <strong>State:</strong> {prop.state}<br />
+                <strong>Zip:</strong> {prop.zip}<br />
+                <strong>Owner Name:</strong> {prop.ownerName}<br />
+                <strong>Owner Phone:</strong> {prop.ownerPhone}
+              </li>
+            ))}
+          </ul>
+        )}
         <button onClick={() => setPage("home")}>Return to Home</button>
       </div>
     );
