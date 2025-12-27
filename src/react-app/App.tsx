@@ -2,6 +2,58 @@ import React from "react";
 import "./App.css";
 
 function App() {
+      // Work order state
+      type WorkOrder = {
+        number: string;
+        propertyName: string;
+        title: string;
+        instructions: string;
+        scheduledTime: string;
+        scheduledDate: string;
+      };
+      const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>(() => {
+        const saved = localStorage.getItem('workOrders');
+        return saved ? JSON.parse(saved) : [];
+      });
+      const [woForm, setWoForm] = React.useState({
+        propertyName: '',
+        title: '',
+        instructions: '',
+        scheduledTime: '',
+        scheduledDate: '',
+      });
+      const [woSubmitted, setWoSubmitted] = React.useState(false);
+
+      React.useEffect(() => {
+        localStorage.setItem('workOrders', JSON.stringify(workOrders));
+      }, [workOrders]);
+
+      // Generate a unique work order number (simple increment)
+      const generateWorkOrderNumber = () => {
+        const last = workOrders.length > 0 ? workOrders[workOrders.length - 1].number : null;
+        if (!last) return 'WO-1001';
+        const num = parseInt(last.replace('WO-', '')) + 1;
+        return `WO-${num}`;
+      };
+
+      const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setWoForm((prev) => ({ ...prev, [name]: value }));
+      };
+
+      const handleWoFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const newWO: WorkOrder = {
+          number: generateWorkOrderNumber(),
+          propertyName: woForm.propertyName,
+          title: woForm.title,
+          instructions: woForm.instructions,
+          scheduledTime: woForm.scheduledTime,
+          scheduledDate: woForm.scheduledDate,
+        };
+        setWorkOrders((prev) => [...prev, newWO]);
+        setWoSubmitted(true);
+      };
     const handleDeleteProperty = (idx: number) => {
       setProperties((prev: typeof form[]) => prev.filter((_: typeof form, i: number) => i !== idx));
     };
@@ -90,8 +142,46 @@ function App() {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <h1>Create a Work Order</h1>
-        <p>Work order creation form goes here.</p>
-        <button onClick={() => setPage("home")}>Return to Home</button>
+        {woSubmitted ? (
+          <>
+            <p style={{ color: 'green' }}>Work order submitted!</p>
+            <button onClick={() => { setPage("home"); setWoSubmitted(false); setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '' }); }}>Return to Home</button>
+          </>
+        ) : (
+          <form onSubmit={handleWoFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
+            <label>
+              Work Order Number
+              <input name="number" value={generateWorkOrderNumber()} disabled style={{ background: '#eee' }} />
+            </label>
+            <label>
+              Property
+              <select name="propertyName" value={woForm.propertyName} onChange={handleWoFormChange} required>
+                <option value="" disabled>Select a property</option>
+                {properties.map((prop, idx) => (
+                  <option key={idx} value={prop.propertyName}>{prop.propertyName}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Work Order Title
+              <input name="title" value={woForm.title} onChange={handleWoFormChange} required />
+            </label>
+            <label>
+              Instructions
+              <textarea name="instructions" value={woForm.instructions} onChange={handleWoFormChange} required rows={3} />
+            </label>
+            <label>
+              Scheduled Time
+              <input name="scheduledTime" type="time" value={woForm.scheduledTime} onChange={handleWoFormChange} required />
+            </label>
+            <label>
+              Scheduled Date
+              <input name="scheduledDate" type="date" value={woForm.scheduledDate} onChange={handleWoFormChange} required />
+            </label>
+            <button type="submit">Submit Work Order</button>
+            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+          </form>
+        )}
       </div>
     );
   }
