@@ -98,89 +98,32 @@ function App() {
         setCategoryInput('');
       }
     };
-  if (page === "createinventorycategory") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <h1>Create Inventory Category</h1>
-        <form onSubmit={handleCategorySubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 300 }}>
-          <label>
-            Category Name
-            <input value={categoryInput} onChange={handleCategoryInputChange} required placeholder="Enter category name" />
-          </label>
-          <button type="submit">Add Category</button>
-        </form>
-        <button style={{ marginTop: 16 }} onClick={() => setShowCategoryList((v) => !v)}>
-          {showCategoryList ? 'Hide Inventory Categories' : 'See Inventory Categories'}
-        </button>
-        {showCategoryList && (
-          <div style={{ marginTop: 16, minWidth: 300 }}>
-            <h2>Inventory Categories</h2>
-            {inventoryCategories.length === 0 ? (
-              <p>No categories created yet.</p>
-            ) : (
-              <ul>
-                {inventoryCategories.map((cat, idx) => (
-                  <li key={idx}>{cat}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Back to Home</button>
-      </div>
-    );
-  }
-  // Vendor state
-  type Vendor = {
-    name: string;
-    category: string;
-    contactName: string;
-    contactNumber: string;
-    contactEmail: string;
-    address: string;
-  };
-  const [vendors, setVendors] = React.useState<Vendor[]>(() => {
-    const saved = localStorage.getItem('vendors');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [vendorForm, setVendorForm] = React.useState({
-    name: '',
-    category: '',
-    contactName: '',
-    contactNumber: '',
-    contactEmail: '',
-    address: '',
-  });
-  const [vendorSubmitted, setVendorSubmitted] = React.useState(false);
+      {page === "home" && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: 32,
+          marginTop: 32
+        }}>
+          {/* ...existing code for all categories... */}
+        </div>
+      )}
 
-  // Work order state
-  type WorkOrder = {
-    number: string;
-    propertyName: string;
-    title: string;
-    instructions: string;
-    scheduledTime: string;
-    scheduledDate: string;
-  };
-  const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>(() => {
-    const saved = localStorage.getItem('workOrders');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [woForm, setWoForm] = React.useState({
-    propertyName: '',
-    title: '',
-    instructions: '',
-    scheduledTime: '',
-    scheduledDate: '',
-  });
-  const [woSubmitted, setWoSubmitted] = React.useState(false);
-
-  const [form, setForm] = React.useState({
-    propertyName: "",
-    address: "",
-    street: "",
-    city: "",
-    state: "",
+      {/* Purchases: Create and List Pages */}
+      {page === "createpurchase" && (
+        <div style={{ maxWidth: 480, margin: "40px auto", background: "#fff", borderRadius: 12, boxShadow: "0 2px 8px #0002", padding: 32 }}>
+          <h2 style={{ color: '#111', marginBottom: 24 }}>Create a Purchase</h2>
+          <div style={{ marginBottom: 24, color: '#888' }}>[Purchase creation form coming soon]</div>
+          <button onClick={() => setPage("home")}>Back to Home</button>
+        </div>
+      )}
+      {page === "purchaselist" && (
+        <div style={{ maxWidth: 600, margin: "40px auto", background: "#fff", borderRadius: 12, boxShadow: "0 2px 8px #0002", padding: 32 }}>
+          <h2 style={{ color: '#111', marginBottom: 24 }}>Purchase List</h2>
+          <div style={{ marginBottom: 24, color: '#888' }}>[Purchase list coming soon]</div>
+          <button onClick={() => setPage("home")}>Back to Home</button>
+        </div>
+      )}
     zip: "",
     ownerName: "",
     ownerPhone: "",
@@ -523,10 +466,10 @@ function App() {
         {/* Properties */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* House Icon SVG */}
+            {/* Sleek Electric Blue House Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 20L20 7L35 20" stroke="#222" strokeWidth="3" fill="none"/>
-              <rect x="10" y="20" width="20" height="13" fill="#222" stroke="#222" strokeWidth="2" rx="2"/>
+              <path d="M5 20L20 7L35 20" stroke="#00BFFF" strokeWidth="3" fill="none"/>
+              <rect x="10" y="20" width="20" height="13" fill="#0099FF" stroke="#00BFFF" strokeWidth="2" rx="2"/>
               <rect x="17" y="26" width="6" height="7" fill="#fff"/>
             </svg>
           </div>
@@ -537,12 +480,12 @@ function App() {
         {/* Work Orders */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* Truck Icon SVG */}
+            {/* Sleek Electric Blue Truck Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="5" y="18" width="18" height="10" rx="2" fill="#222"/>
-              <rect x="23" y="22" width="8" height="6" rx="1.5" fill="#222"/>
-              <circle cx="11" cy="30" r="3" fill="#444"/>
-              <circle cx="29" cy="30" r="3" fill="#444"/>
+              <rect x="5" y="18" width="18" height="10" rx="2" fill="#0099FF"/>
+              <rect x="23" y="22" width="8" height="6" rx="1.5" fill="#00BFFF"/>
+              <circle cx="11" cy="30" r="3" fill="#00BFFF"/>
+              <circle cx="29" cy="30" r="3" fill="#00BFFF"/>
             </svg>
           </div>
           <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Work Orders</h2>
@@ -552,10 +495,10 @@ function App() {
         {/* Inventory */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* Clipboard Icon SVG */}
+            {/* Sleek Electric Blue Clipboard Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="8" width="20" height="28" rx="4" fill="#222"/>
-              <rect x="16" y="4" width="8" height="8" rx="2" fill="#444"/>
+              <rect x="10" y="8" width="20" height="28" rx="4" fill="#0099FF"/>
+              <rect x="16" y="4" width="8" height="8" rx="2" fill="#00BFFF"/>
               <rect x="14" y="16" width="12" height="2" fill="#fff"/>
               <rect x="14" y="22" width="12" height="2" fill="#fff"/>
             </svg>
@@ -568,16 +511,31 @@ function App() {
         {/* Vendors */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* Phone Icon SVG */}
+            {/* Sleek Electric Blue Phone Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="14" y="6" width="12" height="28" rx="4" fill="#222"/>
-              <rect x="18" y="32" width="4" height="2" rx="1" fill="#444"/>
-              <rect x="18" y="8" width="4" height="2" rx="1" fill="#444"/>
+              <rect x="14" y="6" width="12" height="28" rx="4" fill="#0099FF"/>
+              <rect x="18" y="32" width="4" height="2" rx="1" fill="#00BFFF"/>
+              <rect x="18" y="8" width="4" height="2" rx="1" fill="#00BFFF"/>
             </svg>
           </div>
           <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Vendors</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("vendor")}>Create a Vendor</button>
           <button onClick={() => setPage("vendorlist")}>Vendor List</button>
+        </div>
+        {/* Purchases */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ marginBottom: 8 }}>
+            {/* Sleek Electric Blue Cart Icon */}
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="14" cy="32" r="3" fill="#00BFFF"/>
+              <circle cx="28" cy="32" r="3" fill="#00BFFF"/>
+              <rect x="8" y="12" width="24" height="12" rx="3" fill="#0099FF"/>
+              <rect x="10" y="10" width="20" height="4" rx="2" fill="#00BFFF"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Purchases</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("createpurchase")}>Create a Purchase</button>
+          <button onClick={() => setPage("purchaselist")}>Purchase List</button>
         </div>
       </div>
     </div>
