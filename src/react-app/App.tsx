@@ -1,3 +1,6 @@
+  const handleDeleteProperty = (idx: number) => {
+    setProperties((prev) => prev.filter((_, i) => i !== idx));
+  };
 import React from "react";
 import "./App.css";
 
@@ -14,7 +17,13 @@ function App() {
     ownerPhone: "",
   });
   const [submitted, setSubmitted] = React.useState(false);
-  const [properties, setProperties] = React.useState<typeof form[]>([]);
+  const [properties, setProperties] = React.useState<typeof form[]>(() => {
+    const saved = localStorage.getItem('properties');
+    return saved ? JSON.parse(saved) : [];
+  });
+  React.useEffect(() => {
+    localStorage.setItem('properties', JSON.stringify(properties));
+  }, [properties]);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -104,6 +113,7 @@ function App() {
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Zip</th>
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Owner Name</th>
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Owner Phone</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#ffe0e0" }}>Delete</th>
               </tr>
             </thead>
             <tbody>
@@ -117,6 +127,11 @@ function App() {
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.zip}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerName}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerPhone}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px", textAlign: "center" }}>
+                    <button style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer" }} onClick={() => handleDeleteProperty(idx)}>
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
