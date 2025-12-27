@@ -1,160 +1,17 @@
 import React from "react";
 import "./App.css";
+
 function App() {
-    // Handler for inventory item form
-    const handleItemFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const { name, value } = e.target;
-      setItemForm((prev) => ({ ...prev, [name]: value }));
-    };
+  // All state, handlers, and logic go here
+  // ...
+  return (
+    <>
+      {/* ...all JSX including navigation, forms, and pages... */}
+    </>
+  );
+}
 
-    const handleItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      setInventoryItems((prev: any[]) => [...prev, itemForm]);
-      setItemSubmitted(true);
-    };
-  // All state declarations must be at the top
-  const [page, setPage] = React.useState("home");
-  // Inventory Item state
-  const [itemForm, setItemForm] = React.useState({
-    name: '',
-    internalNumber: '',
-    upc: '',
-    partNumber: '',
-    sku: '',
-    cost: '',
-    price: '',
-    note: '',
-    category: '',
-  });
-  const [itemSubmitted, setItemSubmitted] = React.useState(false);
-  // Saved inventory items
-  const [inventoryItems, setInventoryItems] = React.useState(() => {
-    const saved = localStorage.getItem('inventoryItems');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('inventoryItems', JSON.stringify(inventoryItems));
-  }, [inventoryItems]);
-  // Inventory Category state
-  const [inventoryCategories, setInventoryCategories] = React.useState<string[]>(() => {
-    const saved = localStorage.getItem('inventoryCategories');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [categoryInput, setCategoryInput] = React.useState('');
-  const [showCategoryList, setShowCategoryList] = React.useState(false);
-  // ...existing code...
-  if (page === "createinventoryitem") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <h1>Create Inventory Item</h1>
-        {itemSubmitted ? (
-          <>
-            <p style={{ color: 'green' }}>Inventory item submitted!</p>
-            <button onClick={() => { setPage("home"); setItemSubmitted(false); setItemForm({ name: '', internalNumber: '', upc: '', partNumber: '', sku: '', cost: '', price: '', note: '', category: '' }); }}>Return to Home</button>
-          </>
-        ) : (
-          <form onSubmit={handleItemFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
-            <label>
-              Item Name
-              <input name="name" value={itemForm.name} onChange={handleItemFormChange} required />
-            </label>
-            <label>
-              SKU
-              <input name="sku" value={itemForm.sku} onChange={handleItemFormChange} required />
-            </label>
-            <label>
-              Cost
-              <input name="cost" value={itemForm.cost} onChange={handleItemFormChange} required type="number" min="0" step="0.01" />
-            </label>
-            <label>
-              Price
-              <input name="price" value={itemForm.price} onChange={handleItemFormChange} required type="number" min="0" step="0.01" />
-            </label>
-            <label>
-              Note
-              <input name="note" value={itemForm.note} onChange={handleItemFormChange} />
-            </label>
-            <button type="submit">Add Inventory Item</button>
-            <button type="button" onClick={() => setPage("home")}>Back to Home</button>
-          </form>
-        )}
-      </div>
-    );
-  }
-
-    React.useEffect(() => {
-      localStorage.setItem('inventoryCategories', JSON.stringify(inventoryCategories));
-    }, [inventoryCategories]);
-
-    const handleCategoryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setCategoryInput(e.target.value);
-    };
-
-    const handleCategorySubmit = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      if (categoryInput.trim() && !inventoryCategories.includes(categoryInput.trim())) {
-        setInventoryCategories((prev) => [...prev, categoryInput.trim()]);
-        setCategoryInput('');
-      }
-    };
-      {page === "home" && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: 32,
-          marginTop: 32
-        }}>
-          {/* ...existing code for all categories... */}
-        </div>
-      )}
-
-      {/* Purchases: Create and List Pages */}
-      {page === "createpurchase" && (
-        <div style={{ maxWidth: 480, margin: "40px auto", background: "#fff", borderRadius: 12, boxShadow: "0 2px 8px #0002", padding: 32 }}>
-          <h2 style={{ color: '#111', marginBottom: 24 }}>Create a Purchase</h2>
-          <div style={{ marginBottom: 24, color: '#888' }}>[Purchase creation form coming soon]</div>
-          <button onClick={() => setPage("home")}>Back to Home</button>
-        </div>
-      )}
-      {page === "purchaselist" && (
-        <div style={{ maxWidth: 600, margin: "40px auto", background: "#fff", borderRadius: 12, boxShadow: "0 2px 8px #0002", padding: 32 }}>
-          <h2 style={{ color: '#111', marginBottom: 24 }}>Purchase List</h2>
-          <div style={{ marginBottom: 24, color: '#888' }}>[Purchase list coming soon]</div>
-          <button onClick={() => setPage("home")}>Back to Home</button>
-        </div>
-      )}
-    zip: "",
-    ownerName: "",
-    ownerPhone: "",
-  });
-  const [submitted, setSubmitted] = React.useState(false);
-  const [properties, setProperties] = React.useState<typeof form[]>(() => {
-    const saved = localStorage.getItem('properties');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Effects
-  React.useEffect(() => {
-    localStorage.setItem('vendors', JSON.stringify(vendors));
-  }, [vendors]);
-  React.useEffect(() => {
-    localStorage.setItem('workOrders', JSON.stringify(workOrders));
-  }, [workOrders]);
-  React.useEffect(() => {
-    localStorage.setItem('properties', JSON.stringify(properties));
-  }, [properties]);
-
-  // Handlers
-  const handleVendorFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setVendorForm((prev) => ({ ...prev, [name]: value }));
-  };
-  const handleVendorFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setVendors((prev) => [...prev, vendorForm]);
-    setVendorSubmitted(true);
-  };
+export default App;
   const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setWoForm((prev) => ({ ...prev, [name]: value }));
