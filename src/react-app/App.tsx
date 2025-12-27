@@ -93,7 +93,6 @@ export default App;
       </div>
     </div>
   );
-    );
   }
   if (page === "vendorlist") {
     return (
@@ -129,6 +128,7 @@ export default App;
         )}
         <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Back to Home</button>
       </div>
+    </div>
     );
   }
 
