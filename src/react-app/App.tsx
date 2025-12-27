@@ -12,6 +12,8 @@ type PropertyForm = {
   ownerName: string;
   ownerPhone: string;
 };
+type WorkOrderStatus = 'draft' | 'active' | 'completed';
+
 type WorkOrder = {
   number: string;
   propertyName: string;
@@ -19,6 +21,7 @@ type WorkOrder = {
   instructions: string;
   scheduledTime: string;
   scheduledDate: string;
+  status: WorkOrderStatus;
 };
 type VendorForm = {
   name: string;
@@ -70,12 +73,13 @@ function App() {
   const [submitted, setSubmitted] = React.useState(false);
 
   // Work order state
-  const [woForm, setWoForm] = React.useState<Omit<WorkOrder, 'number'>>({
+  const [woForm, setWoForm] = React.useState<Omit<WorkOrder, 'number' | 'status'> & { status?: WorkOrderStatus }>({
     propertyName: '',
     title: '',
     instructions: '',
     scheduledTime: '',
     scheduledDate: '',
+    status: 'draft',
   });
   const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>(() => {
     const saved = localStorage.getItem('workOrders');
@@ -142,6 +146,7 @@ function App() {
     const { name, value } = e.target;
     setWoForm((prev: typeof woForm) => ({ ...prev, [name]: value }));
   };
+  // Update work order form submit to save as draft
   const handleWoFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newWO: WorkOrder = {
@@ -151,11 +156,39 @@ function App() {
       instructions: woForm.instructions,
       scheduledTime: woForm.scheduledTime,
       scheduledDate: woForm.scheduledDate,
+      status: 'draft',
     };
-    setWorkOrders((prev: WorkOrder[]) => [...prev, newWO]);
+    setWorkOrders((prev: WorkOrder[]) => {
+      const updated = [...prev, newWO];
+      localStorage.setItem('workOrders', JSON.stringify(updated));
+      return updated;
+    });
     setWoSubmitted(true);
-    setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '' });
+    setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', status: 'draft' });
   };
+
+  // Handler to move work order to active
+  const activateWorkOrder = (number: string) => {
+    setWorkOrders((prev) => {
+      const updated = prev.map((wo) =>
+        wo.number === number ? { ...wo, status: 'active' } : wo
+      );
+      localStorage.setItem('workOrders', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Handler to mark work order as completed
+  const completeWorkOrder = (number: string) => {
+    setWorkOrders((prev) => {
+      const updated = prev.map((wo) =>
+        wo.number === number ? { ...wo, status: 'completed' } : wo
+      );
+      localStorage.setItem('workOrders', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm((prev: PropertyForm) => ({ ...prev, [name]: value }));
@@ -458,33 +491,120 @@ function App() {
       </div>
     );
   }
-  if (page === "workorderlist") {
+  if (page === "workorderlistdraft") {
+    const draftOrders = workOrders.filter((wo) => wo.status === 'draft');
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <h1>Work Order List</h1>
-        {workOrders.length === 0 ? (
-          <p>No work orders have been added yet.</p>
+        <h1>Draft Work Orders</h1>
+        {draftOrders.length === 0 ? (
+          <p>No draft work orders.</p>
         ) : (
           <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
             <thead>
               <tr>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>WO Number</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Property</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Title</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Instructions</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Scheduled Date</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Scheduled Time</th>
+                <th>WO Number</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Instructions</th>
+                <th>Scheduled Date</th>
+                <th>Scheduled Time</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {workOrders.map((wo: any, idx: number) => (
+              {draftOrders.map((wo: WorkOrder, idx: number) => (
                 <tr key={idx}>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.number}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.propertyName}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.title}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.instructions}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.scheduledDate}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.scheduledTime}</td>
+                  <td>{wo.number}</td>
+                  <td>{wo.propertyName}</td>
+                  <td>{wo.title}</td>
+                  <td>{wo.instructions}</td>
+                  <td>{wo.scheduledDate}</td>
+                  <td>{wo.scheduledTime}</td>
+                  <td>
+                    <button onClick={() => activateWorkOrder(wo.number)}>Activate</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+
+  // Active Work Orders
+  if (page === "workorderlist") {
+    const activeOrders = workOrders.filter((wo) => wo.status === 'active');
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Active Work Order List</h1>
+        {activeOrders.length === 0 ? (
+          <p>No active work orders.</p>
+        ) : (
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th>WO Number</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Instructions</th>
+                <th>Scheduled Date</th>
+                <th>Scheduled Time</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeOrders.map((wo: WorkOrder, idx: number) => (
+                <tr key={idx}>
+                  <td>{wo.number}</td>
+                  <td>{wo.propertyName}</td>
+                  <td>{wo.title}</td>
+                  <td>{wo.instructions}</td>
+                  <td>{wo.scheduledDate}</td>
+                  <td>{wo.scheduledTime}</td>
+                  <td>
+                    <button onClick={() => completeWorkOrder(wo.number)}>Mark Completed</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+
+  // Completed Work Orders
+  if (page === "completedworkorders") {
+    const completedOrders = workOrders.filter((wo) => wo.status === 'completed');
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Completed Work Orders</h1>
+        {completedOrders.length === 0 ? (
+          <p>No work orders have been completed yet.</p>
+        ) : (
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th>WO Number</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Instructions</th>
+                <th>Scheduled Date</th>
+                <th>Scheduled Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {completedOrders.map((wo: WorkOrder, idx: number) => (
+                <tr key={idx}>
+                  <td>{wo.number}</td>
+                  <td>{wo.propertyName}</td>
+                  <td>{wo.title}</td>
+                  <td>{wo.instructions}</td>
+                  <td>{wo.scheduledDate}</td>
+                  <td>{wo.scheduledTime}</td>
                 </tr>
               ))}
             </tbody>
@@ -745,6 +865,7 @@ function App() {
           <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
           <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
           <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
+          <button style={{ marginTop: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
         </div>
         {/* Inventory */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
