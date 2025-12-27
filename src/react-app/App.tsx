@@ -8,10 +8,9 @@ function App() {
     <>
       {/* ...all JSX including navigation, forms, and pages... */}
     </>
-  );
-}
-
-export default App;
+        )}
+      </div>
+    );
   const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setWoForm((prev) => ({ ...prev, [name]: value }));
@@ -91,8 +90,7 @@ export default App;
           </form>
         )}
       </div>
-    </div>
-  );
+    );
   }
   if (page === "vendorlist") {
     return (
@@ -179,8 +177,6 @@ export default App;
           </form>
         )}
       </div>
-    </div>
-    </div>
     );
   }
   if (page === "workorder") {
@@ -398,3 +394,5 @@ export default App;
           <button onClick={() => setPage("purchaselist")}>Purchase List</button>
         </div>
       </div>
+    </div>
+  );
