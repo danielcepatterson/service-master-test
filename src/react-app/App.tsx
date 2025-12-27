@@ -1,10 +1,10 @@
-  const handleDeleteProperty = (idx: number) => {
-    setProperties((prev) => prev.filter((_, i) => i !== idx));
-  };
 import React from "react";
 import "./App.css";
 
 function App() {
+    const handleDeleteProperty = (idx: number) => {
+      setProperties((prev: typeof form[]) => prev.filter((_: typeof form, i: number) => i !== idx));
+    };
   const [page, setPage] = React.useState("home");
   const [form, setForm] = React.useState({
     propertyName: "",
