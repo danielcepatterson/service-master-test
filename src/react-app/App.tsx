@@ -81,6 +81,8 @@ function App() {
 }
 
 export default App;
+// ADDED CLOSING BRACKET BELOW IF NEEDED
+// }
 // src/App.tsx
 
 
