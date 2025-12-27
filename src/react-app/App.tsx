@@ -3,13 +3,75 @@ import "./App.css";
 
 function App() {
   const [page, setPage] = React.useState("home");
+  const [form, setForm] = React.useState({
+    propertyName: "",
+    address: "",
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+    ownerName: "",
+    ownerPhone: "",
+  });
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    setSubmitted(true);
+  };
 
   if (page === "property") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <h1>Create a Property</h1>
-        <p>Property creation form goes here.</p>
-        <button onClick={() => setPage("home")}>Return to Home</button>
+        {submitted ? (
+          <>
+            <p style={{ color: 'green' }}>Property submitted!</p>
+            <button onClick={() => { setPage("home"); setSubmitted(false); }}>Return to Home</button>
+          </>
+        ) : (
+          <form onSubmit={handleFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 300 }}>
+            <label>
+              Property Name
+              <input name="propertyName" value={form.propertyName} onChange={handleFormChange} required />
+            </label>
+            <label>
+              Address
+              <input name="address" value={form.address} onChange={handleFormChange} required />
+            </label>
+            <label>
+              Street
+              <input name="street" value={form.street} onChange={handleFormChange} required />
+            </label>
+            <label>
+              City
+              <input name="city" value={form.city} onChange={handleFormChange} required />
+            </label>
+            <label>
+              State
+              <input name="state" value={form.state} onChange={handleFormChange} required />
+            </label>
+            <label>
+              Zip
+              <input name="zip" value={form.zip} onChange={handleFormChange} required />
+            </label>
+            <label>
+              Owner Name
+              <input name="ownerName" value={form.ownerName} onChange={handleFormChange} required />
+            </label>
+            <label>
+              Owner Phone
+              <input name="ownerPhone" value={form.ownerPhone} onChange={handleFormChange} required />
+            </label>
+            <button type="submit">Submit</button>
+            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+          </form>
+        )}
       </div>
     );
   }
