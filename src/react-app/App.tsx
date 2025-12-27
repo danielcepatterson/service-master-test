@@ -171,7 +171,7 @@ function App() {
   const activateWorkOrder = (number: string) => {
     setWorkOrders((prev) => {
       const updated = prev.map((wo) =>
-        wo.number === number ? { ...wo, status: 'active' } : wo
+        wo.number === number ? { ...wo, status: 'active' as WorkOrderStatus } : wo
       );
       localStorage.setItem('workOrders', JSON.stringify(updated));
       return updated;
@@ -182,7 +182,7 @@ function App() {
   const completeWorkOrder = (number: string) => {
     setWorkOrders((prev) => {
       const updated = prev.map((wo) =>
-        wo.number === number ? { ...wo, status: 'completed' } : wo
+        wo.number === number ? { ...wo, status: 'completed' as WorkOrderStatus } : wo
       );
       localStorage.setItem('workOrders', JSON.stringify(updated));
       return updated;
