@@ -28,6 +28,14 @@ type VendorForm = {
   contactEmail: string;
   address: string;
 };
+type Purchase = {
+  date: string;
+  workOrderNumber: string;
+  vendor: string;
+  price: string;
+  purchaser: string;
+  purpose: string;
+};
 
 function App() {
   // Navigation
@@ -79,6 +87,21 @@ function App() {
   });
   const [vendorSubmitted, setVendorSubmitted] = React.useState(false);
 
+  // Purchases state
+  const [purchaseForm, setPurchaseForm] = React.useState<Purchase>({
+    date: '',
+    workOrderNumber: '',
+    vendor: '',
+    price: '',
+    purchaser: '',
+    purpose: '',
+  });
+  const [purchases, setPurchases] = React.useState<Purchase[]>(() => {
+    const saved = localStorage.getItem('purchases');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [purchaseSubmitted, setPurchaseSubmitted] = React.useState(false);
+
   // Handlers
   const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -120,6 +143,20 @@ function App() {
     setVendors((prev: VendorForm[]) => [...prev, vendorForm]);
     setVendorSubmitted(true);
     setVendorForm({ name: '', category: '', contactName: '', contactNumber: '', contactEmail: '', address: '' });
+  };
+  const handlePurchaseFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setPurchaseForm((prev: Purchase) => ({ ...prev, [name]: value }));
+  };
+  const handlePurchaseFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPurchases((prev: Purchase[]) => {
+      const updated = [...prev, purchaseForm];
+      localStorage.setItem('purchases', JSON.stringify(updated));
+      return updated;
+    });
+    setPurchaseSubmitted(true);
+    setPurchaseForm({ date: '', workOrderNumber: '', vendor: '', price: '', purchaser: '', purpose: '' });
   };
 
   // Generators
@@ -192,7 +229,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {vendors.map((vendor: any, idx: number) => (
+              {vendors.map((vendor: VendorForm, idx: number) => (
                 <tr key={idx}>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.name}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.category}</td>
@@ -279,7 +316,7 @@ function App() {
               Property
               <select name="propertyName" value={woForm.propertyName} onChange={handleWoFormChange} required>
                 <option value="" disabled>Select a property</option>
-                {properties.map((prop, idx) => (
+                {properties.map((prop: PropertyForm, idx: number) => (
                   <option key={idx} value={prop.propertyName}>{prop.propertyName}</option>
                 ))}
               </select>
@@ -329,7 +366,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {properties.map((prop, idx) => (
+              {properties.map((prop: PropertyForm, idx: number) => (
                 <tr key={idx}>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.propertyName}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.address}</td>
@@ -386,6 +423,89 @@ function App() {
           </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+  if (page === "createpurchase") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Create Purchase</h1>
+        {purchaseSubmitted ? (
+          <>
+            <p style={{ color: 'green' }}>Purchase submitted!</p>
+            <button onClick={() => { setPage("home"); setPurchaseSubmitted(false); }}>Return to Home</button>
+          </>
+        ) : (
+          <form onSubmit={handlePurchaseFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
+            <label>
+              Date
+              <input name="date" type="date" value={purchaseForm.date} onChange={handlePurchaseFormChange} required />
+            </label>
+            <label>
+              Work Order
+              <select name="workOrderNumber" value={purchaseForm.workOrderNumber} onChange={handlePurchaseFormChange} required>
+                <option value="" disabled>Select a work order</option>
+                {workOrders.map((wo: WorkOrder) => (
+                  <option key={wo.number} value={wo.number}>{wo.number} - {wo.title}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Vendor/Supplier
+              <input name="vendor" value={purchaseForm.vendor} onChange={handlePurchaseFormChange} required />
+            </label>
+            <label>
+              Price Paid
+              <input name="price" type="number" step="0.01" value={purchaseForm.price} onChange={handlePurchaseFormChange} required />
+            </label>
+            <label>
+              Purchaser Name
+              <input name="purchaser" value={purchaseForm.purchaser} onChange={handlePurchaseFormChange} required />
+            </label>
+            <label>
+              Purpose
+              <textarea name="purpose" value={purchaseForm.purpose} onChange={handlePurchaseFormChange} required rows={2} />
+            </label>
+            <button type="submit">Submit Purchase</button>
+            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+          </form>
+        )}
+      </div>
+    );
+  }
+  if (page === "purchaselist") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Purchase List</h1>
+        {purchases.length === 0 ? (
+          <p>No purchases have been added yet.</p>
+        ) : (
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Date</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Work Order</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Vendor/Supplier</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Price Paid</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Purchaser</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              {purchases.map((purchase: Purchase, idx: number) => (
+                <tr key={idx}>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.date}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.workOrderNumber}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.vendor}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.price}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.purchaser}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{purchase.purpose}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Back to Home</button>
       </div>
     );
   }
