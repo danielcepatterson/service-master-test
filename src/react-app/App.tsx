@@ -231,6 +231,42 @@ function App() {
       </div>
     );
   }
+  if (page === "workorderlist") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Work Order List</h1>
+        {workOrders.length === 0 ? (
+          <p>No work orders have been added yet.</p>
+        ) : (
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>WO Number</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Property</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Title</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Instructions</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Scheduled Date</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Scheduled Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workOrders.map((wo, idx) => (
+                <tr key={idx}>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.number}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.propertyName}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.title}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.instructions}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.scheduledDate}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{wo.scheduledTime}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
       <h1>Welcome to the Service Master App</h1>
@@ -238,6 +274,7 @@ function App() {
         <button onClick={() => setPage("property")}>Create a Property</button>
         <button onClick={() => setPage("workorder")}>Create a Work Order</button>
         <button onClick={() => setPage("propertylist")}>Property List</button>
+        <button onClick={() => setPage("workorderlist")}>Work Order List</button>
       </div>
     </div>
   );
