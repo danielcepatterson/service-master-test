@@ -399,8 +399,22 @@ function App() {
         gap: "2rem",
         marginTop: "2rem",
         width: "100%",
-        maxWidth: 900
+        maxWidth: 1100
       }}>
+                {/* Processing */}
+                <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{ marginBottom: 8 }}>
+                    {/* Sleek Electric Blue Gear Icon */}
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="20" cy="20" r="16" fill="#0099FF"/>
+                      <path d="M20 12v4M20 24v4M28 20h-4M16 20h-4M24.24 15.76l-2.83 2.83M15.76 24.24l2.83-2.83M24.24 24.24l-2.83-2.83M15.76 15.76l2.83 2.83" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Processing</h2>
+                  <button style={{ marginBottom: 8 }} onClick={() => alert('Close Work Orders feature coming soon!')}>Close Work Orders</button>
+                  <button style={{ marginBottom: 8 }} onClick={() => alert('Invoice List feature coming soon!')}>Invoice List</button>
+                  <button style={{ marginBottom: 8 }} onClick={() => alert('Generate Blank Invoice feature coming soon!')}>Generate Blank Invoice</button>
+                </div>
         {/* Properties */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
