@@ -394,4 +394,5 @@ export default App;
           <button style={{ marginBottom: 8 }} onClick={() => setPage("createpurchase")}>Create a Purchase</button>
           <button onClick={() => setPage("purchaselist")}>Purchase List</button>
         </div>
-// note for ability to push change
+      </div>
+    </div>
