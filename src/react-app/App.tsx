@@ -15,12 +15,12 @@ function App() {
   });
   const [submitted, setSubmitted] = React.useState(false);
 
-  const handleFormChange = (e) => {
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitted(true);
   };
