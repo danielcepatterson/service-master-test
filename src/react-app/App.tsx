@@ -1,3 +1,12 @@
+  if (page === "createinventoryitem") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Create Inventory Item</h1>
+        {/* Add your inventory item form or content here */}
+        <button style={{ marginTop: 24 }} onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
 import * as React from "react";
 // @ts-ignore
 import "./App.css";
