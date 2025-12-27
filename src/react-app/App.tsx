@@ -1,4 +1,4 @@
-// --- Purchases types ---
+// --- Purchases types ----
 type Purchase = {
   date: string;
   workOrderNumber: string;
