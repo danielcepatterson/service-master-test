@@ -183,7 +183,7 @@ function App() {
       const now = new Date().toISOString();
       const updated = prev.map((wo) =>
         wo.number === number
-          ? { ...wo, status: 'active' as WorkOrderStatus, history: [...wo.history, { status: 'active', timestamp: now }] }
+          ? { ...wo, status: 'active' as WorkOrderStatus, history: [...wo.history, { status: 'active' as WorkOrderStatus, timestamp: now }] }
           : wo
       );
       localStorage.setItem('workOrders', JSON.stringify(updated));
@@ -197,7 +197,7 @@ function App() {
       const now = new Date().toISOString();
       const updated = prev.map((wo) =>
         wo.number === number
-          ? { ...wo, status: 'completed' as WorkOrderStatus, completedAt: now, history: [...wo.history, { status: 'completed', timestamp: now }] }
+          ? { ...wo, status: 'completed' as WorkOrderStatus, completedAt: now, history: [...wo.history, { status: 'completed' as WorkOrderStatus, timestamp: now }] }
           : wo
       );
       localStorage.setItem('workOrders', JSON.stringify(updated));
@@ -596,7 +596,7 @@ function App() {
           <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, minWidth: 350 }}>
             <h2>Work Order History: {viewHistoryWO.number}</h2>
             <ul>
-              {viewHistoryWO.history.map((entry, idx) => (
+              {viewHistoryWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
                 <li key={idx}>
                   {entry.status} at {new Date(entry.timestamp).toLocaleString()}
                 </li>
