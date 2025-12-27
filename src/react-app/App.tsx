@@ -475,4 +475,4 @@ function App() {
     </div>
   );
 }
-export default App; //End of App component
+export default App;
