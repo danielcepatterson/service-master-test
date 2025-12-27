@@ -1,3 +1,39 @@
+  if (page === "inventorylist") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Inventory Item List</h1>
+        {inventoryItems.length === 0 ? (
+          <p>No inventory items have been added yet.</p>
+        ) : (
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Name</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>UPC</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>SKU</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Part #</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Cost</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Category</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryItems.map((item, idx) => (
+                <tr key={idx}>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.name}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.upc}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.sku}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.partNumber}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.cost}</td>
+                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.category}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
 import React from "react";
 import "./App.css";
 
@@ -10,6 +46,7 @@ function App() {
 
     const handleItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
+      setInventoryItems((prev: any[]) => [...prev, itemForm]);
       setItemSubmitted(true);
     };
   // All state declarations must be at the top
@@ -24,6 +61,15 @@ function App() {
     category: '',
   });
   const [itemSubmitted, setItemSubmitted] = React.useState(false);
+  // Saved inventory items
+  const [inventoryItems, setInventoryItems] = React.useState(() => {
+    const saved = localStorage.getItem('inventoryItems');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('inventoryItems', JSON.stringify(inventoryItems));
+  }, [inventoryItems]);
   // Inventory Category state
   const [inventoryCategories, setInventoryCategories] = React.useState<string[]>(() => {
     const saved = localStorage.getItem('inventoryCategories');
@@ -519,29 +565,60 @@ function App() {
       }}>
         {/* Properties */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🏠</div>
-          <h2 style={{ margin: 0, marginBottom: 16 }}>Properties</h2>
+          <div style={{ marginBottom: 8 }}>
+            {/* House Icon SVG */}
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 20L20 7L35 20" stroke="#222" strokeWidth="3" fill="none"/>
+              <rect x="10" y="20" width="20" height="13" fill="#222" stroke="#222" strokeWidth="2" rx="2"/>
+              <rect x="17" y="26" width="6" height="7" fill="#fff"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Properties</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("property")}>Create a Property</button>
           <button onClick={() => setPage("propertylist")}>Property List</button>
         </div>
         {/* Work Orders */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🚚</div>
-          <h2 style={{ margin: 0, marginBottom: 16 }}>Work Orders</h2>
+          <div style={{ marginBottom: 8 }}>
+            {/* Truck Icon SVG */}
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="5" y="18" width="18" height="10" rx="2" fill="#222"/>
+              <rect x="23" y="22" width="8" height="6" rx="1.5" fill="#222"/>
+              <circle cx="11" cy="30" r="3" fill="#444"/>
+              <circle cx="29" cy="30" r="3" fill="#444"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Work Orders</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
           <button onClick={() => setPage("workorderlist")}>Work Order List</button>
         </div>
         {/* Inventory */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
-          <h2 style={{ margin: 0, marginBottom: 16 }}>Inventory</h2>
+          <div style={{ marginBottom: 8 }}>
+            {/* Clipboard Icon SVG */}
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="8" width="20" height="28" rx="4" fill="#222"/>
+              <rect x="16" y="4" width="8" height="8" rx="2" fill="#444"/>
+              <rect x="14" y="16" width="12" height="2" fill="#fff"/>
+              <rect x="14" y="22" width="12" height="2" fill="#fff"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Inventory</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("createinventorycategory")}>Create Inventory Category</button>
-          <button onClick={() => setPage("createinventoryitem")}>Create Inventory Item</button>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("createinventoryitem")}>Create Inventory Item</button>
+          <button onClick={() => setPage("inventorylist")}>Inventory List</button>
         </div>
         {/* Vendors */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>📞</div>
-          <h2 style={{ margin: 0, marginBottom: 16 }}>Vendors</h2>
+          <div style={{ marginBottom: 8 }}>
+            {/* Phone Icon SVG */}
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="14" y="6" width="12" height="28" rx="4" fill="#222"/>
+              <rect x="18" y="32" width="4" height="2" rx="1" fill="#444"/>
+              <rect x="18" y="8" width="4" height="2" rx="1" fill="#444"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Vendors</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("vendor")}>Create a Vendor</button>
           <button onClick={() => setPage("vendorlist")}>Vendor List</button>
         </div>
