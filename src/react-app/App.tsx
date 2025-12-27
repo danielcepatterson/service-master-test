@@ -2,43 +2,37 @@ import React from "react";
 import "./App.css";
 
 function App() {
-    // Inventory Item state
-    type InventoryItem = {
-      name: string;
-      upc: string;
-      sku: string;
-      partNumber: string;
-      cost: string;
-      category: string;
-    };
-    const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>(() => {
-      const saved = localStorage.getItem('inventoryItems');
-      return saved ? JSON.parse(saved) : [];
-    });
-    const [itemForm, setItemForm] = React.useState({
-      name: '',
-      upc: '',
-      sku: '',
-      partNumber: '',
-      cost: '',
-      category: '',
-    });
-    const [itemSubmitted, setItemSubmitted] = React.useState(false);
-
-    React.useEffect(() => {
-      localStorage.setItem('inventoryItems', JSON.stringify(inventoryItems));
-    }, [inventoryItems]);
-
-    const handleItemFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const { name, value } = e.target;
-      setItemForm((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const handleItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      setInventoryItems((prev) => [...prev, itemForm]);
-      setItemSubmitted(true);
-    };
+  // All state declarations must be at the top
+  const [page, setPage] = React.useState("home");
+  // Inventory Item state
+  type InventoryItem = {
+    name: string;
+    upc: string;
+    sku: string;
+    partNumber: string;
+    cost: string;
+    category: string;
+  };
+  const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>(() => {
+    const saved = localStorage.getItem('inventoryItems');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [itemForm, setItemForm] = React.useState({
+    name: '',
+    upc: '',
+    sku: '',
+    partNumber: '',
+    cost: '',
+    category: '',
+  });
+  const [itemSubmitted, setItemSubmitted] = React.useState(false);
+  // Inventory Category state
+  const [inventoryCategories, setInventoryCategories] = React.useState<string[]>(() => {
+    const saved = localStorage.getItem('inventoryCategories');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [categoryInput, setCategoryInput] = React.useState('');
+  const [showCategoryList, setShowCategoryList] = React.useState(false);
   // ...existing code...
   if (page === "createinventoryitem") {
     return (
