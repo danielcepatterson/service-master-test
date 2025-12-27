@@ -1,39 +1,7 @@
-  if (page === "inventorylist") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <h1>Inventory Item List</h1>
-        {inventoryItems.length === 0 ? (
-          <p>No inventory items have been added yet.</p>
-        ) : (
-          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
-            <thead>
-              <tr>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Name</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>UPC</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>SKU</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Part #</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Cost</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Category</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventoryItems.map((item, idx) => (
-                <tr key={idx}>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.name}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.upc}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.sku}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.partNumber}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.cost}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px" }}>{item.category}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <button onClick={() => setPage("home")}>Return to Home</button>
-      </div>
-    );
-  }
+// ...existing code...
+
+function App() {
+  // ...existing code...
 import React from "react";
 import "./App.css";
 
