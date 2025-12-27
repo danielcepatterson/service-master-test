@@ -217,11 +217,14 @@ function App() {
           ? { ...wo, status: 'closed' as WorkOrderStatus, history: [...wo.history, { status: 'closed' as WorkOrderStatus, timestamp: now }] }
           : wo
       );
+      console.log('closeWorkOrder: updated workOrders', updated);
       localStorage.setItem('workOrders', JSON.stringify(updated));
       return updated;
     });
     setViewHistoryWO(null); // Close any open history modal
-    setPage('closedworkorders'); // Redirect to closed work orders page
+    setTimeout(() => {
+      setPage('closedworkorders'); // Redirect to closed work orders page
+    }, 100);
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -689,6 +692,7 @@ function App() {
   // Closed Work Orders
   if (page === "closedworkorders") {
     const closedOrders = workOrders.filter((wo) => wo.status === 'closed');
+    console.log('Rendering closedworkorders page. workOrders:', workOrders, 'closedOrders:', closedOrders);
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
         <h1>Closed Work Orders</h1>
