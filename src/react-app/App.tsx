@@ -2,6 +2,61 @@ import React from "react";
 import "./App.css";
 
 function App() {
+    // Inventory Category state
+    const [inventoryCategories, setInventoryCategories] = React.useState<string[]>(() => {
+      const saved = localStorage.getItem('inventoryCategories');
+      return saved ? JSON.parse(saved) : [];
+    });
+    const [categoryInput, setCategoryInput] = React.useState('');
+    const [showCategoryList, setShowCategoryList] = React.useState(false);
+
+    React.useEffect(() => {
+      localStorage.setItem('inventoryCategories', JSON.stringify(inventoryCategories));
+    }, [inventoryCategories]);
+
+    const handleCategoryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setCategoryInput(e.target.value);
+    };
+
+    const handleCategorySubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (categoryInput.trim() && !inventoryCategories.includes(categoryInput.trim())) {
+        setInventoryCategories((prev) => [...prev, categoryInput.trim()]);
+        setCategoryInput('');
+      }
+    };
+    if (page === "createinventorycategory") {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+          <h1>Create Inventory Category</h1>
+          <form onSubmit={handleCategorySubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 300 }}>
+            <label>
+              Category Name
+              <input value={categoryInput} onChange={handleCategoryInputChange} required />
+            </label>
+            <button type="submit">Add Category</button>
+          </form>
+          <button style={{ marginTop: 16 }} onClick={() => setShowCategoryList((v) => !v)}>
+            {showCategoryList ? 'Hide Inventory Categories' : 'See Inventory Categories'}
+          </button>
+          {showCategoryList && (
+            <div style={{ marginTop: 16, minWidth: 300 }}>
+              <h2>Inventory Categories</h2>
+              {inventoryCategories.length === 0 ? (
+                <p>No categories created yet.</p>
+              ) : (
+                <ul>
+                  {inventoryCategories.map((cat, idx) => (
+                    <li key={idx}>{cat}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
+        </div>
+      );
+    }
   // Vendor state
   type Vendor = {
     name: string;
@@ -392,6 +447,7 @@ function App() {
         <button onClick={() => setPage("workorderlist")}>Work Order List</button>
         <button onClick={() => setPage("vendor")}>Create a Vendor</button>
         <button onClick={() => setPage("vendorlist")}>Vendor List</button>
+        <button onClick={() => setPage("createinventorycategory")}>Create Inventory Category</button>
       </div>
     </div>
   );
