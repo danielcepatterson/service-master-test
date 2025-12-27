@@ -2,6 +2,121 @@ import React from "react";
 import "./App.css";
 
 function App() {
+        // Vendor state
+        type Vendor = {
+          name: string;
+          category: string;
+          contactName: string;
+          contactNumber: string;
+          contactEmail: string;
+          address: string;
+        };
+        const [vendors, setVendors] = React.useState<Vendor[]>(() => {
+          const saved = localStorage.getItem('vendors');
+          return saved ? JSON.parse(saved) : [];
+        });
+        const [vendorForm, setVendorForm] = React.useState({
+          name: '',
+          category: '',
+          contactName: '',
+          contactNumber: '',
+          contactEmail: '',
+          address: '',
+        });
+        const [vendorSubmitted, setVendorSubmitted] = React.useState(false);
+
+        React.useEffect(() => {
+          localStorage.setItem('vendors', JSON.stringify(vendors));
+        }, [vendors]);
+
+        const handleVendorFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+          const { name, value } = e.target;
+          setVendorForm((prev) => ({ ...prev, [name]: value }));
+        };
+
+        const handleVendorFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+          e.preventDefault();
+          setVendors((prev) => [...prev, vendorForm]);
+          setVendorSubmitted(true);
+        };
+        if (page === "vendor") {
+          return (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+              <h1>Create a Vendor</h1>
+              {vendorSubmitted ? (
+                <>
+                  <p style={{ color: 'green' }}>Vendor submitted!</p>
+                  <button onClick={() => { setPage("home"); setVendorSubmitted(false); setVendorForm({ name: '', category: '', contactName: '', contactNumber: '', contactEmail: '', address: '' }); }}>Return to Home</button>
+                </>
+              ) : (
+                <form onSubmit={handleVendorFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
+                  <label>
+                    Vendor Name
+                    <input name="name" value={vendorForm.name} onChange={handleVendorFormChange} required />
+                  </label>
+                  <label>
+                    Category
+                    <input name="category" value={vendorForm.category} onChange={handleVendorFormChange} required />
+                  </label>
+                  <label>
+                    Contact Name
+                    <input name="contactName" value={vendorForm.contactName} onChange={handleVendorFormChange} required />
+                  </label>
+                  <label>
+                    Contact Number
+                    <input name="contactNumber" value={vendorForm.contactNumber} onChange={handleVendorFormChange} required />
+                  </label>
+                  <label>
+                    Contact Email
+                    <input name="contactEmail" type="email" value={vendorForm.contactEmail} onChange={handleVendorFormChange} required />
+                  </label>
+                  <label>
+                    Address
+                    <input name="address" value={vendorForm.address} onChange={handleVendorFormChange} required />
+                  </label>
+                  <button type="submit">Submit Vendor</button>
+                  <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+                </form>
+              )}
+            </div>
+          );
+        }
+        if (page === "vendorlist") {
+          return (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+              <h1>Vendor List</h1>
+              {vendors.length === 0 ? (
+                <p>No vendors have been added yet.</p>
+              ) : (
+                <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Vendor Name</th>
+                      <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Category</th>
+                      <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Contact Name</th>
+                      <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Contact Number</th>
+                      <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Contact Email</th>
+                      <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Address</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendors.map((vendor, idx) => (
+                      <tr key={idx}>
+                        <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.name}</td>
+                        <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.category}</td>
+                        <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.contactName}</td>
+                        <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.contactNumber}</td>
+                        <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.contactEmail}</td>
+                        <td style={{ border: "1px solid #444", padding: "8px" }}>{vendor.address}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <button onClick={() => setPage("home")}>Return to Home</button>
+            </div>
+          );
+        }
       // Work order state
       type WorkOrder = {
         number: string;
@@ -275,6 +390,8 @@ function App() {
         <button onClick={() => setPage("workorder")}>Create a Work Order</button>
         <button onClick={() => setPage("propertylist")}>Property List</button>
         <button onClick={() => setPage("workorderlist")}>Work Order List</button>
+        <button onClick={() => setPage("vendor")}>Create a Vendor</button>
+        <button onClick={() => setPage("vendorlist")}>Vendor List</button>
       </div>
     </div>
   );
