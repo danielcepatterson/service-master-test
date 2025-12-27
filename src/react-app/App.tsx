@@ -39,12 +39,6 @@ function App() {
       setInventoryItems((prev) => [...prev, itemForm]);
       setItemSubmitted(true);
     };
-  // All state declarations must be at the top
-  const [page, setPage] = React.useState("home");
-  const [inventoryCategories, setInventoryCategories] = React.useState<string[]>(() => {
-    const saved = localStorage.getItem('inventoryCategories');
-    return saved ? JSON.parse(saved) : [];
-  });
   // ...existing code...
   if (page === "createinventoryitem") {
     return (
