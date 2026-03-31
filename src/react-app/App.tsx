@@ -1,8 +1,10 @@
 import * as React from "react";
 // @ts-ignore
 import "./App.css";
+import * as api from "./api";
 
 type PropertyForm = {
+  id?: number;
   propertyName: string;
   address: string;
   street: string;
@@ -59,6 +61,22 @@ type InventoryCategory = {
 };
 
 function App() {
+  // ─── Auth state ─────────────────────────────────────────
+  const [authUser, setAuthUser] = React.useState<{ id: number; username: string } | null>(null);
+  const [authChecked, setAuthChecked] = React.useState(false);
+  const [authPage, setAuthPage] = React.useState<'login' | 'register'>('login');
+  const [authForm, setAuthForm] = React.useState({ username: '', password: '' });
+  const [authError, setAuthError] = React.useState('');
+  const [authLoading, setAuthLoading] = React.useState(false);
+
+  // Check existing session on mount
+  React.useEffect(() => {
+    api.getMe().then((user) => {
+      setAuthUser(user);
+      setAuthChecked(true);
+    });
+  }, []);
+
   // Navigation
   const [page, setPage] = React.useState<string>("home");
 
@@ -73,10 +91,7 @@ function App() {
     ownerName: "",
     ownerPhone: "",
   });
-  const [properties, setProperties] = React.useState<PropertyForm[]>(() => {
-    const saved = localStorage.getItem('properties');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [properties, setProperties] = React.useState<PropertyForm[]>([]);
   const [submitted, setSubmitted] = React.useState(false);
 
   // Work order state
@@ -89,11 +104,9 @@ function App() {
     status: 'draft',
     history: [],
   });
-  const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>(() => {
-    const saved = localStorage.getItem('workOrders');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>([]);
   const [woSubmitted, setWoSubmitted] = React.useState(false);
+  const [nextWoNumber, setNextWoNumber] = React.useState('WO-1001');
 
   // Vendor state
   const [vendorForm, setVendorForm] = React.useState<VendorForm>({
@@ -104,10 +117,7 @@ function App() {
     contactEmail: '',
     address: '',
   });
-  const [vendors, setVendors] = React.useState<VendorForm[]>(() => {
-    const saved = localStorage.getItem('vendors');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [vendors, setVendors] = React.useState<VendorForm[]>([]);
   const [vendorSubmitted, setVendorSubmitted] = React.useState(false);
 
   // Purchases state
@@ -119,10 +129,7 @@ function App() {
     purchaser: '',
     purpose: '',
   });
-  const [purchases, setPurchases] = React.useState<Purchase[]>(() => {
-    const saved = localStorage.getItem('purchases');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [purchases, setPurchases] = React.useState<Purchase[]>([]);
   const [purchaseSubmitted, setPurchaseSubmitted] = React.useState(false);
 
   // Inventory item state
@@ -134,96 +141,117 @@ function App() {
     cost: '',
     partNumber: '',
   });
-  const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem('inventoryItems');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>([]);
   const [inventoryItemSubmitted, setInventoryItemSubmitted] = React.useState(false);
 
   // Inventory category state
   const [inventoryCategoryForm, setInventoryCategoryForm] = React.useState<InventoryCategory>({ name: '' });
-  const [inventoryCategories, setInventoryCategories] = React.useState<InventoryCategory[]>(() => {
-    const saved = localStorage.getItem('inventoryCategories');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [inventoryCategories, setInventoryCategories] = React.useState<InventoryCategory[]>([]);
   const [inventoryCategorySubmitted, setInventoryCategorySubmitted] = React.useState(false);
   const [showCategoryList, setShowCategoryList] = React.useState(false);
 
-  // Add state for viewing history (move this above all render logic)
+  // Add state for viewing history
   const [viewHistoryWO, setViewHistoryWO] = React.useState<WorkOrder | null>(null);
 
-  // Handlers
+  // ─── Load all data from API when user is authenticated ──
+  const loadAllData = React.useCallback(async () => {
+    if (!authUser) return;
+    try {
+      const [props, wos, vends, purch, invItems, invCats] = await Promise.all([
+        api.fetchProperties(),
+        api.fetchWorkOrders(),
+        api.fetchVendors(),
+        api.fetchPurchases(),
+        api.fetchInventoryItems(),
+        api.fetchInventoryCategories(),
+      ]);
+      setProperties(props);
+      setWorkOrders(wos);
+      setVendors(vends);
+      setPurchases(purch);
+      setInventoryItems(invItems);
+      setInventoryCategories(invCats);
+      const num = await api.fetchNextWorkOrderNumber();
+      setNextWoNumber(num);
+    } catch (e) {
+      console.error("Failed to load data", e);
+    }
+  }, [authUser]);
+
+  React.useEffect(() => {
+    if (authUser) loadAllData();
+  }, [authUser, loadAllData]);
+
+  // ─── Auth handlers ──────────────────────────────────────
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthLoading(true);
+    try {
+      if (authPage === 'register') {
+        const result = await api.register(authForm.username, authForm.password);
+        if (result.error) { setAuthError(result.error); return; }
+        // Auto-login after register
+        const loginResult = await api.login(authForm.username, authForm.password);
+        if (loginResult.error) { setAuthError(loginResult.error); return; }
+        setAuthUser(loginResult.user);
+      } else {
+        const result = await api.login(authForm.username, authForm.password);
+        if (result.error) { setAuthError(result.error); return; }
+        setAuthUser(result.user);
+      }
+      setAuthForm({ username: '', password: '' });
+    } catch {
+      setAuthError('Network error. Make sure the database is initialized.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setAuthUser(null);
+    setPage("home");
+  };
+
+  // ─── Handlers ───────────────────────────────────────────
   const handleWoFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setWoForm((prev: typeof woForm) => ({ ...prev, [name]: value }));
   };
-  // Update work order form submit to save as draft
-  const handleWoFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+
+  const handleWoFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const now = new Date().toISOString();
-    const newWO: WorkOrder = {
-      number: generateWorkOrderNumber(),
+    const newWO = {
+      number: nextWoNumber,
       propertyName: woForm.propertyName,
       title: woForm.title,
       instructions: woForm.instructions,
       scheduledTime: woForm.scheduledTime,
       scheduledDate: woForm.scheduledDate,
-      status: 'draft',
-      history: [{ status: 'draft', timestamp: now }],
     };
-    setWorkOrders((prev: WorkOrder[]) => {
-      const updated = [...prev, newWO];
-      localStorage.setItem('workOrders', JSON.stringify(updated));
-      return updated;
-    });
+    await api.createWorkOrder(newWO);
+    await loadAllData();
     setWoSubmitted(true);
     setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', status: 'draft', history: [] });
   };
 
-  // Handler to move work order to active
-  const activateWorkOrder = (number: string) => {
-    setWorkOrders((prev) => {
-      const now = new Date().toISOString();
-      const updated = prev.map((wo) =>
-        wo.number === number
-          ? { ...wo, status: 'active' as WorkOrderStatus, history: [...wo.history, { status: 'active' as WorkOrderStatus, timestamp: now }] }
-          : wo
-      );
-      localStorage.setItem('workOrders', JSON.stringify(updated));
-      return updated;
-    });
+  const activateWorkOrder = async (number: string) => {
+    await api.updateWorkOrderStatus(number, 'active');
+    await loadAllData();
   };
 
-  // Handler to mark work order as completed
-  const completeWorkOrder = (number: string) => {
-    setWorkOrders((prev) => {
-      const now = new Date().toISOString();
-      const updated = prev.map((wo) =>
-        wo.number === number
-          ? { ...wo, status: 'completed' as WorkOrderStatus, completedAt: now, history: [...wo.history, { status: 'completed' as WorkOrderStatus, timestamp: now }] }
-          : wo
-      );
-      localStorage.setItem('workOrders', JSON.stringify(updated));
-      return updated;
-    });
+  const completeWorkOrder = async (number: string) => {
+    await api.updateWorkOrderStatus(number, 'completed');
+    await loadAllData();
   };
 
-  // Handler to mark work order as closed
-  const closeWorkOrder = (number: string) => {
-    setWorkOrders((prev) => {
-      const now = new Date().toISOString();
-      const updated = prev.map((wo) =>
-        wo.number === number
-          ? { ...wo, status: 'closed' as WorkOrderStatus, history: [...wo.history, { status: 'closed' as WorkOrderStatus, timestamp: now }] }
-          : wo
-      );
-      console.log('closeWorkOrder: updated workOrders', updated);
-      localStorage.setItem('workOrders', JSON.stringify(updated));
-      return updated;
-    });
-    setViewHistoryWO(null); // Close any open history modal
+  const closeWorkOrder = async (number: string) => {
+    await api.updateWorkOrderStatus(number, 'closed');
+    await loadAllData();
+    setViewHistoryWO(null);
     setTimeout(() => {
-      setPage('closedworkorders'); // Redirect to closed work orders page
+      setPage('closedworkorders');
     }, 100);
   };
 
@@ -231,22 +259,27 @@ function App() {
     const { name, value } = e.target;
     setForm((prev: PropertyForm) => ({ ...prev, [name]: value }));
   };
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setProperties((prev: PropertyForm[]) => [...prev, form]);
+    await api.createProperty(form);
+    await loadAllData();
     setSubmitted(true);
     setForm({ propertyName: '', address: '', street: '', city: '', state: '', zip: '', ownerName: '', ownerPhone: '' });
   };
-  const handleDeleteProperty = (idx: number) => {
-    setProperties((prev: PropertyForm[]) => prev.filter((_: PropertyForm, i: number) => i !== idx));
+  const handleDeleteProperty = async (prop: PropertyForm) => {
+    if (prop.id != null) {
+      await api.deleteProperty(prop.id);
+      await loadAllData();
+    }
   };
   const handleVendorFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setVendorForm((prev: VendorForm) => ({ ...prev, [name]: value }));
   };
-  const handleVendorFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleVendorFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setVendors((prev: VendorForm[]) => [...prev, vendorForm]);
+    await api.createVendor(vendorForm);
+    await loadAllData();
     setVendorSubmitted(true);
     setVendorForm({ name: '', category: '', contactName: '', contactNumber: '', contactEmail: '', address: '' });
   };
@@ -254,13 +287,10 @@ function App() {
     const { name, value } = e.target;
     setPurchaseForm((prev: Purchase) => ({ ...prev, [name]: value }));
   };
-  const handlePurchaseFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handlePurchaseFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setPurchases((prev: Purchase[]) => {
-      const updated = [...prev, purchaseForm];
-      localStorage.setItem('purchases', JSON.stringify(updated));
-      return updated;
-    });
+    await api.createPurchase(purchaseForm);
+    await loadAllData();
     setPurchaseSubmitted(true);
     setPurchaseForm({ date: '', workOrderNumber: '', vendor: '', price: '', purchaser: '', purpose: '' });
   };
@@ -268,17 +298,12 @@ function App() {
     const { name, value } = e.target;
     setInventoryItemForm((prev: InventoryItem) => ({ ...prev, [name]: value }));
   };
-  const handleInventoryItemFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleInventoryItemFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const newItem: InventoryItem = {
-      ...inventoryItemForm,
-      id: generateInventoryItemId(),
-    };
-    setInventoryItems((prev: InventoryItem[]) => {
-      const updated = [...prev, newItem];
-      localStorage.setItem('inventoryItems', JSON.stringify(updated));
-      return updated;
-    });
+    const nextId = await api.fetchNextInventoryItemId();
+    const newItem: InventoryItem = { ...inventoryItemForm, id: nextId };
+    await api.createInventoryItem(newItem);
+    await loadAllData();
     setInventoryItemSubmitted(true);
     setInventoryItemForm({ id: '', name: '', category: '', price: '', cost: '', partNumber: '' });
   };
@@ -286,25 +311,67 @@ function App() {
     const { name, value } = e.target;
     setInventoryCategoryForm((prev: InventoryCategory) => ({ ...prev, [name]: value }));
   };
-  const handleInventoryCategoryFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleInventoryCategoryFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setInventoryCategories((prev: InventoryCategory[]) => {
-      const updated = [...prev, inventoryCategoryForm];
-      localStorage.setItem('inventoryCategories', JSON.stringify(updated));
-      return updated;
-    });
+    await api.createInventoryCategory(inventoryCategoryForm);
+    await loadAllData();
     setInventoryCategorySubmitted(true);
     setInventoryCategoryForm({ name: '' });
   };
-  const generateWorkOrderNumber = () => {
-    const last = workOrders.length > 0 ? workOrders[workOrders.length - 1].number : null;
-    if (!last) return 'WO-1001';
-    const num = parseInt(last.replace('WO-', '')) + 1;
-    return `WO-${num}`;
-  };
-  const generateInventoryItemId = () => {
-    return 'INV-' + (inventoryItems.length + 1).toString().padStart(4, '0');
-  };
+
+  // ─── Loading state ──────────────────────────────────────
+  if (!authChecked) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // ─── Login / Register ──────────────────────────────────
+  if (!authUser) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Service Master</h1>
+        <h2>{authPage === 'login' ? 'Login' : 'Create Account'}</h2>
+        <form onSubmit={handleAuthSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", minWidth: 320, maxWidth: 400 }}>
+          <label>
+            Username
+            <input
+              value={authForm.username}
+              onChange={(e) => setAuthForm((p) => ({ ...p, username: e.target.value }))}
+              required
+              autoFocus
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={authForm.password}
+              onChange={(e) => setAuthForm((p) => ({ ...p, password: e.target.value }))}
+              required
+            />
+          </label>
+          {authError && <p style={{ color: 'red', margin: 0 }}>{authError}</p>}
+          <button type="submit" disabled={authLoading}>
+            {authLoading ? 'Please wait...' : authPage === 'login' ? 'Login' : 'Register'}
+          </button>
+        </form>
+        <p style={{ marginTop: 16 }}>
+          {authPage === 'login' ? (
+            <>Don't have an account? <button onClick={() => { setAuthPage('register'); setAuthError(''); }} style={{ background: 'none', border: 'none', color: '#0099FF', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Register</button></>
+          ) : (
+            <>Already have an account? <button onClick={() => { setAuthPage('login'); setAuthError(''); }} style={{ background: 'none', border: 'none', color: '#0099FF', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Login</button></>
+          )}
+        </p>
+        <hr style={{ width: '100%', maxWidth: 400, margin: '1.5rem 0' }} />
+        <p style={{ fontSize: '0.85rem', color: '#666' }}>
+          First time? <button onClick={async () => { await api.initDb(); alert('Database initialized!'); }} style={{ background: 'none', border: 'none', color: '#0099FF', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Initialize Database</button> (only needed once)
+        </p>
+      </div>
+    );
+  }
 
   // Render logic
   if (page === "vendor") {
@@ -449,7 +516,7 @@ function App() {
           <form onSubmit={handleWoFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350 }}>
             <label>
               Work Order Number
-              <input name="number" value={generateWorkOrderNumber()} disabled style={{ background: '#eee' }} />
+              <input name="number" value={nextWoNumber} disabled style={{ background: '#eee' }} />
             </label>
             <label>
               Property
@@ -516,7 +583,7 @@ function App() {
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerName}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerPhone}</td>
                   <td style={{ border: "1px solid #444", padding: "8px", textAlign: "center" }}>
-                    <button style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer" }} onClick={() => handleDeleteProperty(idx)}>
+                    <button style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer" }} onClick={() => handleDeleteProperty(prop)}>
                       Delete
                     </button>
                   </td>
@@ -944,6 +1011,10 @@ function App() {
   // Main dashboard/homepage UI
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 1100, marginBottom: 8 }}>
+        <span style={{ color: "#555" }}>Logged in as <strong>{authUser.username}</strong></span>
+        <button onClick={handleLogout} style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "6px 16px", cursor: "pointer" }}>Logout</button>
+      </div>
       <h1>Welcome to the Service Master App</h1>
       <div style={{
         display: "grid",
