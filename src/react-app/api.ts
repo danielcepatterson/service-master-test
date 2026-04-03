@@ -179,3 +179,36 @@ export async function createInventoryCategory(category: any) {
   });
   return res.json();
 }
+
+// ─── Work Order Photos ────────────────────────────────────
+export async function fetchWorkOrderPhotos(workOrderNumber: string) {
+  const res = await apiFetch(`/api/work-orders/${workOrderNumber}/photos`);
+  if (res.status === 401) throw new Error("Unauthorized");
+  return res.json();
+}
+
+export async function uploadWorkOrderPhoto(
+  workOrderNumber: string,
+  filename: string,
+  mimeType: string,
+  data: string
+) {
+  const res = await apiFetch(`/api/work-orders/${workOrderNumber}/photos`, {
+    method: "POST",
+    body: JSON.stringify({ filename, mimeType, data }),
+  });
+  return res.json();
+}
+
+export async function fetchPhotoData(photoId: number) {
+  const res = await apiFetch(`/api/work-order-photos/${photoId}`);
+  if (res.status === 401) throw new Error("Unauthorized");
+  return res.json();
+}
+
+export async function deleteWorkOrderPhoto(photoId: number) {
+  const res = await apiFetch(`/api/work-order-photos/${photoId}`, {
+    method: "DELETE",
+  });
+  return res.json();
+}

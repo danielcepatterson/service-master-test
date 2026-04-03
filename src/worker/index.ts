@@ -149,6 +149,17 @@ app.get("/api/init", async (c) => {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS work_order_photos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      work_order_number TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      data TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (work_order_number) REFERENCES work_orders(number)
+    );
+  `);
   return c.json({ ok: true, message: "Database initialized" });
 });
 
@@ -424,6 +435,63 @@ app.post("/api/inventory-categories", async (c) => {
   if (!user) return unauthorized();
   const { name } = await c.req.json();
   await c.env.DB.prepare("INSERT INTO inventory_categories (name) VALUES (?)").bind(name).run();
+  return c.json({ ok: true });
+});
+
+// ─── Work Order Photos ────────────────────────────────────
+app.get("/api/work-orders/:number/photos", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, filename, mime_type, created_at FROM work_order_photos WHERE work_order_number = ? ORDER BY id ASC"
+  )
+    .bind(woNumber)
+    .all();
+  return c.json(
+    (results || []).map((p: any) => ({
+      id: p.id,
+      filename: p.filename,
+      mimeType: p.mime_type,
+      createdAt: p.created_at,
+    }))
+  );
+});
+
+app.post("/api/work-orders/:number/photos", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { filename, mimeType, data } = await c.req.json();
+  if (!filename || !mimeType || !data) {
+    return c.json({ error: "filename, mimeType, and data are required" }, 400);
+  }
+  await c.env.DB.prepare(
+    "INSERT INTO work_order_photos (work_order_number, filename, mime_type, data) VALUES (?, ?, ?, ?)"
+  )
+    .bind(woNumber, filename, mimeType, data)
+    .run();
+  return c.json({ ok: true });
+});
+
+app.get("/api/work-order-photos/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const photoId = c.req.param("id");
+  const photo = await c.env.DB.prepare(
+    "SELECT data, mime_type FROM work_order_photos WHERE id = ?"
+  )
+    .bind(photoId)
+    .first();
+  if (!photo) return c.json({ error: "Photo not found" }, 404);
+  return c.json({ data: photo.data, mimeType: photo.mime_type });
+});
+
+app.delete("/api/work-order-photos/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const photoId = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM work_order_photos WHERE id = ?").bind(photoId).run();
   return c.json({ ok: true });
 });
 

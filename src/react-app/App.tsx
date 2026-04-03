@@ -60,6 +60,14 @@ type InventoryCategory = {
   name: string;
 };
 
+type WorkOrderPhoto = {
+  id: number;
+  filename: string;
+  mimeType: string;
+  createdAt: string;
+  data?: string; // base64 data when loaded
+};
+
 function App() {
   // ─── Auth state ─────────────────────────────────────────
   const [authUser, setAuthUser] = React.useState<{ id: number; username: string } | null>(null);
@@ -152,6 +160,14 @@ function App() {
 
   // Add state for viewing history
   const [viewHistoryWO, setViewHistoryWO] = React.useState<WorkOrder | null>(null);
+
+  // Photo state
+  const [selectedWOForPhotos, setSelectedWOForPhotos] = React.useState<WorkOrder | null>(null);
+  const [woPhotos, setWoPhotos] = React.useState<WorkOrderPhoto[]>([]);
+  const [photoLoading, setPhotoLoading] = React.useState(false);
+  const [photoUploading, setPhotoUploading] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement>(null);
 
   // ─── Load all data from API when user is authenticated ──
   const loadAllData = React.useCallback(async () => {
@@ -253,6 +269,62 @@ function App() {
     setTimeout(() => {
       setPage('closedworkorders');
     }, 100);
+  };
+
+  // ─── Photo Handlers ─────────────────────────────────────
+  const loadPhotosForWorkOrder = async (wo: WorkOrder) => {
+    setSelectedWOForPhotos(wo);
+    setPhotoLoading(true);
+    try {
+      const photos = await api.fetchWorkOrderPhotos(wo.number);
+      // Load actual image data for each photo
+      const photosWithData = await Promise.all(
+        photos.map(async (p: WorkOrderPhoto) => {
+          const photoData = await api.fetchPhotoData(p.id);
+          return { ...p, data: photoData.data };
+        })
+      );
+      setWoPhotos(photosWithData);
+    } catch (e) {
+      console.error("Failed to load photos", e);
+      setWoPhotos([]);
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, woNumber: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        await api.uploadWorkOrderPhoto(woNumber, file.name, file.type, base64);
+        // Reload photos
+        const wo = workOrders.find((w) => w.number === woNumber);
+        if (wo) await loadPhotosForWorkOrder(wo);
+      };
+      reader.readAsDataURL(file);
+    } catch (e) {
+      console.error("Failed to upload photo", e);
+    } finally {
+      setPhotoUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+    }
+  };
+
+  const handleDeletePhoto = async (photoId: number) => {
+    if (!confirm("Delete this photo?")) return;
+    await api.deleteWorkOrderPhoto(photoId);
+    if (selectedWOForPhotos) await loadPhotosForWorkOrder(selectedWOForPhotos);
+  };
+
+  const closePhotoModal = () => {
+    setSelectedWOForPhotos(null);
+    setWoPhotos([]);
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -647,7 +719,7 @@ function App() {
         {activeOrders.length === 0 ? (
           <p>No active work orders.</p>
         ) : (
-          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+          <table style={{ borderCollapse: "collapse", minWidth: 800, margin: "1rem 0" }}>
             <thead>
               <tr>
                 <th>WO Number</th>
@@ -657,6 +729,7 @@ function App() {
                 <th>Scheduled Date</th>
                 <th>Scheduled Time</th>
                 <th>Action</th>
+                <th>Photos</th>
                 <th>History</th>
               </tr>
             </thead>
@@ -673,6 +746,9 @@ function App() {
                     <button onClick={() => completeWorkOrder(wo.number)}>Mark Completed</button>
                   </td>
                   <td>
+                    <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
+                  </td>
+                  <td>
                     <button onClick={() => setViewHistoryWO(wo)}>View History</button>
                   </td>
                 </tr>
@@ -681,6 +757,70 @@ function App() {
           </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
+        
+        {/* Photo Modal */}
+        {selectedWOForPhotos && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#fff', padding: 24, borderRadius: 12, maxWidth: 600, width: '90%', maxHeight: '80vh', overflow: 'auto' }}>
+              <h2>Photos for {selectedWOForPhotos.number}</h2>
+              
+              {/* Upload buttons */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)}
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  ref={cameraInputRef}
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)}
+                />
+                <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading}>
+                  📁 Upload from Files
+                </button>
+                <button onClick={() => cameraInputRef.current?.click()} disabled={photoUploading}>
+                  📷 Take Photo
+                </button>
+              </div>
+              
+              {photoLoading && <p>Loading photos...</p>}
+              {photoUploading && <p>Uploading...</p>}
+              
+              {/* Photo grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                {woPhotos.map((photo) => (
+                  <div key={photo.id} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+                    <img
+                      src={photo.data}
+                      alt={photo.filename}
+                      style={{ width: '100%', height: 120, objectFit: 'cover' }}
+                    />
+                    <div style={{ padding: 4, fontSize: 11, background: '#f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>{photo.filename}</span>
+                      <button
+                        onClick={() => handleDeletePhoto(photo.id)}
+                        style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 11 }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {woPhotos.length === 0 && !photoLoading && <p style={{ color: '#888' }}>No photos yet.</p>}
+              
+              <button style={{ marginTop: 16 }} onClick={closePhotoModal}>Close</button>
+            </div>
+          </div>
+        )}
+        
         {viewHistoryWO && (
           <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, minWidth: 350 }}>
             <h2>Work Order History: {viewHistoryWO.number}</h2>
@@ -706,7 +846,7 @@ function App() {
         {completedOrders.length === 0 ? (
           <p>No work orders have been completed yet.</p>
         ) : (
-          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+          <table style={{ borderCollapse: "collapse", minWidth: 800, margin: "1rem 0" }}>
             <thead>
               <tr>
                 <th>WO Number</th>
@@ -716,6 +856,7 @@ function App() {
                 <th>Scheduled Date</th>
                 <th>Scheduled Time</th>
                 <th>Action</th>
+                <th>Photos</th>
                 <th>History</th>
               </tr>
             </thead>
@@ -732,6 +873,9 @@ function App() {
                     <button onClick={() => closeWorkOrder(wo.number)}>Close Work Order</button>
                   </td>
                   <td>
+                    <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
+                  </td>
+                  <td>
                     <button onClick={() => setViewHistoryWO(wo)}>View History</button>
                   </td>
                 </tr>
@@ -740,6 +884,37 @@ function App() {
           </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
+        
+        {/* Photo Modal */}
+        {selectedWOForPhotos && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#fff', padding: 24, borderRadius: 12, maxWidth: 600, width: '90%', maxHeight: '80vh', overflow: 'auto' }}>
+              <h2>Photos for {selectedWOForPhotos.number}</h2>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
+                <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading}>📁 Upload from Files</button>
+                <button onClick={() => cameraInputRef.current?.click()} disabled={photoUploading}>📷 Take Photo</button>
+              </div>
+              {photoLoading && <p>Loading photos...</p>}
+              {photoUploading && <p>Uploading...</p>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                {woPhotos.map((photo) => (
+                  <div key={photo.id} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+                    <img src={photo.data} alt={photo.filename} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                    <div style={{ padding: 4, fontSize: 11, background: '#f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>{photo.filename}</span>
+                      <button onClick={() => handleDeletePhoto(photo.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {woPhotos.length === 0 && !photoLoading && <p style={{ color: '#888' }}>No photos yet.</p>}
+              <button style={{ marginTop: 16 }} onClick={closePhotoModal}>Close</button>
+            </div>
+          </div>
+        )}
+        
         {viewHistoryWO && (
           <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, minWidth: 350 }}>
             <h2>Work Order History: {viewHistoryWO.number}</h2>
@@ -766,7 +941,7 @@ function App() {
         {closedOrders.length === 0 ? (
           <p>No work orders have been closed yet.</p>
         ) : (
-          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+          <table style={{ borderCollapse: "collapse", minWidth: 800, margin: "1rem 0" }}>
             <thead>
               <tr>
                 <th>WO Number</th>
@@ -775,6 +950,7 @@ function App() {
                 <th>Instructions</th>
                 <th>Scheduled Date</th>
                 <th>Scheduled Time</th>
+                <th>Photos</th>
                 <th>History</th>
               </tr>
             </thead>
@@ -788,6 +964,9 @@ function App() {
                   <td>{wo.scheduledDate}</td>
                   <td>{wo.scheduledTime}</td>
                   <td>
+                    <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
+                  </td>
+                  <td>
                     <button onClick={() => setViewHistoryWO(wo)}>View History</button>
                   </td>
                 </tr>
@@ -796,6 +975,37 @@ function App() {
           </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
+        
+        {/* Photo Modal */}
+        {selectedWOForPhotos && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#fff', padding: 24, borderRadius: 12, maxWidth: 600, width: '90%', maxHeight: '80vh', overflow: 'auto' }}>
+              <h2>Photos for {selectedWOForPhotos.number}</h2>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
+                <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading}>📁 Upload from Files</button>
+                <button onClick={() => cameraInputRef.current?.click()} disabled={photoUploading}>📷 Take Photo</button>
+              </div>
+              {photoLoading && <p>Loading photos...</p>}
+              {photoUploading && <p>Uploading...</p>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                {woPhotos.map((photo) => (
+                  <div key={photo.id} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+                    <img src={photo.data} alt={photo.filename} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                    <div style={{ padding: 4, fontSize: 11, background: '#f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }}>{photo.filename}</span>
+                      <button onClick={() => handleDeletePhoto(photo.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {woPhotos.length === 0 && !photoLoading && <p style={{ color: '#888' }}>No photos yet.</p>}
+              <button style={{ marginTop: 16 }} onClick={closePhotoModal}>Close</button>
+            </div>
+          </div>
+        )}
+        
         {viewHistoryWO && (
           <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, minWidth: 350 }}>
             <h2>Work Order History: {viewHistoryWO.number}</h2>
