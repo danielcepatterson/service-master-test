@@ -21,7 +21,25 @@
 }
 
 .wo-table th {
-	background: #f0f0f0;
+	background: #1a3a7a;
+	color: #fff;
+}
+
+.wo-table tbody tr:nth-child(odd) {
+	background: #f0f4ff;
+}
+
+.wo-table tbody tr:nth-child(even) {
+	background: #e2eaff;
+}
+
+.wo-table tbody tr:hover {
+	background: #d0dcff;
+}
+
+.wo-table td {
+	color: #111;
+	font-weight: 500;
 }
 
 /* Card view for mobile */
