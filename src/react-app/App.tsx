@@ -213,6 +213,13 @@ function App() {
   });
   const [expenseSubmitting, setExpenseSubmitting] = React.useState(false);
 
+  // Work order detail view
+  const [viewingWO, setViewingWO] = React.useState<WorkOrder | null>(null);
+  const [viewWOPhotos, setViewWOPhotos] = React.useState<WorkOrderPhoto[]>([]);
+  const [viewWOExpenses, setViewWOExpenses] = React.useState<WorkOrderExpense[]>([]);
+  const [viewWOLoading, setViewWOLoading] = React.useState(false);
+  const [viewWOFromPage, setViewWOFromPage] = React.useState<string>('home');
+
   // ─── Load all data from API when user is authenticated ──
   const loadAllData = React.useCallback(async () => {
     if (!authUser) return;
@@ -506,6 +513,31 @@ function App() {
     setExpenseForm({ description: '', category: 'Part', quantity: '1', unitCost: '', totalCost: '', vendor: '', partNumber: '' });
   };
 
+  const openWODetail = async (wo: WorkOrder, fromPage: string) => {
+    setViewingWO(wo);
+    setViewWOFromPage(fromPage);
+    setViewWOLoading(true);
+    setPage('workorderdetail');
+    try {
+      const [photos, expenses] = await Promise.all([
+        api.fetchWorkOrderPhotos(wo.number),
+        api.fetchWorkOrderExpenses(wo.number),
+      ]);
+      const photosWithData = await Promise.all(
+        photos.map(async (p: WorkOrderPhoto) => {
+          const photoData = await api.fetchPhotoData(p.id);
+          return { ...p, data: photoData.data };
+        })
+      );
+      setViewWOPhotos(photosWithData);
+      setViewWOExpenses(expenses);
+    } catch (e) {
+      console.error('Failed to load WO detail', e);
+    } finally {
+      setViewWOLoading(false);
+    }
+  };
+
   // ─── Estimate Handlers ────────────────────────────────────
   const handleEstimateFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -603,6 +635,116 @@ function App() {
   }
 
   // Render logic
+  // Work Order Detail View
+  if (page === "workorderdetail" && viewingWO) {
+    const statusColors: Record<string, string> = {
+      draft: '#888', active: '#0099FF', completed: '#2a9d2a', closed: '#555'
+    };
+    const totalExpenses = viewWOExpenses.reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
+        <div style={{ width: '100%', maxWidth: 800 }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+            <button onClick={() => setPage(viewWOFromPage)}>← Back</button>
+            <span style={{ background: statusColors[viewingWO.status] || '#888', color: '#fff', borderRadius: 20, padding: '4px 16px', fontWeight: 700, fontSize: 13, textTransform: 'uppercase' }}>
+              {viewingWO.status}
+            </span>
+          </div>
+
+          <h1 style={{ margin: '0 0 4px', fontSize: 26 }}>{viewingWO.title}</h1>
+          <p style={{ margin: '0 0 20px', color: '#555', fontSize: 15 }}>{viewingWO.number} &bull; {viewingWO.propertyName}</p>
+
+          {/* Details card */}
+          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Details</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Property</span><br />{viewingWO.propertyName}</div>
+              <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Date</span><br />{viewingWO.scheduledDate || '—'}</div>
+              <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Time</span><br />{viewingWO.scheduledTime || '—'}</div>
+              {viewingWO.completedAt && <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Completed At</span><br />{new Date(viewingWO.completedAt).toLocaleString()}</div>}
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Instructions / Scope of Work</span>
+              <p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{viewingWO.instructions}</p>
+            </div>
+          </div>
+
+          {/* Expenses */}
+          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Parts &amp; Expenses</h2>
+            {viewWOLoading && <p style={{ color: '#888' }}>Loading...</p>}
+            {!viewWOLoading && viewWOExpenses.length === 0 && <p style={{ color: '#888' }}>No expenses recorded.</p>}
+            {viewWOExpenses.length > 0 && (
+              <>
+                <table className="wo-table" style={{ background: '#fff' }}>
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>Description</th>
+                      <th>Part #</th>
+                      <th>Vendor</th>
+                      <th>Qty</th>
+                      <th>Unit $</th>
+                      <th>Total $</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewWOExpenses.map((exp, i) => (
+                      <tr key={exp.id} style={{ background: i % 2 === 0 ? '#f0f4ff' : '#fff' }}>
+                        <td data-label="Category" style={{ color: '#111', fontWeight: 500 }}>{exp.category}</td>
+                        <td data-label="Description" style={{ color: '#111', fontWeight: 600 }}>{exp.description}</td>
+                        <td data-label="Part #" style={{ color: '#333' }}>{exp.partNumber || '—'}</td>
+                        <td data-label="Vendor" style={{ color: '#333' }}>{exp.vendor || '—'}</td>
+                        <td data-label="Qty" style={{ color: '#111' }}>{exp.quantity}</td>
+                        <td data-label="Unit $" style={{ color: '#111' }}>{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
+                        <td data-label="Total $" style={{ color: '#0a6e0a', fontWeight: 700 }}>{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p style={{ textAlign: 'right', fontWeight: 700, fontSize: 16, color: '#0a6e0a', marginTop: 8 }}>
+                  Total: ${totalExpenses.toFixed(2)}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Photos */}
+          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Photos</h2>
+            {viewWOLoading && <p style={{ color: '#888' }}>Loading...</p>}
+            {!viewWOLoading && viewWOPhotos.length === 0 && <p style={{ color: '#888' }}>No photos attached.</p>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
+              {viewWOPhotos.map((photo) => (
+                <div key={photo.id} style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+                  <img src={photo.data} alt={photo.filename} style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
+                  <div style={{ padding: '4px 6px', fontSize: 11, background: '#f0f0f0', color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.filename}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* History */}
+          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>History</h2>
+            {viewingWO.history.length === 0 && <p style={{ color: '#888' }}>No history.</p>}
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {viewingWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
+                <li key={idx} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                  <span style={{ background: statusColors[entry.status] || '#888', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{entry.status}</span>
+                  <span style={{ color: '#555', fontSize: 13 }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button onClick={() => setPage(viewWOFromPage)}>← Back to List</button>
+        </div>
+      </div>
+    );
+  }
+
   if (page === "createestimate") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -998,6 +1140,7 @@ function App() {
                 <th>Scheduled Time</th>
                 <th>Photos</th>
                 <th>Action</th>
+                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -1014,6 +1157,9 @@ function App() {
                   </td>
                   <td>
                     <button onClick={() => activateWorkOrder(wo.number)}>Activate</button>
+                  </td>
+                  <td>
+                    <button onClick={() => openWODetail(wo, 'workorderlistdraft')}>🔍 View</button>
                   </td>
                 </tr>
               ))}
@@ -1077,6 +1223,7 @@ function App() {
                 <th>Expenses</th>
                 <th>Photos</th>
                 <th>History</th>
+                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -1099,6 +1246,9 @@ function App() {
                   </td>
                   <td>
                     <button onClick={() => setViewHistoryWO(wo)}>View History</button>
+                  </td>
+                  <td>
+                    <button onClick={() => openWODetail(wo, 'workorderlist')}>🔍 View</button>
                   </td>
                 </tr>
               ))}
@@ -1304,6 +1454,7 @@ function App() {
                 <th>Photos</th>
                 <th>History</th>
                 <th>Reactivate</th>
+                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -1326,6 +1477,9 @@ function App() {
                   </td>
                   <td>
                     <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => reactivateWorkOrder(wo.number)}>↺ Reactivate</button>
+                  </td>
+                  <td>
+                    <button onClick={() => openWODetail(wo, 'completedworkorders')}>🔍 View</button>
                   </td>
                 </tr>
               ))}
@@ -1403,6 +1557,7 @@ function App() {
                 <th>Photos</th>
                 <th>History</th>
                 <th>Reactivate</th>
+                <th>View</th>
               </tr>
             </thead>
             <tbody>
@@ -1425,6 +1580,9 @@ function App() {
                   </td>
                   <td>
                     <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => reactivateWorkOrder(wo.number)}>↺ Reactivate</button>
+                  </td>
+                  <td>
+                    <button onClick={() => openWODetail(wo, 'closedworkorders')}>🔍 View</button>
                   </td>
                 </tr>
               ))}
