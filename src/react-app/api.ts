@@ -133,6 +133,28 @@ export async function deleteWorkOrder(number: string) {
   return res.json();
 }
 
+// ─── User Management ─────────────────────────────────────
+export async function fetchUsers() {
+  const res = await apiFetch("/api/users");
+  if (res.status === 401) throw new Error("Unauthorized");
+  return res.json();
+}
+
+export async function createUser(data: { username: string; password: string; userType: string }) {
+  const res = await apiFetch("/api/users", { method: "POST", body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function updateUser(id: number, data: { username: string; password?: string; userType: string }) {
+  const res = await apiFetch(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteUser(id: number) {
+  const res = await apiFetch(`/api/users/${id}`, { method: "DELETE" });
+  return res.json();
+}
+
 // ─── Vendors ──────────────────────────────────────────────
 export async function fetchVendors() {
   const res = await apiFetch("/api/vendors");

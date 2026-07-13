@@ -2626,6 +2626,189 @@ function App() {
     );
   }
 
+  // ── User List ────────────────────────────────────────────────────────────
+  if (page === "userlist") {
+    type UserRecord = { id: number; username: string; password_hash: string; user_type: string; created_at: string };
+    const [users, setUsers] = React.useState<UserRecord[]>([]);
+    const [usersLoading, setUsersLoading] = React.useState(true);
+    const [editingUser, setEditingUser] = React.useState<UserRecord | null>(null);
+    const [editUserForm, setEditUserForm] = React.useState({ username: '', password: '', userType: 'tech' });
+    const [editUserSaving, setEditUserSaving] = React.useState(false);
+    const [showPasswords, setShowPasswords] = React.useState(false);
+
+    React.useEffect(() => {
+      api.fetchUsers().then(setUsers).finally(() => setUsersLoading(false));
+    }, []);
+
+    const refreshUsers = () => {
+      setUsersLoading(true);
+      api.fetchUsers().then(setUsers).finally(() => setUsersLoading(false));
+    };
+
+    const handleDeleteUser = async (u: UserRecord) => {
+      if (!confirm(`Delete user "${u.username}"? This cannot be undone.`)) return;
+      await api.deleteUser(u.id);
+      refreshUsers();
+    };
+
+    const handleSaveUser = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editingUser) return;
+      setEditUserSaving(true);
+      try {
+        await api.updateUser(editingUser.id, {
+          username: editUserForm.username,
+          password: editUserForm.password || undefined,
+          userType: editUserForm.userType,
+        });
+        setEditingUser(null);
+        refreshUsers();
+      } catch { alert('Save failed.'); }
+      finally { setEditUserSaving(false); }
+    };
+
+    const userTypeLabel: Record<string, string> = { tech: 'Technician', dispatch: 'Dispatch', mgr: 'Manager', admin: 'Admin' };
+    const userTypeBadge: Record<string, string> = { tech: '#0099FF', dispatch: '#ff9900', mgr: '#6c3db5', admin: '#1a3a7a' };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', padding: '1rem', background: '#e8edf8' }}>
+        <h1>User List</h1>
+        <div style={{ width: '100%', maxWidth: 800 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={showPasswords} onChange={e => setShowPasswords(e.target.checked)} />
+              Show password hashes
+            </label>
+            <button onClick={() => setPage('adduser')} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontWeight: 700, cursor: 'pointer' }}>+ Add User</button>
+          </div>
+          {usersLoading ? <p>Loading...</p> : (
+            <table className="wo-table" style={{ background: '#fff' }}>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Username</th>
+                  <th>Type</th>
+                  {showPasswords && <th>Password Hash</th>}
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u: UserRecord) => (
+                  <tr key={u.id}>
+                    <td data-label="ID">{u.id}</td>
+                    <td data-label="Username" style={{ fontWeight: 700 }}>{u.username}</td>
+                    <td data-label="Type">
+                      <span style={{ background: userTypeBadge[u.user_type] || '#888', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>
+                        {userTypeLabel[u.user_type] || u.user_type}
+                      </span>
+                    </td>
+                    {showPasswords && <td data-label="Hash" style={{ fontSize: 11, color: '#555', wordBreak: 'break-all', maxWidth: 200 }}>{u.password_hash}</td>}
+                    <td data-label="Created" style={{ fontSize: 12 }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }} onClick={() => { setEditingUser(u); setEditUserForm({ username: u.username, password: '', userType: u.user_type || 'tech' }); }}>✏️ Edit</button>
+                      <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }} onClick={() => handleDeleteUser(u)}>🗑 Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <button style={{ marginTop: 16 }} onClick={() => setPage('home')}>Return to Home</button>
+        </div>
+
+        {/* Edit User Modal */}
+        {editingUser && (
+          <div className="photo-modal">
+            <div className="photo-modal-content" style={{ maxWidth: 440 }}>
+              <h2>Edit User — {editingUser.username}</h2>
+              <form onSubmit={handleSaveUser} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Username
+                  <input value={editUserForm.username} onChange={e => setEditUserForm(p => ({ ...p, username: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  New Password <span style={{ fontWeight: 400, color: '#888' }}>(leave blank to keep current)</span>
+                  <input type="password" value={editUserForm.password} onChange={e => setEditUserForm(p => ({ ...p, password: e.target.value }))} placeholder="Enter new password" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  User Type
+                  <select value={editUserForm.userType} onChange={e => setEditUserForm(p => ({ ...p, userType: e.target.value }))} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+                    <option value="tech">Technician</option>
+                    <option value="dispatch">Dispatch</option>
+                    <option value="mgr">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button type="submit" disabled={editUserSaving} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{editUserSaving ? 'Saving...' : '✓ Save'}</button>
+                  <button type="button" onClick={() => setEditingUser(null)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Add New User ─────────────────────────────────────────────────────────
+  if (page === "adduser") {
+    const [addUserForm, setAddUserForm] = React.useState({ username: '', password: '', userType: 'tech' });
+    const [addUserSaving, setAddUserSaving] = React.useState(false);
+    const [addUserDone, setAddUserDone] = React.useState(false);
+    const [addUserError, setAddUserError] = React.useState('');
+
+    const handleAddUser = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setAddUserSaving(true);
+      setAddUserError('');
+      try {
+        const res = await api.createUser(addUserForm);
+        if (res.error) { setAddUserError(res.error); return; }
+        setAddUserDone(true);
+      } catch { setAddUserError('Failed to create user.'); }
+      finally { setAddUserSaving(false); }
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
+        <h1>Add New User</h1>
+        {addUserDone ? (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: '#2a9d2a', fontWeight: 700, fontSize: 16 }}>✓ User created successfully!</p>
+            <button onClick={() => { setAddUserDone(false); setAddUserForm({ username: '', password: '', userType: 'tech' }); }}>Add Another</button>
+            <button style={{ marginLeft: 10 }} onClick={() => setPage('userlist')}>View User List</button>
+            <button style={{ marginLeft: 10 }} onClick={() => setPage('home')}>Return to Home</button>
+          </div>
+        ) : (
+          <form onSubmit={handleAddUser} style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 440, width: '100%', background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 28, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+            {addUserError && <p style={{ color: '#ff4d4d', fontWeight: 600, margin: 0 }}>{addUserError}</p>}
+            <label style={{ fontWeight: 600, fontSize: 13 }}>
+              Username
+              <input value={addUserForm.username} onChange={e => setAddUserForm(p => ({ ...p, username: e.target.value }))} required placeholder="e.g. jsmith" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+            </label>
+            <label style={{ fontWeight: 600, fontSize: 13 }}>
+              Password
+              <input type="password" value={addUserForm.password} onChange={e => setAddUserForm(p => ({ ...p, password: e.target.value }))} required placeholder="Min 4 characters" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+            </label>
+            <label style={{ fontWeight: 600, fontSize: 13 }}>
+              User Type
+              <select value={addUserForm.userType} onChange={e => setAddUserForm(p => ({ ...p, userType: e.target.value }))} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+                <option value="tech">Technician</option>
+                <option value="dispatch">Dispatch</option>
+                <option value="mgr">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <button type="submit" disabled={addUserSaving} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 24px', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 4 }}>{addUserSaving ? 'Creating...' : '+ Create User'}</button>
+            <button type="button" onClick={() => setPage('home')} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>Return to Home</button>
+          </form>
+        )}
+      </div>
+    );
+  }
+
   // Main dashboard/homepage UI
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -2748,6 +2931,18 @@ function App() {
           <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Purchases</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("createpurchase")}>Create a Purchase</button>
           <button onClick={() => setPage("purchaselist")}>Purchase List</button>
+        </div>
+        {/* Users */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ marginBottom: 8 }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="20" cy="14" r="7" fill="#0099FF"/>
+              <path d="M6 34c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="#00BFFF" strokeWidth="3" fill="none" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Users</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("userlist")}>User List</button>
+          <button onClick={() => setPage("adduser")}>Add New User</button>
         </div>
       </div>
     </div>

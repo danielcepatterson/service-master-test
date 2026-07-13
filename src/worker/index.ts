@@ -59,6 +59,10 @@ app.get("/api/init", async (c) => {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  // Add user_type column if it doesn't exist yet
+  try {
+    await db.exec(`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'tech';`);
+  } catch (_) { /* column already exists */ }
   await db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -238,6 +242,54 @@ app.get("/api/auth/me", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
   return c.json({ ok: true, user });
+});
+
+// ─── User Management ──────────────────────────────────────
+app.get("/api/users", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, username, password_hash, user_type, created_at FROM users ORDER BY id ASC"
+  ).all();
+  return c.json(results || []);
+});
+
+app.post("/api/users", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const { username, password, userType } = await c.req.json();
+  if (!username || !password) return c.json({ error: "Username and password required" }, 400);
+  const existing = await c.env.DB.prepare("SELECT id FROM users WHERE username = ?").bind(username).first();
+  if (existing) return c.json({ error: "Username already exists" }, 409);
+  const passwordHash = await hashPassword(password);
+  await c.env.DB.prepare("INSERT INTO users (username, password_hash, user_type) VALUES (?, ?, ?)")
+    .bind(username, passwordHash, userType || 'tech').run();
+  return c.json({ ok: true });
+});
+
+app.put("/api/users/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  const { username, password, userType } = await c.req.json();
+  if (password) {
+    const passwordHash = await hashPassword(password);
+    await c.env.DB.prepare("UPDATE users SET username = ?, password_hash = ?, user_type = ? WHERE id = ?")
+      .bind(username, passwordHash, userType, id).run();
+  } else {
+    await c.env.DB.prepare("UPDATE users SET username = ?, user_type = ? WHERE id = ?")
+      .bind(username, userType, id).run();
+  }
+  return c.json({ ok: true });
+});
+
+app.delete("/api/users/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(id).run();
+  await c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(id).run();
+  return c.json({ ok: true });
 });
 
 // ─── Properties ───────────────────────────────────────────
