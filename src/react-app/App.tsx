@@ -992,7 +992,20 @@ function App() {
                     <td data-label="Property">{est.propertyName}</td>
                     <td data-label="Title">{est.title}</td>
                     <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
-                    <td data-label="Work Order"><span style={{ color: '#0099FF', fontWeight: 600 }}>{est.convertedTo}</span></td>
+                    <td data-label="Work Order">
+                      {est.convertedTo ? (
+                        <button
+                          onClick={() => {
+                            const wo = workOrders.find((w) => w.number === est.convertedTo);
+                            if (wo) openWODetail(wo, 'estimatelist');
+                            else alert('Work order not found. It may have been deleted.');
+                          }}
+                          style={{ background: 'none', border: 'none', color: '#0099FF', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 'inherit' }}
+                        >
+                          {est.convertedTo}
+                        </button>
+                      ) : '—'}
+                    </td>
                     <td>
                       <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
                     </td>
