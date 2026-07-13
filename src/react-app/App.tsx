@@ -1239,7 +1239,7 @@ function App() {
               {!expenseLoading && woExpenses.length === 0 && <p style={{ color: '#888' }}>No items added yet.</p>}
               {woExpenses.length > 0 && (
                 <>
-                  <table className="wo-table">
+                  <table className="wo-table" style={{ background: '#fff' }}>
                     <thead>
                       <tr>
                         <th>Category</th>
@@ -1253,15 +1253,15 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {woExpenses.map((exp) => (
-                        <tr key={exp.id}>
-                          <td data-label="Category">{exp.category}</td>
-                          <td data-label="Description">{exp.description}</td>
-                          <td data-label="Part #">{exp.partNumber || '—'}</td>
-                          <td data-label="Vendor">{exp.vendor || '—'}</td>
-                          <td data-label="Qty">{exp.quantity}</td>
-                          <td data-label="Unit $">{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
-                          <td data-label="Total $">{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
+                      {woExpenses.map((exp, i) => (
+                        <tr key={exp.id} style={{ background: i % 2 === 0 ? '#f0f4ff' : '#fff' }}>
+                          <td data-label="Category" style={{ color: '#111', fontWeight: 500 }}>{exp.category}</td>
+                          <td data-label="Description" style={{ color: '#111', fontWeight: 600 }}>{exp.description}</td>
+                          <td data-label="Part #" style={{ color: '#333' }}>{exp.partNumber || '—'}</td>
+                          <td data-label="Vendor" style={{ color: '#333' }}>{exp.vendor || '—'}</td>
+                          <td data-label="Qty" style={{ color: '#111', fontWeight: 500 }}>{exp.quantity}</td>
+                          <td data-label="Unit $" style={{ color: '#111' }}>{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
+                          <td data-label="Total $" style={{ color: '#0a6e0a', fontWeight: 700 }}>{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
                           <td>
                             <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✕</button>
                           </td>
@@ -1269,7 +1269,7 @@ function App() {
                       ))}
                     </tbody>
                   </table>
-                  <p style={{ textAlign: 'right', fontWeight: 600, marginTop: 8 }}>
+                  <p style={{ textAlign: 'right', fontWeight: 700, marginTop: 8, fontSize: 16, color: '#0a6e0a' }}>
                     Total: ${woExpenses.reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0).toFixed(2)}
                   </p>
                 </>
@@ -1528,7 +1528,7 @@ function App() {
               {!expenseLoading && woExpenses.length === 0 && <p style={{ color: '#888' }}>No items added yet.</p>}
               {woExpenses.length > 0 && (
                 <>
-                  <table className="wo-table">
+                  <table className="wo-table" style={{ background: '#fff' }}>
                     <thead>
                       <tr>
                         <th>Category</th>
@@ -1542,15 +1542,15 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {woExpenses.map((exp) => (
-                        <tr key={exp.id}>
-                          <td data-label="Category">{exp.category}</td>
-                          <td data-label="Description">{exp.description}</td>
-                          <td data-label="Part #">{exp.partNumber || '—'}</td>
-                          <td data-label="Vendor">{exp.vendor || '—'}</td>
-                          <td data-label="Qty">{exp.quantity}</td>
-                          <td data-label="Unit $">{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
-                          <td data-label="Total $">{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
+                      {woExpenses.map((exp, i) => (
+                        <tr key={exp.id} style={{ background: i % 2 === 0 ? '#f0f4ff' : '#fff' }}>
+                          <td data-label="Category" style={{ color: '#111', fontWeight: 500 }}>{exp.category}</td>
+                          <td data-label="Description" style={{ color: '#111', fontWeight: 600 }}>{exp.description}</td>
+                          <td data-label="Part #" style={{ color: '#333' }}>{exp.partNumber || '—'}</td>
+                          <td data-label="Vendor" style={{ color: '#333' }}>{exp.vendor || '—'}</td>
+                          <td data-label="Qty" style={{ color: '#111', fontWeight: 500 }}>{exp.quantity}</td>
+                          <td data-label="Unit $" style={{ color: '#111' }}>{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
+                          <td data-label="Total $" style={{ color: '#0a6e0a', fontWeight: 700 }}>{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
                           <td>
                             <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✕</button>
                           </td>
@@ -1558,7 +1558,7 @@ function App() {
                       ))}
                     </tbody>
                   </table>
-                  <p style={{ textAlign: 'right', fontWeight: 600, marginTop: 8 }}>
+                  <p style={{ textAlign: 'right', fontWeight: 700, marginTop: 8, fontSize: 16, color: '#0a6e0a' }}>
                     Total: ${woExpenses.reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0).toFixed(2)}
                   </p>
                 </>

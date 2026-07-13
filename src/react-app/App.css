@@ -45,10 +45,14 @@
 	
 	.wo-table tr {
 		margin-bottom: 1rem;
-		border: 1px solid #ddd;
+		border: 1px solid #ccc;
 		border-radius: 8px;
 		padding: 0.5rem;
-		background: #fafafa;
+		background: #f4f7ff;
+	}
+
+	.wo-table tbody tr:nth-child(even) {
+		background: #eaf0ff;
 	}
 	
 	.wo-table td {
