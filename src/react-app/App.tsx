@@ -319,6 +319,13 @@ function App() {
     }, 100);
   };
 
+  const reactivateWorkOrder = async (number: string) => {
+    if (!confirm('Reactivate this work order? It will return to Active Work Orders.')) return;
+    await api.updateWorkOrderStatus(number, 'active');
+    await loadAllData();
+    setPage('workorderlist');
+  };
+
   // ─── Photo Handlers ─────────────────────────────────────
   const loadPhotosForWorkOrder = async (wo: WorkOrder) => {
     setSelectedWOForPhotos(wo);
@@ -1388,8 +1395,10 @@ function App() {
                 <th>Instructions</th>
                 <th>Scheduled Date</th>
                 <th>Scheduled Time</th>
+                <th>Expenses</th>
                 <th>Photos</th>
                 <th>History</th>
+                <th>Reactivate</th>
               </tr>
             </thead>
             <tbody>
@@ -1402,10 +1411,16 @@ function App() {
                   <td data-label="Date">{wo.scheduledDate}</td>
                   <td data-label="Time">{wo.scheduledTime}</td>
                   <td>
+                    <button onClick={() => loadExpensesForWorkOrder(wo)}>💰 Expenses</button>
+                  </td>
+                  <td>
                     <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
                   </td>
                   <td>
                     <button onClick={() => setViewHistoryWO(wo)}>View History</button>
+                  </td>
+                  <td>
+                    <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => reactivateWorkOrder(wo.number)}>↺ Reactivate</button>
                   </td>
                 </tr>
               ))}
@@ -1455,6 +1470,97 @@ function App() {
               ))}
             </ul>
             <button onClick={() => setViewHistoryWO(null)}>Close</button>
+          </div>
+        )}
+
+        {/* Expense Modal */}
+        {selectedWOForExpenses && (
+          <div className="photo-modal">
+            <div className="photo-modal-content" style={{ maxWidth: 680 }}>
+              <h2>Parts &amp; Expenses — {selectedWOForExpenses.number}</h2>
+              <form onSubmit={handleExpenseSubmit} style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>Add Item</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+                  <label style={{ fontSize: 13 }}>
+                    Category
+                    <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }}>
+                      <option>Part</option>
+                      <option>Labor</option>
+                      <option>Material</option>
+                      <option>Equipment</option>
+                      <option>Other</option>
+                    </select>
+                  </label>
+                  <label style={{ fontSize: 13, gridColumn: 'span 2' }}>
+                    Description *
+                    <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required style={{ width: '100%', marginTop: 2 }} />
+                  </label>
+                  <label style={{ fontSize: 13 }}>
+                    Part #
+                    <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                  </label>
+                  <label style={{ fontSize: 13 }}>
+                    Vendor
+                    <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                  </label>
+                  <label style={{ fontSize: 13 }}>
+                    Qty
+                    <input name="quantity" type="number" min="0" step="any" value={expenseForm.quantity} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                  </label>
+                  <label style={{ fontSize: 13 }}>
+                    Unit Cost ($)
+                    <input name="unitCost" type="number" min="0" step="0.01" value={expenseForm.unitCost} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                  </label>
+                  <label style={{ fontSize: 13 }}>
+                    Total ($)
+                    <input name="totalCost" type="number" min="0" step="0.01" value={expenseForm.totalCost} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                  </label>
+                </div>
+                <button type="submit" disabled={expenseSubmitting} style={{ marginTop: 12 }}>
+                  {expenseSubmitting ? 'Adding...' : '+ Add Item'}
+                </button>
+              </form>
+              {expenseLoading && <p>Loading...</p>}
+              {!expenseLoading && woExpenses.length === 0 && <p style={{ color: '#888' }}>No items added yet.</p>}
+              {woExpenses.length > 0 && (
+                <>
+                  <table className="wo-table">
+                    <thead>
+                      <tr>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Part #</th>
+                        <th>Vendor</th>
+                        <th>Qty</th>
+                        <th>Unit $</th>
+                        <th>Total $</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {woExpenses.map((exp) => (
+                        <tr key={exp.id}>
+                          <td data-label="Category">{exp.category}</td>
+                          <td data-label="Description">{exp.description}</td>
+                          <td data-label="Part #">{exp.partNumber || '—'}</td>
+                          <td data-label="Vendor">{exp.vendor || '—'}</td>
+                          <td data-label="Qty">{exp.quantity}</td>
+                          <td data-label="Unit $">{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
+                          <td data-label="Total $">{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
+                          <td>
+                            <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✕</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p style={{ textAlign: 'right', fontWeight: 600, marginTop: 8 }}>
+                    Total: ${woExpenses.reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0).toFixed(2)}
+                  </p>
+                </>
+              )}
+              <button style={{ marginTop: 8 }} onClick={closeExpenseModal}>Close</button>
+            </div>
           </div>
         )}
       </div>
