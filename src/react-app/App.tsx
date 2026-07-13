@@ -2641,22 +2641,13 @@ function App() {
 
   // ── User List ────────────────────────────────────────────────────────────
   if (page === "userlist") {
-    type UserRecord = { id: number; username: string; password_hash: string; user_type: string; created_at: string };
-    const [users, setUsers] = React.useState<UserRecord[]>([]);
-    const [usersLoading, setUsersLoading] = React.useState(true);
-    const [editingUser, setEditingUser] = React.useState<UserRecord | null>(null);
-    const [editUserForm, setEditUserForm] = React.useState({ username: '', password: '', userType: 'tech' });
-    const [editUserSaving, setEditUserSaving] = React.useState(false);
-    const [showPasswords, setShowPasswords] = React.useState(false);
-
-    React.useEffect(() => {
-      api.fetchUsers().then(setUsers).finally(() => setUsersLoading(false));
-    }, []);
-
     const refreshUsers = () => {
       setUsersLoading(true);
-      api.fetchUsers().then(setUsers).finally(() => setUsersLoading(false));
+      api.fetchUsers().then(setUserList).finally(() => setUsersLoading(false));
     };
+
+    // Load on first visit
+    React.useEffect(() => { refreshUsers(); }, []);
 
     const handleDeleteUser = async (u: UserRecord) => {
       if (!confirm(`Delete user "${u.username}"? This cannot be undone.`)) return;
@@ -2707,7 +2698,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u: UserRecord) => (
+                {userList.map((u: UserRecord) => (
                   <tr key={u.id}>
                     <td data-label="ID">{u.id}</td>
                     <td data-label="Username" style={{ fontWeight: 700 }}>{u.username}</td>
@@ -2767,11 +2758,6 @@ function App() {
 
   // ── Add New User ─────────────────────────────────────────────────────────
   if (page === "adduser") {
-    const [addUserForm, setAddUserForm] = React.useState({ username: '', password: '', userType: 'tech' });
-    const [addUserSaving, setAddUserSaving] = React.useState(false);
-    const [addUserDone, setAddUserDone] = React.useState(false);
-    const [addUserError, setAddUserError] = React.useState('');
-
     const handleAddUser = async (e: React.FormEvent) => {
       e.preventDefault();
       setAddUserSaving(true);
@@ -2815,7 +2801,7 @@ function App() {
               </select>
             </label>
             <button type="submit" disabled={addUserSaving} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 24px', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 4 }}>{addUserSaving ? 'Creating...' : '+ Create User'}</button>
-            <button type="button" onClick={() => setPage('home')} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13 }}>Return to Home</button>
+            <button type="button" onClick={() => setPage('home')} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13, textDecoration: 'underline' }}>Return to Home</button>
           </form>
         )}
       </div>
