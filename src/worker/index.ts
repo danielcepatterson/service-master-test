@@ -160,6 +160,19 @@ app.get("/api/init", async (c) => {
       FOREIGN KEY (work_order_number) REFERENCES work_orders(number)
     );
   `);
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS estimates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      number TEXT NOT NULL UNIQUE,
+      property_name TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      estimated_cost TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      converted_to TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
   return c.json({ ok: true, message: "Database initialized" });
 });
 
@@ -492,6 +505,67 @@ app.delete("/api/work-order-photos/:id", async (c) => {
   if (!user) return unauthorized();
   const photoId = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM work_order_photos WHERE id = ?").bind(photoId).run();
+  return c.json({ ok: true });
+});
+
+// ─── Estimates ────────────────────────────────────────────
+app.get("/api/estimates", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const { results } = await c.env.DB.prepare("SELECT * FROM estimates ORDER BY id ASC").all();
+  return c.json(
+    (results || []).map((e: any) => ({
+      id: e.id,
+      number: e.number,
+      propertyName: e.property_name,
+      title: e.title,
+      description: e.description,
+      estimatedCost: e.estimated_cost,
+      status: e.status,
+      convertedTo: e.converted_to,
+      createdAt: e.created_at,
+    }))
+  );
+});
+
+app.get("/api/estimates/next-number", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const row = await c.env.DB.prepare("SELECT COUNT(*) as cnt FROM estimates").first();
+  const count = (row?.cnt as number) || 0;
+  return c.json({ number: `EST-${1001 + count}` });
+});
+
+app.post("/api/estimates", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const { number, propertyName, title, description, estimatedCost } = await c.req.json();
+  await c.env.DB.prepare(
+    "INSERT INTO estimates (number, property_name, title, description, estimated_cost, status) VALUES (?, ?, ?, ?, ?, 'pending')"
+  ).bind(number, propertyName, title, description, estimatedCost || '').run();
+  return c.json({ ok: true });
+});
+
+app.put("/api/estimates/:number/status", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const estNumber = c.req.param("number");
+  const { status, convertedTo } = await c.req.json();
+  if (convertedTo) {
+    await c.env.DB.prepare("UPDATE estimates SET status = ?, converted_to = ? WHERE number = ?")
+      .bind(status, convertedTo, estNumber).run();
+  } else {
+    await c.env.DB.prepare("UPDATE estimates SET status = ? WHERE number = ?")
+      .bind(status, estNumber).run();
+  }
+  return c.json({ ok: true });
+});
+
+app.delete("/api/estimates/:number", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const estNumber = c.req.param("number");
+  await c.env.DB.prepare("DELETE FROM estimates WHERE number = ?").bind(estNumber).run();
   return c.json({ ok: true });
 });
 

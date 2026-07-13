@@ -212,3 +212,37 @@ export async function deleteWorkOrderPhoto(photoId: number) {
   });
   return res.json();
 }
+
+// ─── Estimates ────────────────────────────────────────────
+export async function fetchEstimates() {
+  const res = await apiFetch("/api/estimates");
+  if (res.status === 401) throw new Error("Unauthorized");
+  return res.json();
+}
+
+export async function fetchNextEstimateNumber() {
+  const res = await apiFetch("/api/estimates/next-number");
+  const data = await res.json();
+  return data.number as string;
+}
+
+export async function createEstimate(estimate: any) {
+  const res = await apiFetch("/api/estimates", {
+    method: "POST",
+    body: JSON.stringify(estimate),
+  });
+  return res.json();
+}
+
+export async function updateEstimateStatus(number: string, status: string, convertedTo?: string) {
+  const res = await apiFetch(`/api/estimates/${number}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status, convertedTo }),
+  });
+  return res.json();
+}
+
+export async function deleteEstimate(number: string) {
+  const res = await apiFetch(`/api/estimates/${number}`, { method: "DELETE" });
+  return res.json();
+}

@@ -68,6 +68,20 @@ type WorkOrderPhoto = {
   data?: string; // base64 data when loaded
 };
 
+type EstimateStatus = 'pending' | 'converted' | 'rejected';
+
+type Estimate = {
+  id?: number;
+  number: string;
+  propertyName: string;
+  title: string;
+  description: string;
+  estimatedCost: string;
+  status: EstimateStatus;
+  convertedTo?: string;
+  createdAt?: string;
+};
+
 function App() {
   // ─── Auth state ─────────────────────────────────────────
   const [authUser, setAuthUser] = React.useState<{ id: number; username: string } | null>(null);
@@ -169,17 +183,26 @@ function App() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Estimate state
+  const [estimateForm, setEstimateForm] = React.useState<Omit<Estimate, 'number' | 'status'>>({ 
+    propertyName: '', title: '', description: '', estimatedCost: '' 
+  });
+  const [estimates, setEstimates] = React.useState<Estimate[]>([]);
+  const [estimateSubmitted, setEstimateSubmitted] = React.useState(false);
+  const [nextEstimateNumber, setNextEstimateNumber] = React.useState('EST-1001');
+
   // ─── Load all data from API when user is authenticated ──
   const loadAllData = React.useCallback(async () => {
     if (!authUser) return;
     try {
-      const [props, wos, vends, purch, invItems, invCats] = await Promise.all([
+      const [props, wos, vends, purch, invItems, invCats, ests] = await Promise.all([
         api.fetchProperties(),
         api.fetchWorkOrders(),
         api.fetchVendors(),
         api.fetchPurchases(),
         api.fetchInventoryItems(),
         api.fetchInventoryCategories(),
+        api.fetchEstimates(),
       ]);
       setProperties(props);
       setWorkOrders(wos);
@@ -187,8 +210,11 @@ function App() {
       setPurchases(purch);
       setInventoryItems(invItems);
       setInventoryCategories(invCats);
+      setEstimates(ests);
       const num = await api.fetchNextWorkOrderNumber();
       setNextWoNumber(num);
+      const estNum = await api.fetchNextEstimateNumber();
+      setNextEstimateNumber(estNum);
     } catch (e) {
       console.error("Failed to load data", e);
     }
@@ -391,6 +417,48 @@ function App() {
     setInventoryCategoryForm({ name: '' });
   };
 
+  // ─── Estimate Handlers ────────────────────────────────────
+  const handleEstimateFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEstimateForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEstimateFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await api.createEstimate({ ...estimateForm, number: nextEstimateNumber });
+    await loadAllData();
+    setEstimateSubmitted(true);
+    setEstimateForm({ propertyName: '', title: '', description: '', estimatedCost: '' });
+  };
+
+  const convertEstimateToWorkOrder = async (estimate: Estimate) => {
+    if (!confirm(`Convert estimate ${estimate.number} to a work order?`)) return;
+    const woNum = await api.fetchNextWorkOrderNumber();
+    await api.createWorkOrder({
+      number: woNum,
+      propertyName: estimate.propertyName,
+      title: estimate.title,
+      instructions: estimate.description,
+      scheduledTime: '',
+      scheduledDate: '',
+    });
+    await api.updateEstimateStatus(estimate.number, 'converted', woNum);
+    await loadAllData();
+    alert(`Estimate ${estimate.number} converted to Work Order ${woNum}!`);
+  };
+
+  const rejectEstimate = async (number: string) => {
+    if (!confirm('Mark this estimate as rejected?')) return;
+    await api.updateEstimateStatus(number, 'rejected');
+    await loadAllData();
+  };
+
+  const deleteEstimate = async (number: string) => {
+    if (!confirm('Delete this estimate?')) return;
+    await api.deleteEstimate(number);
+    await loadAllData();
+  };
+
   // ─── Loading state ──────────────────────────────────────
   if (!authChecked) {
     return (
@@ -446,6 +514,160 @@ function App() {
   }
 
   // Render logic
+  if (page === "createestimate") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <h1>Create an Estimate</h1>
+        {estimateSubmitted ? (
+          <>
+            <p style={{ color: 'green' }}>Estimate submitted!</p>
+            <button onClick={() => { setPage("estimatelist"); setEstimateSubmitted(false); }}>View Estimates</button>
+            <button style={{ marginTop: 8 }} onClick={() => { setPage("home"); setEstimateSubmitted(false); }}>Return to Home</button>
+          </>
+        ) : (
+          <form onSubmit={handleEstimateFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350, maxWidth: 500, width: '90%' }}>
+            <label>
+              Estimate Number
+              <input value={nextEstimateNumber} disabled style={{ background: '#eee' }} />
+            </label>
+            <label>
+              Property
+              <select name="propertyName" value={estimateForm.propertyName} onChange={handleEstimateFormChange} required>
+                <option value="" disabled>Select a property</option>
+                {properties.map((prop: PropertyForm, idx: number) => (
+                  <option key={idx} value={prop.propertyName}>{prop.propertyName}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Title
+              <input name="title" value={estimateForm.title} onChange={handleEstimateFormChange} required />
+            </label>
+            <label>
+              Description / Scope of Work
+              <textarea name="description" value={estimateForm.description} onChange={handleEstimateFormChange} required rows={4} />
+            </label>
+            <label>
+              Estimated Cost ($)
+              <input name="estimatedCost" type="text" value={estimateForm.estimatedCost} onChange={handleEstimateFormChange} placeholder="e.g. 1500.00" />
+            </label>
+            <button type="submit">Submit Estimate</button>
+            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+          </form>
+        )}
+      </div>
+    );
+  }
+
+  if (page === "estimatelist") {
+    const pendingEstimates = estimates.filter((e) => e.status === 'pending');
+    const convertedEstimates = estimates.filter((e) => e.status === 'converted');
+    const rejectedEstimates = estimates.filter((e) => e.status === 'rejected');
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
+        <h1>Estimates</h1>
+
+        <h2 style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '1rem auto 0.5rem' }}>Pending</h2>
+        {pendingEstimates.length === 0 ? (
+          <p style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '0 auto' }}>No pending estimates.</p>
+        ) : (
+          <table className="wo-table" style={{ maxWidth: 900 }}>
+            <thead>
+              <tr>
+                <th>Est #</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Est. Cost</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingEstimates.map((est: Estimate, idx: number) => (
+                <tr key={idx}>
+                  <td data-label="Est #">{est.number}</td>
+                  <td data-label="Property">{est.propertyName}</td>
+                  <td data-label="Title">{est.title}</td>
+                  <td data-label="Description">{est.description}</td>
+                  <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
+                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => convertEstimateToWorkOrder(est)}>▶ Convert to WO</button>
+                    <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => rejectEstimate(est.number)}>✕ Reject</button>
+                    <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {convertedEstimates.length > 0 && (
+          <>
+            <h2 style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '1.5rem auto 0.5rem', color: '#2a9d2a' }}>Converted to Work Orders</h2>
+            <table className="wo-table" style={{ maxWidth: 900 }}>
+              <thead>
+                <tr>
+                  <th>Est #</th>
+                  <th>Property</th>
+                  <th>Title</th>
+                  <th>Est. Cost</th>
+                  <th>Work Order</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {convertedEstimates.map((est: Estimate, idx: number) => (
+                  <tr key={idx}>
+                    <td data-label="Est #">{est.number}</td>
+                    <td data-label="Property">{est.propertyName}</td>
+                    <td data-label="Title">{est.title}</td>
+                    <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
+                    <td data-label="Work Order"><span style={{ color: '#0099FF', fontWeight: 600 }}>{est.convertedTo}</span></td>
+                    <td>
+                      <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {rejectedEstimates.length > 0 && (
+          <>
+            <h2 style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '1.5rem auto 0.5rem', color: '#888' }}>Rejected</h2>
+            <table className="wo-table" style={{ maxWidth: 900 }}>
+              <thead>
+                <tr>
+                  <th>Est #</th>
+                  <th>Property</th>
+                  <th>Title</th>
+                  <th>Est. Cost</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rejectedEstimates.map((est: Estimate, idx: number) => (
+                  <tr key={idx}>
+                    <td data-label="Est #">{est.number}</td>
+                    <td data-label="Property">{est.propertyName}</td>
+                    <td data-label="Title">{est.title}</td>
+                    <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
+                    <td>
+                      <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        <button style={{ marginTop: 24 }} onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+
   if (page === "vendor") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -1295,6 +1517,22 @@ function App() {
           <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Properties</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("property")}>Create a Property</button>
           <button onClick={() => setPage("propertylist")}>Property List</button>
+        </div>
+        {/* Estimates */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ marginBottom: 8 }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="6" width="24" height="30" rx="4" fill="#0099FF"/>
+              <rect x="13" y="13" width="14" height="2" rx="1" fill="#fff"/>
+              <rect x="13" y="18" width="14" height="2" rx="1" fill="#fff"/>
+              <rect x="13" y="23" width="8" height="2" rx="1" fill="#fff"/>
+              <circle cx="30" cy="30" r="7" fill="#00BFFF"/>
+              <text x="30" y="34" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="bold">$</text>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Estimates</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("createestimate")}>Create an Estimate</button>
+          <button onClick={() => setPage("estimatelist")}>Estimate List</button>
         </div>
         {/* Work Orders */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
