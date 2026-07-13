@@ -238,6 +238,19 @@ function App() {
   const [editWOForm, setEditWOForm] = React.useState({ propertyName: '', title: '', instructions: '', scheduledDate: '', scheduledTime: '' });
   const [editWOSaving, setEditWOSaving] = React.useState(false);
 
+  // User management state
+  type UserRecord = { id: number; username: string; password_hash: string; user_type: string; created_at: string };
+  const [userList, setUserList] = React.useState<UserRecord[]>([]);
+  const [usersLoading, setUsersLoading] = React.useState(false);
+  const [editingUser, setEditingUser] = React.useState<UserRecord | null>(null);
+  const [editUserForm, setEditUserForm] = React.useState({ username: '', password: '', userType: 'tech' });
+  const [editUserSaving, setEditUserSaving] = React.useState(false);
+  const [showPasswords, setShowPasswords] = React.useState(false);
+  const [addUserForm, setAddUserForm] = React.useState({ username: '', password: '', userType: 'tech' });
+  const [addUserSaving, setAddUserSaving] = React.useState(false);
+  const [addUserDone, setAddUserDone] = React.useState(false);
+  const [addUserError, setAddUserError] = React.useState('');
+
   // ─── Load all data from API when user is authenticated ──
   const loadAllData = React.useCallback(async () => {
     if (!authUser) return;
