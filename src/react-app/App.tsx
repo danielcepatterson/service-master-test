@@ -699,7 +699,7 @@ function App() {
     };
     const totalExpenses = viewWOExpenses.reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0);
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem", background: "#e8edf8" }}>
         <div style={{ width: '100%', maxWidth: 800 }}>
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
@@ -713,7 +713,7 @@ function App() {
           <p style={{ margin: '0 0 20px', color: '#555', fontSize: 15 }}>{viewingWO.number} &bull; {viewingWO.propertyName}</p>
 
           {/* Details card */}
-          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+          <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h2 style={{ margin: 0, fontSize: 16, color: '#333' }}>Details</h2>
               {!editingWODetails && (
@@ -834,7 +834,7 @@ function App() {
           </div>
 
           {/* Expenses */}
-          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+          <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
             <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Parts &amp; Expenses</h2>
             {viewWOLoading && <p style={{ color: '#888' }}>Loading...</p>}
             {!viewWOLoading && viewWOExpenses.length === 0 && <p style={{ color: '#888' }}>No expenses recorded.</p>}
@@ -874,7 +874,7 @@ function App() {
           </div>
 
           {/* Photos */}
-          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+          <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
             <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Photos</h2>
             {viewWOLoading && <p style={{ color: '#888' }}>Loading...</p>}
             {!viewWOLoading && viewWOPhotos.length === 0 && <p style={{ color: '#888' }}>No photos attached.</p>}
@@ -889,14 +889,14 @@ function App() {
           </div>
 
           {/* History */}
-          <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+          <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
             <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>History</h2>
             {viewingWO.history.length === 0 && <p style={{ color: '#888' }}>No history.</p>}
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {viewingWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
-                <li key={idx} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                <li key={idx} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 12px', marginBottom: 6, background: idx % 2 === 0 ? '#f0f4ff' : '#e8edf8', borderRadius: 6, borderLeft: `4px solid ${statusColors[entry.status] || '#888'}` }}>
                   <span style={{ background: statusColors[entry.status] || '#888', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{entry.status}</span>
-                  <span style={{ color: '#555', fontSize: 13 }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                  <span style={{ color: '#333', fontSize: 13, fontWeight: 500 }}>{new Date(entry.timestamp).toLocaleString()}</span>
                 </li>
               ))}
             </ul>
@@ -988,7 +988,7 @@ function App() {
     );
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem", background: "#e8edf8" }}>
         <h1>Estimates</h1>
 
         <h2 style={{ alignSelf: 'flex-start', maxWidth: 960, width: '100%', margin: '1rem auto 0.5rem' }}>Pending</h2>
