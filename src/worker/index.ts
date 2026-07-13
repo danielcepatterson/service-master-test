@@ -557,9 +557,9 @@ app.get("/api/estimates", async (c) => {
 app.get("/api/estimates/next-number", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
-  const row = await c.env.DB.prepare("SELECT COUNT(*) as cnt FROM estimates").first();
-  const count = (row?.cnt as number) || 0;
-  return c.json({ number: `EST-${1001 + count}` });
+  const row = await c.env.DB.prepare("SELECT MAX(id) as maxId FROM estimates").first();
+  const maxId = (row?.maxId as number) || 0;
+  return c.json({ number: `EST-${1001 + maxId}` });
 });
 
 app.post("/api/estimates", async (c) => {

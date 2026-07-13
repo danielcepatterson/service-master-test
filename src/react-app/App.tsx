@@ -573,10 +573,16 @@ function App() {
 
   const handleEstimateFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    await api.createEstimate({ ...estimateForm, number: nextEstimateNumber });
-    await loadAllData();
-    setEstimateSubmitted(true);
-    setEstimateForm({ propertyName: '', title: '', description: '', estimatedCost: '' });
+    try {
+      const result = await api.createEstimate({ ...estimateForm, number: nextEstimateNumber });
+      if (result.error) { alert('Failed to submit estimate: ' + result.error); return; }
+      await loadAllData();
+      setEstimateSubmitted(true);
+      setEstimateForm({ propertyName: '', title: '', description: '', estimatedCost: '' });
+    } catch (err) {
+      console.error('Estimate submit error', err);
+      alert('Failed to submit estimate. Please try again.');
+    }
   };
 
   const convertEstimateToWorkOrder = async (estimate: Estimate) => {
