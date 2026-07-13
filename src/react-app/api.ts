@@ -246,3 +246,31 @@ export async function deleteEstimate(number: string) {
   const res = await apiFetch(`/api/estimates/${number}`, { method: "DELETE" });
   return res.json();
 }
+
+// ─── Work Order Expenses ──────────────────────────────────
+export async function fetchWorkOrderExpenses(workOrderNumber: string) {
+  const res = await apiFetch(`/api/work-orders/${workOrderNumber}/expenses`);
+  if (res.status === 401) throw new Error("Unauthorized");
+  return res.json();
+}
+
+export async function createWorkOrderExpense(workOrderNumber: string, expense: {
+  description: string;
+  category: string;
+  quantity: string;
+  unitCost: string;
+  totalCost: string;
+  vendor: string;
+  partNumber: string;
+}) {
+  const res = await apiFetch(`/api/work-orders/${workOrderNumber}/expenses`, {
+    method: "POST",
+    body: JSON.stringify(expense),
+  });
+  return res.json();
+}
+
+export async function deleteWorkOrderExpense(expenseId: number) {
+  const res = await apiFetch(`/api/work-order-expenses/${expenseId}`, { method: "DELETE" });
+  return res.json();
+}

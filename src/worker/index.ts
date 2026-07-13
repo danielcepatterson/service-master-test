@@ -173,6 +173,21 @@ app.get("/api/init", async (c) => {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS work_order_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      work_order_number TEXT NOT NULL,
+      description TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Part',
+      quantity TEXT NOT NULL DEFAULT '1',
+      unit_cost TEXT NOT NULL DEFAULT '0',
+      total_cost TEXT NOT NULL DEFAULT '0',
+      vendor TEXT NOT NULL DEFAULT '',
+      part_number TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (work_order_number) REFERENCES work_orders(number)
+    );
+  `);
   return c.json({ ok: true, message: "Database initialized" });
 });
 
@@ -566,6 +581,50 @@ app.delete("/api/estimates/:number", async (c) => {
   if (!user) return unauthorized();
   const estNumber = c.req.param("number");
   await c.env.DB.prepare("DELETE FROM estimates WHERE number = ?").bind(estNumber).run();
+  return c.json({ ok: true });
+});
+
+// ─── Work Order Expenses ──────────────────────────────────
+app.get("/api/work-orders/:number/expenses", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM work_order_expenses WHERE work_order_number = ? ORDER BY id ASC"
+  ).bind(woNumber).all();
+  return c.json(
+    (results || []).map((e: any) => ({
+      id: e.id,
+      workOrderNumber: e.work_order_number,
+      description: e.description,
+      category: e.category,
+      quantity: e.quantity,
+      unitCost: e.unit_cost,
+      totalCost: e.total_cost,
+      vendor: e.vendor,
+      partNumber: e.part_number,
+      createdAt: e.created_at,
+    }))
+  );
+});
+
+app.post("/api/work-orders/:number/expenses", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { description, category, quantity, unitCost, totalCost, vendor, partNumber } = await c.req.json();
+  if (!description) return c.json({ error: "description is required" }, 400);
+  await c.env.DB.prepare(
+    "INSERT INTO work_order_expenses (work_order_number, description, category, quantity, unit_cost, total_cost, vendor, part_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(woNumber, description, category || 'Part', quantity || '1', unitCost || '0', totalCost || '0', vendor || '', partNumber || '').run();
+  return c.json({ ok: true });
+});
+
+app.delete("/api/work-order-expenses/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const expenseId = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM work_order_expenses WHERE id = ?").bind(expenseId).run();
   return c.json({ ok: true });
 });
 
