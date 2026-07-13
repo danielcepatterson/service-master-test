@@ -1191,12 +1191,12 @@ function App() {
               <h2>Parts &amp; Expenses — {selectedWOForExpenses.number}</h2>
 
               {/* Add expense form */}
-              <form onSubmit={handleExpenseSubmit} style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>Add Item</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
-                  <label style={{ fontSize: 13 }}>
+              <form onSubmit={handleExpenseSubmit} style={{ background: '#e8f0fe', border: '1px solid #b0c4f0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#1a3a7a' }}>Add Item</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Category
-                    <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }}>
+                    <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14 }}>
                       <option>Part</option>
                       <option>Labor</option>
                       <option>Material</option>
@@ -1204,32 +1204,32 @@ function App() {
                       <option>Other</option>
                     </select>
                   </label>
-                  <label style={{ fontSize: 13, gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222', gridColumn: 'span 2' }}>
                     Description *
-                    <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required style={{ width: '100%', marginTop: 2 }} />
+                    <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required placeholder="e.g. 1/2&quot; copper elbow" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Part #
-                    <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} placeholder="optional" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Vendor
-                    <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} placeholder="optional" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Qty
-                    <input name="quantity" type="number" min="0" step="any" value={expenseForm.quantity} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="quantity" type="number" min="0" step="any" value={expenseForm.quantity} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Unit Cost ($)
-                    <input name="unitCost" type="number" min="0" step="0.01" value={expenseForm.unitCost} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="unitCost" type="number" min="0" step="0.01" value={expenseForm.unitCost} onChange={handleExpenseFormChange} placeholder="0.00" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Total ($)
-                    <input name="totalCost" type="number" min="0" step="0.01" value={expenseForm.totalCost} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="totalCost" type="number" min="0" step="0.01" value={expenseForm.totalCost} onChange={handleExpenseFormChange} placeholder="auto" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, background: '#f0f4ff', boxSizing: 'border-box' }} />
                   </label>
                 </div>
-                <button type="submit" disabled={expenseSubmitting} style={{ marginTop: 12 }}>
+                <button type="submit" disabled={expenseSubmitting} style={{ marginTop: 14, background: '#0099FF', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                   {expenseSubmitting ? 'Adding...' : '+ Add Item'}
                 </button>
               </form>
@@ -1303,6 +1303,7 @@ function App() {
                 <th>Action</th>
                 <th>Photos</th>
                 <th>History</th>
+                <th>Reactivate</th>
               </tr>
             </thead>
             <tbody>
@@ -1322,6 +1323,9 @@ function App() {
                   </td>
                   <td>
                     <button onClick={() => setViewHistoryWO(wo)}>View History</button>
+                  </td>
+                  <td>
+                    <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => reactivateWorkOrder(wo.number)}>↺ Reactivate</button>
                   </td>
                 </tr>
               ))}
@@ -1478,12 +1482,12 @@ function App() {
           <div className="photo-modal">
             <div className="photo-modal-content" style={{ maxWidth: 680 }}>
               <h2>Parts &amp; Expenses — {selectedWOForExpenses.number}</h2>
-              <form onSubmit={handleExpenseSubmit} style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>Add Item</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
-                  <label style={{ fontSize: 13 }}>
+              <form onSubmit={handleExpenseSubmit} style={{ background: '#e8f0fe', border: '1px solid #b0c4f0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#1a3a7a' }}>Add Item</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Category
-                    <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }}>
+                    <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14 }}>
                       <option>Part</option>
                       <option>Labor</option>
                       <option>Material</option>
@@ -1491,32 +1495,32 @@ function App() {
                       <option>Other</option>
                     </select>
                   </label>
-                  <label style={{ fontSize: 13, gridColumn: 'span 2' }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222', gridColumn: 'span 2' }}>
                     Description *
-                    <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required style={{ width: '100%', marginTop: 2 }} />
+                    <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required placeholder="e.g. 1/2&quot; copper elbow" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Part #
-                    <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} placeholder="optional" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Vendor
-                    <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} placeholder="optional" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Qty
-                    <input name="quantity" type="number" min="0" step="any" value={expenseForm.quantity} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="quantity" type="number" min="0" step="any" value={expenseForm.quantity} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Unit Cost ($)
-                    <input name="unitCost" type="number" min="0" step="0.01" value={expenseForm.unitCost} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="unitCost" type="number" min="0" step="0.01" value={expenseForm.unitCost} onChange={handleExpenseFormChange} placeholder="0.00" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
                   </label>
-                  <label style={{ fontSize: 13 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
                     Total ($)
-                    <input name="totalCost" type="number" min="0" step="0.01" value={expenseForm.totalCost} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 2 }} />
+                    <input name="totalCost" type="number" min="0" step="0.01" value={expenseForm.totalCost} onChange={handleExpenseFormChange} placeholder="auto" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, background: '#f0f4ff', boxSizing: 'border-box' }} />
                   </label>
                 </div>
-                <button type="submit" disabled={expenseSubmitting} style={{ marginTop: 12 }}>
+                <button type="submit" disabled={expenseSubmitting} style={{ marginTop: 14, background: '#0099FF', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                   {expenseSubmitting ? 'Adding...' : '+ Add Item'}
                 </button>
               </form>
