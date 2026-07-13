@@ -366,6 +366,17 @@ app.put("/api/work-orders/:number", async (c) => {
   return c.json({ ok: true });
 });
 
+app.delete("/api/work-orders/:number", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const now = new Date().toISOString();
+  await c.env.DB.prepare("UPDATE work_orders SET status = 'deleted' WHERE number = ?").bind(woNumber).run();
+  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp) VALUES (?, 'deleted', ?)")
+    .bind(woNumber, now).run();
+  return c.json({ ok: true });
+});
+
 // ─── Vendors ──────────────────────────────────────────────
 app.get("/api/vendors", async (c) => {
   const user = await getUser(c);

@@ -128,6 +128,11 @@ export async function updateWorkOrder(number: string, fields: {
   return res.json();
 }
 
+export async function deleteWorkOrder(number: string) {
+  const res = await apiFetch(`/api/work-orders/${number}`, { method: "DELETE" });
+  return res.json();
+}
+
 // ─── Vendors ──────────────────────────────────────────────
 export async function fetchVendors() {
   const res = await apiFetch("/api/vendors");

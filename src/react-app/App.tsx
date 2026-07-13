@@ -14,7 +14,7 @@ type PropertyForm = {
   ownerName: string;
   ownerPhone: string;
 };
-type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed';
+type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed' | 'invoiced' | 'nocharge' | 'deleted';
 
 type WorkOrderHistoryEntry = {
   status: WorkOrderStatus;
@@ -342,6 +342,24 @@ function App() {
     await api.updateWorkOrderStatus(number, 'active');
     await loadAllData();
     setPage('workorderlist');
+  };
+
+  const invoiceWorkOrder = async (number: string) => {
+    if (!confirm('Mark this work order as Invoiced?')) return;
+    await api.updateWorkOrderStatus(number, 'invoiced');
+    await loadAllData();
+  };
+
+  const noChargeWorkOrder = async (number: string) => {
+    if (!confirm('Mark this work order as No Charge?')) return;
+    await api.updateWorkOrderStatus(number, 'nocharge');
+    await loadAllData();
+  };
+
+  const deleteWorkOrder = async (number: string) => {
+    if (!confirm('Delete this work order? It will be moved to the Deleted list.')) return;
+    await api.deleteWorkOrder(number);
+    await loadAllData();
   };
 
   // ─── Photo Handlers ─────────────────────────────────────
@@ -1846,6 +1864,7 @@ function App() {
                 <th>Photos</th>
                 <th>History</th>
                 <th>Reactivate</th>
+                <th>Process</th>
                 <th>View</th>
               </tr>
             </thead>
@@ -1869,6 +1888,11 @@ function App() {
                   </td>
                   <td>
                     <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => reactivateWorkOrder(wo.number)}>↺ Reactivate</button>
+                  </td>
+                  <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <button style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 12 }} onClick={() => invoiceWorkOrder(wo.number)}>🧾 Invoice</button>
+                    <button style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 12 }} onClick={() => noChargeWorkOrder(wo.number)}>✓ No Charge</button>
+                    <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 12 }} onClick={() => deleteWorkOrder(wo.number)}>🗑 Delete</button>
                   </td>
                   <td>
                     <button onClick={() => openWODetail(wo, 'closedworkorders')}>🔍 View</button>
@@ -2213,6 +2237,234 @@ function App() {
       </div>
     );
   }
+
+  // ── Deleted Work Orders (formerly "Close Work Orders") ──────────────────
+  if (page === "deletedworkorders") {
+    const deletedOrders = workOrders.filter((wo) => wo.status === 'deleted');
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
+        <h1>Deleted Work Orders</h1>
+        {deletedOrders.length === 0 ? (
+          <p>No deleted work orders.</p>
+        ) : (
+          <table className="wo-table">
+            <thead>
+              <tr>
+                <th>WO #</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Scheduled Date</th>
+                <th>View</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deletedOrders.map((wo: WorkOrder, idx: number) => (
+                <tr key={idx}>
+                  <td data-label="WO #">{wo.number}</td>
+                  <td data-label="Property">{wo.propertyName}</td>
+                  <td data-label="Title">{wo.title}</td>
+                  <td data-label="Scheduled Date">{wo.scheduledDate || '—'}</td>
+                  <td><button onClick={() => openWODetail(wo, 'deletedworkorders')}>🔍 View</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+
+  // ── Invoice List ─────────────────────────────────────────────────────────
+  if (page === "invoicelist") {
+    const invoicedOrders = workOrders.filter((wo) => wo.status === 'invoiced' || wo.status === 'nocharge');
+    const printInvoice = (wo: WorkOrder) => {
+      const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const win = window.open('', '_blank', 'width=800,height=900');
+      if (!win) return;
+      win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${wo.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #1a3a7a;">
+          <img src="/logo.png" alt="First Choice" style="height:80px;object-fit:contain;" />
+          <div style="text-align:right;">
+            <div style="font-size:30px;font-weight:900;color:#1a3a7a;letter-spacing:2px;">INVOICE</div>
+            <table style="margin-top:8px;font-size:13px;border-collapse:collapse;">
+              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Invoice #</td><td style="font-weight:700;">${wo.number}</td></tr>
+              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Date</td><td>${today}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+          <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
+            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
+            <div style="font-weight:700;font-size:15px;">${prop?.ownerName || wo.propertyName}</div>
+            ${prop ? `<div style="margin-top:2px;">${prop.street || ''}</div><div>${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''} ${prop.zip || ''}</div>${prop.ownerPhone ? `<div style="margin-top:2px;">${prop.ownerPhone}</div>` : ''}` : ''}
+          </div>
+          <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
+            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
+            <div style="font-weight:700;font-size:15px;">${wo.title}</div>
+            <div style="margin-top:4px;color:#555;font-size:13px;">${wo.propertyName}</div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
+          <thead>
+            <tr style="background:#1a3a7a;color:#fff;">
+              <th style="padding:10px 12px;text-align:left;font-size:12px;width:36px;">#</th>
+              <th style="padding:10px 12px;text-align:left;font-size:12px;">Description</th>
+              <th style="padding:10px 12px;text-align:right;font-size:12px;width:120px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#f0f4ff;">
+              <td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;vertical-align:top;">1</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;white-space:pre-wrap;">${wo.instructions}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;"></td>
+            </tr>
+            ${[2,3,4,5].map(n => `<tr style="background:${n%2===0?'#f8f9fa':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #eee;font-size:13px;color:#bbb;">${n}</td><td style="padding:10px 12px;border-bottom:1px solid #eee;">&nbsp;</td><td style="padding:10px 12px;border-bottom:1px solid #eee;">&nbsp;</td></tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
+          <table style="border-collapse:collapse;min-width:240px;">
+            <tr style="background:#1a3a7a;color:#fff;"><td style="padding:10px 14px;font-weight:900;font-size:15px;">TOTAL</td><td style="padding:10px 14px;text-align:right;font-weight:900;font-size:15px;">&nbsp;</td></tr>
+          </table>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;padding-top:16px;border-top:1px solid #ddd;">
+          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Client Signature &amp; Acceptance</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">Signature &nbsp;&nbsp;&nbsp; Date</div></div>
+          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Authorized By</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">First Choice Maintenance &amp; Home Repair</div></div>
+        </div>
+        <div style="margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px;">First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
+      </body></html>`);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { win.print(); win.close(); }, 400);
+    };
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
+        <h1>Invoice List</h1>
+        {invoicedOrders.length === 0 ? (
+          <p>No invoiced work orders yet.</p>
+        ) : (
+          <table className="wo-table">
+            <thead>
+              <tr>
+                <th>WO #</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Scheduled Date</th>
+                <th>Status</th>
+                <th>Invoice</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoicedOrders.map((wo: WorkOrder, idx: number) => (
+                <tr key={idx}>
+                  <td data-label="WO #">{wo.number}</td>
+                  <td data-label="Property">{wo.propertyName}</td>
+                  <td data-label="Title">{wo.title}</td>
+                  <td data-label="Date">{wo.scheduledDate || '—'}</td>
+                  <td data-label="Status">
+                    <span style={{ background: wo.status === 'nocharge' ? '#888' : '#2a9d2a', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>
+                      {wo.status === 'nocharge' ? 'No Charge' : 'Invoiced'}
+                    </span>
+                  </td>
+                  <td>
+                    {wo.status === 'invoiced' && (
+                      <button style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }} onClick={() => printInvoice(wo)}>🖨️ Print Invoice</button>
+                    )}
+                    {wo.status === 'nocharge' && <span style={{ color: '#888', fontSize: 13 }}>No invoice</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+
+  // ── Generate Blank Invoice ────────────────────────────────────────────────
+  if (page === "blankinvoice") {
+    const [blankProp, setBlankProp] = React.useState('');
+    const [blankTitle, setBlankTitle] = React.useState('');
+    const prop = properties.find((p: PropertyForm) => p.propertyName === blankProp);
+    const printBlank = () => {
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const win = window.open('', '_blank', 'width=800,height=900');
+      if (!win) return;
+      win.document.write(`<!DOCTYPE html><html><head><title>Invoice</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #1a3a7a;">
+          <img src="/logo.png" alt="First Choice" style="height:80px;object-fit:contain;" />
+          <div style="text-align:right;">
+            <div style="font-size:30px;font-weight:900;color:#1a3a7a;letter-spacing:2px;">INVOICE</div>
+            <table style="margin-top:8px;font-size:13px;border-collapse:collapse;">
+              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Invoice #</td><td style="font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>
+              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Date</td><td>${today}</td></tr>
+            </table>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+          <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
+            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
+            <div style="font-weight:700;font-size:15px;">${prop?.ownerName || blankProp || '&nbsp;'}</div>
+            ${prop ? `<div style="margin-top:2px;">${prop.street || ''}</div><div>${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''} ${prop.zip || ''}</div>${prop.ownerPhone ? `<div style="margin-top:2px;">${prop.ownerPhone}</div>` : ''}` : '<div>&nbsp;</div><div>&nbsp;</div>'}
+          </div>
+          <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
+            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
+            <div style="font-weight:700;font-size:15px;">${blankTitle || '&nbsp;'}</div>
+            <div style="margin-top:4px;color:#555;font-size:13px;">${blankProp || '&nbsp;'}</div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
+          <thead>
+            <tr style="background:#1a3a7a;color:#fff;">
+              <th style="padding:10px 12px;text-align:left;font-size:12px;width:36px;">#</th>
+              <th style="padding:10px 12px;text-align:left;font-size:12px;">Description</th>
+              <th style="padding:10px 12px;text-align:right;font-size:12px;width:120px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${[1,2,3,4,5].map(n => `<tr style="background:${n%2!==0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;color:#bbb;">${n}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="padding:10px 12px;border-bottom:1px solid #dde;text-align:right;">&nbsp;</td></tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
+          <table style="border-collapse:collapse;min-width:240px;">
+            <tr><td style="padding:8px 14px;font-weight:600;color:#555;border-top:1px solid #ddd;font-size:13px;">Subtotal</td><td style="padding:8px 14px;text-align:right;border-top:1px solid #ddd;font-size:13px;">&nbsp;</td></tr>
+            <tr style="background:#1a3a7a;color:#fff;"><td style="padding:10px 14px;font-weight:900;font-size:15px;">TOTAL</td><td style="padding:10px 14px;text-align:right;font-weight:900;font-size:15px;">&nbsp;</td></tr>
+          </table>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;padding-top:16px;border-top:1px solid #ddd;">
+          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Client Signature &amp; Acceptance</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">Signature &nbsp;&nbsp;&nbsp; Date</div></div>
+          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Authorized By</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">First Choice Maintenance &amp; Home Repair</div></div>
+        </div>
+        <div style="margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px;">First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
+      </body></html>`);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { win.print(); win.close(); }, 400);
+    };
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
+        <h1>Generate Blank Invoice</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 480, width: '100%', background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 24, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+          <label style={{ fontWeight: 600, fontSize: 13 }}>
+            Property (optional)
+            <select value={blankProp} onChange={(e) => setBlankProp(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+              <option value="">— None / leave blank —</option>
+              {properties.map((p: PropertyForm, i: number) => <option key={i} value={p.propertyName}>{p.propertyName}</option>)}
+            </select>
+          </label>
+          <label style={{ fontWeight: 600, fontSize: 13 }}>
+            Project Title (optional)
+            <input value={blankTitle} onChange={(e) => setBlankTitle(e.target.value)} placeholder="e.g. Plumbing Repair" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+          </label>
+          <button onClick={printBlank} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 24px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>🖨️ Generate &amp; Print</button>
+        </div>
+        <button style={{ marginTop: 20 }} onClick={() => setPage("home")}>Return to Home</button>
+      </div>
+    );
+  }
+
   // Main dashboard/homepage UI
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -2239,9 +2491,9 @@ function App() {
                     </svg>
                   </div>
                   <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Processing</h2>
-                  <button style={{ marginBottom: 8 }} onClick={() => alert('Close Work Orders feature coming soon!')}>Close Work Orders</button>
-                  <button style={{ marginBottom: 8 }} onClick={() => alert('Invoice List feature coming soon!')}>Invoice List</button>
-                  <button style={{ marginBottom: 8 }} onClick={() => alert('Generate Blank Invoice feature coming soon!')}>Generate Blank Invoice</button>
+                  <button style={{ marginBottom: 8 }} onClick={() => setPage("deletedworkorders")}>Close Work Orders</button>
+                  <button style={{ marginBottom: 8 }} onClick={() => setPage("invoicelist")}>Invoice List</button>
+                  <button style={{ marginBottom: 8 }} onClick={() => setPage("blankinvoice")}>Generate Blank Invoice</button>
                 </div>
         {/* Properties */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
