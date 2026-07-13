@@ -204,6 +204,14 @@ function App() {
   const [estimateSubmitted, setEstimateSubmitted] = React.useState(false);
   const [nextEstimateNumber, setNextEstimateNumber] = React.useState('EST-1001');
 
+  // Edit estimate state
+  const [editingEstimate, setEditingEstimate] = React.useState<Estimate | null>(null);
+  const [editEstimateForm, setEditEstimateForm] = React.useState({ propertyName: '', title: '', description: '', estimatedCost: '' });
+  const [editEstimateSaving, setEditEstimateSaving] = React.useState(false);
+
+  // Preview estimate state
+  const [previewEstimate, setPreviewEstimate] = React.useState<Estimate | null>(null);
+
   // Expense state
   const [selectedWOForExpenses, setSelectedWOForExpenses] = React.useState<WorkOrder | null>(null);
   const [woExpenses, setWoExpenses] = React.useState<WorkOrderExpense[]>([]);
@@ -585,6 +593,22 @@ function App() {
     }
   };
 
+  const saveEditEstimate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEstimate) return;
+    setEditEstimateSaving(true);
+    try {
+      await api.updateEstimate(editingEstimate.number, editEstimateForm);
+      await loadAllData();
+      setEditingEstimate(null);
+    } catch (err) {
+      console.error('Failed to save estimate', err);
+      alert('Save failed. Please try again.');
+    } finally {
+      setEditEstimateSaving(false);
+    }
+  };
+
   const convertEstimateToWorkOrder = async (estimate: Estimate) => {
     if (!confirm(`Convert estimate ${estimate.number} to a work order?`)) return;
     const woNum = await api.fetchNextWorkOrderNumber();
@@ -933,120 +957,233 @@ function App() {
     const pendingEstimates = estimates.filter((e) => e.status === 'pending');
     const convertedEstimates = estimates.filter((e) => e.status === 'converted');
     const rejectedEstimates = estimates.filter((e) => e.status === 'rejected');
+
+    const EstimateRows = ({ ests, showWO }: { ests: Estimate[], showWO?: boolean }) => (
+      <>{ests.map((est: Estimate, idx: number) => (
+        <tr key={idx}>
+          <td data-label="Est #">{est.number}</td>
+          <td data-label="Property">{est.propertyName}</td>
+          <td data-label="Title">{est.title}</td>
+          <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
+          {showWO && (
+            <td data-label="Work Order">
+              {est.convertedTo ? (
+                <button onClick={() => { const wo = workOrders.find((w) => w.number === est.convertedTo); if (wo) openWODetail(wo, 'estimatelist'); else alert('Work order not found.'); }} style={{ background: 'none', border: 'none', color: '#0099FF', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 'inherit' }}>{est.convertedTo}</button>
+              ) : '—'}
+            </td>
+          )}
+          <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button style={{ background: '#555', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => setPreviewEstimate(est)}>📄 Preview</button>
+            {est.status === 'pending' && (
+              <>
+                <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => { setEditingEstimate(est); setEditEstimateForm({ propertyName: est.propertyName, title: est.title, description: est.description, estimatedCost: est.estimatedCost }); }}>✏️ Edit</button>
+                <button style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => convertEstimateToWorkOrder(est)}>▶ Convert to WO</button>
+                <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => rejectEstimate(est.number)}>✕ Reject</button>
+              </>
+            )}
+            <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
+          </td>
+        </tr>
+      ))}</>
+    );
+
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
         <h1>Estimates</h1>
 
-        <h2 style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '1rem auto 0.5rem' }}>Pending</h2>
+        <h2 style={{ alignSelf: 'flex-start', maxWidth: 960, width: '100%', margin: '1rem auto 0.5rem' }}>Pending</h2>
         {pendingEstimates.length === 0 ? (
-          <p style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '0 auto' }}>No pending estimates.</p>
+          <p style={{ alignSelf: 'flex-start', maxWidth: 960, width: '100%', margin: '0 auto' }}>No pending estimates.</p>
         ) : (
-          <table className="wo-table" style={{ maxWidth: 900 }}>
-            <thead>
-              <tr>
-                <th>Est #</th>
-                <th>Property</th>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Est. Cost</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingEstimates.map((est: Estimate, idx: number) => (
-                <tr key={idx}>
-                  <td data-label="Est #">{est.number}</td>
-                  <td data-label="Property">{est.propertyName}</td>
-                  <td data-label="Title">{est.title}</td>
-                  <td data-label="Description">{est.description}</td>
-                  <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
-                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => convertEstimateToWorkOrder(est)}>▶ Convert to WO</button>
-                    <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => rejectEstimate(est.number)}>✕ Reject</button>
-                    <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+          <table className="wo-table" style={{ maxWidth: 960 }}>
+            <thead><tr><th>Est #</th><th>Property</th><th>Title</th><th>Est. Cost</th><th>Actions</th></tr></thead>
+            <tbody><EstimateRows ests={pendingEstimates} /></tbody>
           </table>
         )}
 
         {convertedEstimates.length > 0 && (
           <>
-            <h2 style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '1.5rem auto 0.5rem', color: '#2a9d2a' }}>Converted to Work Orders</h2>
-            <table className="wo-table" style={{ maxWidth: 900 }}>
-              <thead>
-                <tr>
-                  <th>Est #</th>
-                  <th>Property</th>
-                  <th>Title</th>
-                  <th>Est. Cost</th>
-                  <th>Work Order</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {convertedEstimates.map((est: Estimate, idx: number) => (
-                  <tr key={idx}>
-                    <td data-label="Est #">{est.number}</td>
-                    <td data-label="Property">{est.propertyName}</td>
-                    <td data-label="Title">{est.title}</td>
-                    <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
-                    <td data-label="Work Order">
-                      {est.convertedTo ? (
-                        <button
-                          onClick={() => {
-                            const wo = workOrders.find((w) => w.number === est.convertedTo);
-                            if (wo) openWODetail(wo, 'estimatelist');
-                            else alert('Work order not found. It may have been deleted.');
-                          }}
-                          style={{ background: 'none', border: 'none', color: '#0099FF', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 'inherit' }}
-                        >
-                          {est.convertedTo}
-                        </button>
-                      ) : '—'}
-                    </td>
-                    <td>
-                      <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+            <h2 style={{ alignSelf: 'flex-start', maxWidth: 960, width: '100%', margin: '1.5rem auto 0.5rem', color: '#2a9d2a' }}>Converted to Work Orders</h2>
+            <table className="wo-table" style={{ maxWidth: 960 }}>
+              <thead><tr><th>Est #</th><th>Property</th><th>Title</th><th>Est. Cost</th><th>Work Order</th><th>Actions</th></tr></thead>
+              <tbody><EstimateRows ests={convertedEstimates} showWO /></tbody>
             </table>
           </>
         )}
 
         {rejectedEstimates.length > 0 && (
           <>
-            <h2 style={{ alignSelf: 'flex-start', maxWidth: 900, width: '100%', margin: '1.5rem auto 0.5rem', color: '#888' }}>Rejected</h2>
-            <table className="wo-table" style={{ maxWidth: 900 }}>
-              <thead>
-                <tr>
-                  <th>Est #</th>
-                  <th>Property</th>
-                  <th>Title</th>
-                  <th>Est. Cost</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rejectedEstimates.map((est: Estimate, idx: number) => (
-                  <tr key={idx}>
-                    <td data-label="Est #">{est.number}</td>
-                    <td data-label="Property">{est.propertyName}</td>
-                    <td data-label="Title">{est.title}</td>
-                    <td data-label="Est. Cost">{est.estimatedCost ? `$${est.estimatedCost}` : '—'}</td>
-                    <td>
-                      <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => deleteEstimate(est.number)}>🗑</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+            <h2 style={{ alignSelf: 'flex-start', maxWidth: 960, width: '100%', margin: '1.5rem auto 0.5rem', color: '#888' }}>Rejected</h2>
+            <table className="wo-table" style={{ maxWidth: 960 }}>
+              <thead><tr><th>Est #</th><th>Property</th><th>Title</th><th>Est. Cost</th><th>Actions</th></tr></thead>
+              <tbody><EstimateRows ests={rejectedEstimates} /></tbody>
             </table>
           </>
         )}
 
         <button style={{ marginTop: 24 }} onClick={() => setPage("home")}>Return to Home</button>
+
+        {/* ── Edit Estimate Modal ── */}
+        {editingEstimate && (
+          <div className="photo-modal">
+            <div className="photo-modal-content" style={{ maxWidth: 520 }}>
+              <h2>Edit Estimate — {editingEstimate.number}</h2>
+              <form onSubmit={saveEditEstimate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Property
+                  <select value={editEstimateForm.propertyName} onChange={(e) => setEditEstimateForm((p) => ({ ...p, propertyName: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+                    <option value="" disabled>Select a property</option>
+                    {properties.map((prop: PropertyForm, i: number) => <option key={i} value={prop.propertyName}>{prop.propertyName}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Title (Project Name)
+                  <input value={editEstimateForm.title} onChange={(e) => setEditEstimateForm((p) => ({ ...p, title: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Description / Scope of Work
+                  <textarea value={editEstimateForm.description} onChange={(e) => setEditEstimateForm((p) => ({ ...p, description: e.target.value }))} required rows={4} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Estimated Cost ($)
+                  <input value={editEstimateForm.estimatedCost} onChange={(e) => setEditEstimateForm((p) => ({ ...p, estimatedCost: e.target.value }))} placeholder="e.g. 1500.00" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                </label>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button type="submit" disabled={editEstimateSaving} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{editEstimateSaving ? 'Saving...' : '✓ Save'}</button>
+                  <button type="button" onClick={() => setEditingEstimate(null)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ── Preview / Print Estimate Modal ── */}
+        {previewEstimate && (() => {
+          const prop = properties.find((p: PropertyForm) => p.propertyName === previewEstimate.propertyName);
+          const today = new Date(previewEstimate.createdAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          const fmtMoney = (v: string) => v ? `$${parseFloat(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+          const printEstimate = () => {
+            const el = document.getElementById('estimate-print-doc');
+            if (!el) return;
+            const win = window.open('', '_blank', 'width=800,height=900');
+            if (!win) return;
+            win.document.write(`<!DOCTYPE html><html><head><title>Estimate ${previewEstimate.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>${el.innerHTML}</body></html>`);
+            win.document.close();
+            win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 400);
+          };
+          return (
+            <div className="photo-modal">
+              <div className="photo-modal-content" style={{ maxWidth: 700, padding: 0, overflow: 'hidden' }}>
+                {/* Toolbar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: '#1a3a7a', color: '#fff' }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Estimate {previewEstimate.number}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={printEstimate} style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 16px', cursor: 'pointer', fontWeight: 700 }}>🖨️ Download / Print</button>
+                    <button onClick={() => setPreviewEstimate(null)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 14px', cursor: 'pointer', fontWeight: 700 }}>✕ Close</button>
+                  </div>
+                </div>
+
+                {/* Document */}
+                <div style={{ overflowY: 'auto', maxHeight: '78vh' }}>
+                  <div id="estimate-print-doc" style={{ padding: '36px', fontFamily: 'Arial, sans-serif', background: '#fff', color: '#111' }}>
+
+                    {/* Header: logo left, ESTIMATE + number right */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottom: '3px solid #1a3a7a' }}>
+                      <img src="/logo.png" alt="First Choice" style={{ height: 80, objectFit: 'contain' }} />
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 30, fontWeight: 900, color: '#1a3a7a', letterSpacing: 2 }}>ESTIMATE</div>
+                        <table style={{ marginTop: 8, fontSize: 13, borderCollapse: 'collapse' }}>
+                          <tbody>
+                            <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Estimate #</td><td style={{ fontWeight: 700 }}>{previewEstimate.number}</td></tr>
+                            <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Date</td><td>{today}</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Bill To / Project */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+                      <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
+                        <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>{prop?.ownerName || previewEstimate.propertyName}</div>
+                        {prop && <>
+                          <div style={{ marginTop: 2 }}>{prop.street}</div>
+                          <div>{prop.city}{prop.city && prop.state ? ', ' : ''}{prop.state} {prop.zip}</div>
+                          {prop.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}
+                        </>}
+                      </div>
+                      <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
+                        <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>{previewEstimate.title}</div>
+                        <div style={{ marginTop: 4, color: '#555', fontSize: 13 }}>{previewEstimate.propertyName}</div>
+                      </div>
+                    </div>
+
+                    {/* Line items */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 4 }}>
+                      <thead>
+                        <tr style={{ background: '#1a3a7a', color: '#fff' }}>
+                          <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, width: 36 }}>#</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12 }}>Description</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, width: 120 }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ background: '#f0f4ff' }}>
+                          <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, verticalAlign: 'top' }}>1</td>
+                          <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, whiteSpace: 'pre-wrap' }}>{previewEstimate.description}</td>
+                          <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'right', verticalAlign: 'top' }}>{fmtMoney(previewEstimate.estimatedCost)}</td>
+                        </tr>
+                        {[2,3,4,5].map(n => (
+                          <tr key={n} style={{ background: n % 2 === 0 ? '#f8f9fa' : '#fff' }}>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #eee', fontSize: 13, color: '#bbb' }}>{n}</td>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #eee' }}>&nbsp;</td>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #eee' }}>&nbsp;</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Total */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
+                      <table style={{ borderCollapse: 'collapse', minWidth: 240 }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ padding: '8px 14px', fontWeight: 600, color: '#555', borderTop: '1px solid #ddd', fontSize: 13 }}>Subtotal</td>
+                            <td style={{ padding: '8px 14px', textAlign: 'right', borderTop: '1px solid #ddd', fontSize: 13 }}>{fmtMoney(previewEstimate.estimatedCost)}</td>
+                          </tr>
+                          <tr style={{ background: '#1a3a7a', color: '#fff' }}>
+                            <td style={{ padding: '10px 14px', fontWeight: 900, fontSize: 15 }}>TOTAL</td>
+                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtMoney(previewEstimate.estimatedCost)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Signature */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, paddingTop: 16, borderTop: '1px solid #ddd' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 28 }}>Client Signature &amp; Acceptance</div>
+                        <div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div>
+                        <div style={{ fontSize: 11, color: '#555' }}>Signature &nbsp;&nbsp;&nbsp;&nbsp; Date</div>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 28 }}>Authorized By</div>
+                        <div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div>
+                        <div style={{ fontSize: 11, color: '#555' }}>First Choice Maintenance &amp; Home Repair</div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 24, textAlign: 'center', fontSize: 11, color: '#999', borderTop: '1px solid #eee', paddingTop: 12 }}>
+                      First Choice Maintenance &amp; Home Repair — Thank you for your business!
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }

@@ -256,6 +256,19 @@ export async function updateEstimateStatus(number: string, status: string, conve
   return res.json();
 }
 
+export async function updateEstimate(number: string, fields: {
+  propertyName: string;
+  title: string;
+  description: string;
+  estimatedCost: string;
+}) {
+  const res = await apiFetch(`/api/estimates/${number}`, {
+    method: "PUT",
+    body: JSON.stringify(fields),
+  });
+  return res.json();
+}
+
 export async function deleteEstimate(number: string) {
   const res = await apiFetch(`/api/estimates/${number}`, { method: "DELETE" });
   return res.json();

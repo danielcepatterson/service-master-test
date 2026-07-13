@@ -572,6 +572,17 @@ app.post("/api/estimates", async (c) => {
   return c.json({ ok: true });
 });
 
+app.put("/api/estimates/:number", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const estNumber = c.req.param("number");
+  const { propertyName, title, description, estimatedCost } = await c.req.json();
+  await c.env.DB.prepare(
+    "UPDATE estimates SET property_name = ?, title = ?, description = ?, estimated_cost = ? WHERE number = ?"
+  ).bind(propertyName, title, description, estimatedCost || '', estNumber).run();
+  return c.json({ ok: true });
+});
+
 app.put("/api/estimates/:number/status", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
