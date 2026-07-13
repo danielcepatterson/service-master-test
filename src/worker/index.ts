@@ -355,6 +355,17 @@ app.put("/api/work-orders/:number/status", async (c) => {
   return c.json({ ok: true });
 });
 
+app.put("/api/work-orders/:number", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { propertyName, title, instructions, scheduledDate, scheduledTime } = await c.req.json();
+  await c.env.DB.prepare(
+    "UPDATE work_orders SET property_name = ?, title = ?, instructions = ?, scheduled_date = ?, scheduled_time = ? WHERE number = ?"
+  ).bind(propertyName, title, instructions, scheduledDate, scheduledTime, woNumber).run();
+  return c.json({ ok: true });
+});
+
 // ─── Vendors ──────────────────────────────────────────────
 app.get("/api/vendors", async (c) => {
   const user = await getUser(c);

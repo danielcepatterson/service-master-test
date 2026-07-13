@@ -114,6 +114,20 @@ export async function updateWorkOrderStatus(number: string, status: string) {
   return res.json();
 }
 
+export async function updateWorkOrder(number: string, fields: {
+  propertyName: string;
+  title: string;
+  instructions: string;
+  scheduledDate: string;
+  scheduledTime: string;
+}) {
+  const res = await apiFetch(`/api/work-orders/${number}`, {
+    method: "PUT",
+    body: JSON.stringify(fields),
+  });
+  return res.json();
+}
+
 // ─── Vendors ──────────────────────────────────────────────
 export async function fetchVendors() {
   const res = await apiFetch("/api/vendors");

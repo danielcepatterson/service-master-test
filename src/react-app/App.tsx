@@ -219,6 +219,9 @@ function App() {
   const [viewWOExpenses, setViewWOExpenses] = React.useState<WorkOrderExpense[]>([]);
   const [viewWOLoading, setViewWOLoading] = React.useState(false);
   const [viewWOFromPage, setViewWOFromPage] = React.useState<string>('home');
+  const [editingWODetails, setEditingWODetails] = React.useState(false);
+  const [editWOForm, setEditWOForm] = React.useState({ propertyName: '', title: '', instructions: '', scheduledDate: '', scheduledTime: '' });
+  const [editWOSaving, setEditWOSaving] = React.useState(false);
 
   // ─── Load all data from API when user is authenticated ──
   const loadAllData = React.useCallback(async () => {
@@ -681,17 +684,123 @@ function App() {
 
           {/* Details card */}
           <div style={{ background: '#f8f9fa', border: '1px solid #ddd', borderRadius: 10, padding: 20, marginBottom: 20 }}>
-            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Details</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Property</span><br />{viewingWO.propertyName}</div>
-              <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Date</span><br />{viewingWO.scheduledDate || '—'}</div>
-              <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Time</span><br />{viewingWO.scheduledTime || '—'}</div>
-              {viewingWO.completedAt && <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Completed At</span><br />{new Date(viewingWO.completedAt).toLocaleString()}</div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: '#333' }}>Details</h2>
+              {!editingWODetails && (
+                <button
+                  onClick={() => {
+                    setEditWOForm({
+                      propertyName: viewingWO.propertyName,
+                      title: viewingWO.title,
+                      instructions: viewingWO.instructions,
+                      scheduledDate: viewingWO.scheduledDate,
+                      scheduledTime: viewingWO.scheduledTime,
+                    });
+                    setEditingWODetails(true);
+                  }}
+                  style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                >
+                  ✏️ Edit
+                </button>
+              )}
             </div>
-            <div style={{ marginTop: 16 }}>
-              <span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Instructions / Scope of Work</span>
-              <p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{viewingWO.instructions}</p>
-            </div>
+
+            {editingWODetails ? (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setEditWOSaving(true);
+                  try {
+                    await api.updateWorkOrder(viewingWO.number, editWOForm);
+                    await loadAllData();
+                    // Update viewingWO in place
+                    setViewingWO({ ...viewingWO, ...editWOForm });
+                    setEditingWODetails(false);
+                  } catch (err) {
+                    console.error('Failed to save', err);
+                    alert('Save failed. Please try again.');
+                  } finally {
+                    setEditWOSaving(false);
+                  }
+                }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+              >
+                <label style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>
+                  Property
+                  <select
+                    value={editWOForm.propertyName}
+                    onChange={(e) => setEditWOForm((p) => ({ ...p, propertyName: e.target.value }))}
+                    required
+                    style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}
+                  >
+                    <option value="" disabled>Select a property</option>
+                    {properties.map((prop: PropertyForm, idx: number) => (
+                      <option key={idx} value={prop.propertyName}>{prop.propertyName}</option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>
+                  Title
+                  <input
+                    value={editWOForm.title}
+                    onChange={(e) => setEditWOForm((p) => ({ ...p, title: e.target.value }))}
+                    required
+                    style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+                  />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>
+                  Instructions / Scope of Work
+                  <textarea
+                    value={editWOForm.instructions}
+                    onChange={(e) => setEditWOForm((p) => ({ ...p, instructions: e.target.value }))}
+                    required
+                    rows={4}
+                    style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }}
+                  />
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <label style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>
+                    Scheduled Date
+                    <input
+                      type="date"
+                      value={editWOForm.scheduledDate}
+                      onChange={(e) => setEditWOForm((p) => ({ ...p, scheduledDate: e.target.value }))}
+                      style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+                    />
+                  </label>
+                  <label style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>
+                    Scheduled Time
+                    <input
+                      type="time"
+                      value={editWOForm.scheduledTime}
+                      onChange={(e) => setEditWOForm((p) => ({ ...p, scheduledTime: e.target.value }))}
+                      style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }}
+                    />
+                  </label>
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button type="submit" disabled={editWOSaving} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                    {editWOSaving ? 'Saving...' : '✓ Save Changes'}
+                  </button>
+                  <button type="button" onClick={() => setEditingWODetails(false)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                  <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Property</span><br />{viewingWO.propertyName}</div>
+                  <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Date</span><br />{viewingWO.scheduledDate || '—'}</div>
+                  <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Time</span><br />{viewingWO.scheduledTime || '—'}</div>
+                  {viewingWO.completedAt && <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Completed At</span><br />{new Date(viewingWO.completedAt).toLocaleString()}</div>}
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Instructions / Scope of Work</span>
+                  <p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{viewingWO.instructions}</p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Expenses */}
