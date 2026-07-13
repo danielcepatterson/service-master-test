@@ -355,22 +355,46 @@ function App() {
     }
   };
 
+  // Compress image to JPEG, max 1200px wide, quality 0.75 — keeps D1 row under 1MB
+  const compressImage = (file: File): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const MAX = 1200;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('No canvas context')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL('image/jpeg', 0.75);
+        resolve({ base64, mimeType: 'image/jpeg' });
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Image load failed')); };
+      img.src = objectUrl;
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, woNumber: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoUploading(true);
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      });
-      await api.uploadWorkOrderPhoto(woNumber, file.name, file.type, base64);
+      const { base64, mimeType } = await compressImage(file);
+      const filename = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+      await api.uploadWorkOrderPhoto(woNumber, filename, mimeType, base64);
       const wo = workOrders.find((w) => w.number === woNumber);
       if (wo) await loadPhotosForWorkOrder(wo);
     } catch (err) {
       console.error("Failed to upload photo", err);
+      alert("Photo upload failed. Please try again.");
     } finally {
       setPhotoUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
