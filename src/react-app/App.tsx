@@ -14,7 +14,7 @@ type PropertyForm = {
   ownerName: string;
   ownerPhone: string;
 };
-type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed' | 'invoiced' | 'nocharge' | 'deleted';
+type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed' | 'invoiced' | 'nocharge' | 'deleted' | 'paid';
 
 type WorkOrderHistoryEntry = {
   status: WorkOrderStatus;
@@ -212,6 +212,13 @@ function App() {
   // Preview estimate state
   const [previewEstimate, setPreviewEstimate] = React.useState<Estimate | null>(null);
 
+  // Invoice preview/edit state
+  const [previewInvoiceWO, setPreviewInvoiceWO] = React.useState<WorkOrder | null>(null);
+  const [previewInvoiceExpenses, setPreviewInvoiceExpenses] = React.useState<WorkOrderExpense[]>([]);
+  const [previewInvoiceLoading, setPreviewInvoiceLoading] = React.useState(false);
+  const [editingInvoiceWO, setEditingInvoiceWO] = React.useState<WorkOrder | null>(null);
+  const [editInvoiceForm, setEditInvoiceForm] = React.useState({ title: '', instructions: '' });
+
   // Expense state
   const [selectedWOForExpenses, setSelectedWOForExpenses] = React.useState<WorkOrder | null>(null);
   const [woExpenses, setWoExpenses] = React.useState<WorkOrderExpense[]>([]);
@@ -353,6 +360,12 @@ function App() {
   const noChargeWorkOrder = async (number: string) => {
     if (!confirm('Mark this work order as No Charge?')) return;
     await api.updateWorkOrderStatus(number, 'nocharge');
+    await loadAllData();
+  };
+
+  const paidWorkOrder = async (number: string) => {
+    if (!confirm('Mark this invoice as Paid?')) return;
+    await api.updateWorkOrderStatus(number, 'paid');
     await loadAllData();
   };
 
@@ -2278,12 +2291,27 @@ function App() {
   // ── Invoice List ─────────────────────────────────────────────────────────
   if (page === "invoicelist") {
     const invoicedOrders = workOrders.filter((wo) => wo.status === 'invoiced' || wo.status === 'nocharge');
-    const printInvoice = (wo: WorkOrder) => {
+
+    const openInvoicePreview = async (wo: WorkOrder) => {
+      setPreviewInvoiceWO(wo);
+      setPreviewInvoiceLoading(true);
+      try {
+        const exps = await api.fetchWorkOrderExpenses(wo.number);
+        setPreviewInvoiceExpenses(exps);
+      } catch { setPreviewInvoiceExpenses([]); }
+      finally { setPreviewInvoiceLoading(false); }
+    };
+
+    const buildInvoiceHTML = (wo: WorkOrder, exps: WorkOrderExpense[], overrideTitle?: string, overrideInstructions?: string) => {
       const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      const win = window.open('', '_blank', 'width=800,height=900');
-      if (!win) return;
-      win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${wo.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
+      const total = exps.reduce((s, e) => s + (parseFloat(e.totalCost) || 0), 0);
+      const title = overrideTitle ?? wo.title;
+      const instructions = overrideInstructions ?? wo.instructions;
+      const itemRows = exps.length > 0
+        ? exps.map((e, i) => `<tr style="background:${i%2===0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${i+1}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.description}${e.partNumber ? ` <span style="color:#888;font-size:11px;">(${e.partNumber})</span>` : ''}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.category}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;">${e.totalCost ? '$'+parseFloat(e.totalCost).toFixed(2) : '—'}</td></tr>`).join('')
+        : `<tr style="background:#f0f4ff;"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">1</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;white-space:pre-wrap;">${instructions}</td><td></td><td></td></tr>${[2,3,4,5].map(n=>`<tr><td style="padding:10px 12px;border-bottom:1px solid #eee;color:#bbb;">${n}</td><td style="padding:10px 12px;border-bottom:1px solid #eee;">&nbsp;</td><td></td><td></td></tr>`).join('')}`;
+      return `<!DOCTYPE html><html><head><title>Invoice ${wo.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #1a3a7a;">
           <img src="/logo.png" alt="First Choice" style="height:80px;object-fit:contain;" />
           <div style="text-align:right;">
@@ -2298,34 +2326,27 @@ function App() {
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
             <div style="font-weight:700;font-size:15px;">${prop?.ownerName || wo.propertyName}</div>
-            ${prop ? `<div style="margin-top:2px;">${prop.street || ''}</div><div>${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''} ${prop.zip || ''}</div>${prop.ownerPhone ? `<div style="margin-top:2px;">${prop.ownerPhone}</div>` : ''}` : ''}
+            ${prop ? `<div style="margin-top:2px;">${prop.street||''}</div><div>${prop.city||''}${prop.city&&prop.state?', ':''}${prop.state||''} ${prop.zip||''}</div>${prop.ownerPhone?`<div style="margin-top:2px;">${prop.ownerPhone}</div>`:''}` : ''}
           </div>
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
-            <div style="font-weight:700;font-size:15px;">${wo.title}</div>
+            <div style="font-weight:700;font-size:15px;">${title}</div>
             <div style="margin-top:4px;color:#555;font-size:13px;">${wo.propertyName}</div>
           </div>
         </div>
         <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
-          <thead>
-            <tr style="background:#1a3a7a;color:#fff;">
-              <th style="padding:10px 12px;text-align:left;font-size:12px;width:36px;">#</th>
-              <th style="padding:10px 12px;text-align:left;font-size:12px;">Description</th>
-              <th style="padding:10px 12px;text-align:right;font-size:12px;width:120px;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="background:#f0f4ff;">
-              <td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;vertical-align:top;">1</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;white-space:pre-wrap;">${wo.instructions}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;"></td>
-            </tr>
-            ${[2,3,4,5].map(n => `<tr style="background:${n%2===0?'#f8f9fa':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #eee;font-size:13px;color:#bbb;">${n}</td><td style="padding:10px 12px;border-bottom:1px solid #eee;">&nbsp;</td><td style="padding:10px 12px;border-bottom:1px solid #eee;">&nbsp;</td></tr>`).join('')}
-          </tbody>
+          <thead><tr style="background:#1a3a7a;color:#fff;">
+            <th style="padding:10px 12px;text-align:left;font-size:12px;width:36px;">#</th>
+            <th style="padding:10px 12px;text-align:left;font-size:12px;">Description</th>
+            <th style="padding:10px 12px;text-align:left;font-size:12px;">Category</th>
+            <th style="padding:10px 12px;text-align:right;font-size:12px;width:120px;">Amount</th>
+          </tr></thead>
+          <tbody>${itemRows}</tbody>
         </table>
         <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
           <table style="border-collapse:collapse;min-width:240px;">
-            <tr style="background:#1a3a7a;color:#fff;"><td style="padding:10px 14px;font-weight:900;font-size:15px;">TOTAL</td><td style="padding:10px 14px;text-align:right;font-weight:900;font-size:15px;">&nbsp;</td></tr>
+            <tr><td style="padding:8px 14px;font-weight:600;color:#555;border-top:1px solid #ddd;font-size:13px;">Subtotal</td><td style="padding:8px 14px;text-align:right;border-top:1px solid #ddd;font-size:13px;">${total>0?'$'+total.toFixed(2):'—'}</td></tr>
+            <tr style="background:#1a3a7a;color:#fff;"><td style="padding:10px 14px;font-weight:900;font-size:15px;">TOTAL</td><td style="padding:10px 14px;text-align:right;font-weight:900;font-size:15px;">${total>0?'$'+total.toFixed(2):'—'}</td></tr>
           </table>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;padding-top:16px;border-top:1px solid #ddd;">
@@ -2333,11 +2354,17 @@ function App() {
           <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Authorized By</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">First Choice Maintenance &amp; Home Repair</div></div>
         </div>
         <div style="margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px;">First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
-      </body></html>`);
-      win.document.close();
-      win.focus();
+      </body></html>`;
+    };
+
+    const printInvoiceDoc = (wo: WorkOrder, exps: WorkOrderExpense[]) => {
+      const win = window.open('', '_blank', 'width=800,height=900');
+      if (!win) return;
+      win.document.write(buildInvoiceHTML(wo, exps));
+      win.document.close(); win.focus();
       setTimeout(() => { win.print(); win.close(); }, 400);
     };
+
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
         <h1>Invoice List</h1>
@@ -2350,9 +2377,9 @@ function App() {
                 <th>WO #</th>
                 <th>Property</th>
                 <th>Title</th>
-                <th>Scheduled Date</th>
+                <th>Date</th>
                 <th>Status</th>
-                <th>Invoice</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2367,11 +2394,15 @@ function App() {
                       {wo.status === 'nocharge' ? 'No Charge' : 'Invoiced'}
                     </span>
                   </td>
-                  <td>
+                  <td style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                    <button style={{ background: '#555', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={() => openInvoicePreview(wo)}>📄 Preview</button>
+                    <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={() => { setEditingInvoiceWO(wo); setEditInvoiceForm({ title: wo.title, instructions: wo.instructions }); }}>✏️ Edit</button>
                     {wo.status === 'invoiced' && (
-                      <button style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }} onClick={() => printInvoice(wo)}>🖨️ Print Invoice</button>
+                      <>
+                        <button style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={() => paidWorkOrder(wo.number)}>✓ Mark Paid</button>
+                        <button style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={async () => { const exps = await api.fetchWorkOrderExpenses(wo.number); printInvoiceDoc(wo, exps); }}>🖨️ Print</button>
+                      </>
                     )}
-                    {wo.status === 'nocharge' && <span style={{ color: '#888', fontSize: 13 }}>No invoice</span>}
                   </td>
                 </tr>
               ))}
@@ -2379,88 +2410,218 @@ function App() {
           </table>
         )}
         <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
+
+        {/* ── Edit Invoice Modal ── */}
+        {editingInvoiceWO && (
+          <div className="photo-modal">
+            <div className="photo-modal-content" style={{ maxWidth: 500 }}>
+              <h2>Edit Invoice — {editingInvoiceWO.number}</h2>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                await api.updateWorkOrder(editingInvoiceWO.number, {
+                  propertyName: editingInvoiceWO.propertyName,
+                  title: editInvoiceForm.title,
+                  instructions: editInvoiceForm.instructions,
+                  scheduledDate: editingInvoiceWO.scheduledDate,
+                  scheduledTime: editingInvoiceWO.scheduledTime,
+                });
+                await loadAllData();
+                setEditingInvoiceWO(null);
+              }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Project Title
+                  <input value={editInvoiceForm.title} onChange={(e) => setEditInvoiceForm(p => ({ ...p, title: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Scope of Work / Notes
+                  <textarea value={editInvoiceForm.instructions} onChange={(e) => setEditInvoiceForm(p => ({ ...p, instructions: e.target.value }))} rows={4} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }} />
+                </label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="submit" style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>✓ Save</button>
+                  <button type="button" onClick={() => setEditingInvoiceWO(null)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ── Preview Invoice Modal ── */}
+        {previewInvoiceWO && (() => {
+          const wo = previewInvoiceWO;
+          const exps = previewInvoiceExpenses;
+          const total = exps.reduce((s, e) => s + (parseFloat(e.totalCost) || 0), 0);
+          const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
+          const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          return (
+            <div className="photo-modal">
+              <div className="photo-modal-content" style={{ maxWidth: 700, padding: 0, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: '#1a3a7a', color: '#fff' }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Invoice {wo.number}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => printInvoiceDoc(wo, exps)} style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 16px', cursor: 'pointer', fontWeight: 700 }}>🖨️ Download / Print</button>
+                    <button onClick={() => { setPreviewInvoiceWO(null); setPreviewInvoiceExpenses([]); }} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 14px', cursor: 'pointer', fontWeight: 700 }}>✕ Close</button>
+                  </div>
+                </div>
+                <div style={{ overflowY: 'auto', maxHeight: '78vh', padding: '36px', fontFamily: 'Arial, sans-serif', background: '#fff', color: '#111' }}>
+                  {previewInvoiceLoading ? <p style={{ textAlign: 'center', color: '#888' }}>Loading expenses...</p> : (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottom: '3px solid #1a3a7a' }}>
+                        <img src="/logo.png" alt="First Choice" style={{ height: 80, objectFit: 'contain' }} />
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 30, fontWeight: 900, color: '#1a3a7a', letterSpacing: 2 }}>INVOICE</div>
+                          <table style={{ marginTop: 8, fontSize: 13, borderCollapse: 'collapse' }}>
+                            <tbody>
+                              <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Invoice #</td><td style={{ fontWeight: 700 }}>{wo.number}</td></tr>
+                              <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Date</td><td>{today}</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+                        <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
+                          <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
+                          <div style={{ fontWeight: 700, fontSize: 15 }}>{prop?.ownerName || wo.propertyName}</div>
+                          {prop && <><div style={{ marginTop: 2 }}>{prop.street}</div><div>{prop.city}{prop.city && prop.state ? ', ' : ''}{prop.state} {prop.zip}</div>{prop.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}</>}
+                        </div>
+                        <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
+                          <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
+                          <div style={{ fontWeight: 700, fontSize: 15 }}>{wo.title}</div>
+                          <div style={{ marginTop: 4, color: '#555', fontSize: 13 }}>{wo.propertyName}</div>
+                        </div>
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 4 }}>
+                        <thead>
+                          <tr style={{ background: '#1a3a7a', color: '#fff' }}>
+                            <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, width: 36 }}>#</th>
+                            <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12 }}>Description</th>
+                            <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12 }}>Category</th>
+                            <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, width: 120 }}>Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {exps.length > 0 ? exps.map((e, i) => (
+                            <tr key={i} style={{ background: i % 2 === 0 ? '#f0f4ff' : '#fff' }}>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}>{i + 1}</td>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}>{e.description}{e.partNumber ? <span style={{ color: '#888', fontSize: 11 }}> ({e.partNumber})</span> : ''}</td>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}>{e.category}</td>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'right' }}>{e.totalCost ? `$${parseFloat(e.totalCost).toFixed(2)}` : '—'}</td>
+                            </tr>
+                          )) : (
+                            <>
+                              <tr style={{ background: '#f0f4ff' }}>
+                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}>1</td>
+                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, whiteSpace: 'pre-wrap' }} colSpan={2}>{wo.instructions}</td>
+                                <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}></td>
+                              </tr>
+                              {[2,3,4,5].map(n => <tr key={n}><td style={{ padding: '10px 12px', borderBottom: '1px solid #eee', color: '#bbb' }}>{n}</td><td style={{ padding: '10px 12px', borderBottom: '1px solid #eee' }} colSpan={2}>&nbsp;</td><td></td></tr>)}
+                            </>
+                          )}
+                        </tbody>
+                      </table>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
+                        <table style={{ borderCollapse: 'collapse', minWidth: 240 }}>
+                          <tbody>
+                            <tr><td style={{ padding: '8px 14px', fontWeight: 600, color: '#555', borderTop: '1px solid #ddd', fontSize: 13 }}>Subtotal</td><td style={{ padding: '8px 14px', textAlign: 'right', borderTop: '1px solid #ddd', fontSize: 13 }}>{total > 0 ? `$${total.toFixed(2)}` : '—'}</td></tr>
+                            <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '10px 14px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{total > 0 ? `$${total.toFixed(2)}` : '—'}</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, paddingTop: 16, borderTop: '1px solid #ddd' }}>
+                        <div><div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', marginBottom: 28 }}>Client Signature &amp; Acceptance</div><div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div><div style={{ fontSize: 11, color: '#555' }}>Signature &nbsp;&nbsp;&nbsp; Date</div></div>
+                        <div><div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', marginBottom: 28 }}>Authorized By</div><div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div><div style={{ fontSize: 11, color: '#555' }}>First Choice Maintenance &amp; Home Repair</div></div>
+                      </div>
+                      <div style={{ marginTop: 24, textAlign: 'center', fontSize: 11, color: '#999', borderTop: '1px solid #eee', paddingTop: 12 }}>First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
 
-  // ── Generate Blank Invoice ────────────────────────────────────────────────
-  if (page === "blankinvoice") {
-    const [blankProp, setBlankProp] = React.useState('');
-    const [blankTitle, setBlankTitle] = React.useState('');
-    const prop = properties.find((p: PropertyForm) => p.propertyName === blankProp);
-    const printBlank = () => {
+  // ── Paid Invoices ────────────────────────────────────────────────────────
+  if (page === "paidinvoices") {
+    const paidOrders = workOrders.filter((wo) => wo.status === 'paid');
+    const printPaidInvoice = async (wo: WorkOrder) => {
+      const exps = await api.fetchWorkOrderExpenses(wo.number);
+      const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
+      const total = exps.reduce((s: number, e: WorkOrderExpense) => s + (parseFloat(e.totalCost) || 0), 0);
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const itemRows = exps.length > 0
+        ? exps.map((e: WorkOrderExpense, i: number) => `<tr style="background:${i%2===0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${i+1}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.description}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.category}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;">${e.totalCost?'$'+parseFloat(e.totalCost).toFixed(2):'—'}</td></tr>`).join('')
+        : `<tr style="background:#f0f4ff;"><td style="padding:10px 12px;">1</td><td style="padding:10px 12px;white-space:pre-wrap;" colspan="2">${wo.instructions}</td><td></td></tr>`;
       const win = window.open('', '_blank', 'width=800,height=900');
       if (!win) return;
-      win.document.write(`<!DOCTYPE html><html><head><title>Invoice</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
+      win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${wo.number} — PAID</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
+        <div style="text-align:right;margin-bottom:8px;"><span style="background:#2a9d2a;color:#fff;font-weight:900;font-size:18px;padding:4px 20px;border-radius:8px;letter-spacing:2px;">PAID</span></div>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #1a3a7a;">
           <img src="/logo.png" alt="First Choice" style="height:80px;object-fit:contain;" />
-          <div style="text-align:right;">
-            <div style="font-size:30px;font-weight:900;color:#1a3a7a;letter-spacing:2px;">INVOICE</div>
+          <div style="text-align:right;"><div style="font-size:30px;font-weight:900;color:#1a3a7a;letter-spacing:2px;">INVOICE</div>
             <table style="margin-top:8px;font-size:13px;border-collapse:collapse;">
-              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Invoice #</td><td style="font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>
+              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Invoice #</td><td style="font-weight:700;">${wo.number}</td></tr>
               <tr><td style="padding-right:12px;color:#555;font-weight:600;">Date</td><td>${today}</td></tr>
             </table>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
-            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
-            <div style="font-weight:700;font-size:15px;">${prop?.ownerName || blankProp || '&nbsp;'}</div>
-            ${prop ? `<div style="margin-top:2px;">${prop.street || ''}</div><div>${prop.city || ''}${prop.city && prop.state ? ', ' : ''}${prop.state || ''} ${prop.zip || ''}</div>${prop.ownerPhone ? `<div style="margin-top:2px;">${prop.ownerPhone}</div>` : ''}` : '<div>&nbsp;</div><div>&nbsp;</div>'}
+            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:8px;">Bill To</div>
+            <div style="font-weight:700;font-size:15px;">${prop?.ownerName||wo.propertyName}</div>
+            ${prop?`<div>${prop.street||''}</div><div>${prop.city||''}${prop.city&&prop.state?', ':''}${prop.state||''} ${prop.zip||''}</div>`:''}
           </div>
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
-            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
-            <div style="font-weight:700;font-size:15px;">${blankTitle || '&nbsp;'}</div>
-            <div style="margin-top:4px;color:#555;font-size:13px;">${blankProp || '&nbsp;'}</div>
+            <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:8px;">Project</div>
+            <div style="font-weight:700;font-size:15px;">${wo.title}</div>
+            <div style="color:#555;font-size:13px;">${wo.propertyName}</div>
           </div>
         </div>
         <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
-          <thead>
-            <tr style="background:#1a3a7a;color:#fff;">
-              <th style="padding:10px 12px;text-align:left;font-size:12px;width:36px;">#</th>
-              <th style="padding:10px 12px;text-align:left;font-size:12px;">Description</th>
-              <th style="padding:10px 12px;text-align:right;font-size:12px;width:120px;">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${[1,2,3,4,5].map(n => `<tr style="background:${n%2!==0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;color:#bbb;">${n}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="padding:10px 12px;border-bottom:1px solid #dde;text-align:right;">&nbsp;</td></tr>`).join('')}
-          </tbody>
+          <thead><tr style="background:#1a3a7a;color:#fff;"><th style="padding:10px 12px;text-align:left;font-size:12px;">#</th><th style="padding:10px 12px;text-align:left;font-size:12px;">Description</th><th style="padding:10px 12px;text-align:left;font-size:12px;">Category</th><th style="padding:10px 12px;text-align:right;font-size:12px;">Amount</th></tr></thead>
+          <tbody>${itemRows}</tbody>
         </table>
         <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
           <table style="border-collapse:collapse;min-width:240px;">
-            <tr><td style="padding:8px 14px;font-weight:600;color:#555;border-top:1px solid #ddd;font-size:13px;">Subtotal</td><td style="padding:8px 14px;text-align:right;border-top:1px solid #ddd;font-size:13px;">&nbsp;</td></tr>
-            <tr style="background:#1a3a7a;color:#fff;"><td style="padding:10px 14px;font-weight:900;font-size:15px;">TOTAL</td><td style="padding:10px 14px;text-align:right;font-weight:900;font-size:15px;">&nbsp;</td></tr>
+            <tr style="background:#1a3a7a;color:#fff;"><td style="padding:10px 14px;font-weight:900;font-size:15px;">TOTAL</td><td style="padding:10px 14px;text-align:right;font-weight:900;font-size:15px;">${total>0?'$'+total.toFixed(2):'—'}</td></tr>
           </table>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;padding-top:16px;border-top:1px solid #ddd;">
-          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Client Signature &amp; Acceptance</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">Signature &nbsp;&nbsp;&nbsp; Date</div></div>
-          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Authorized By</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">First Choice Maintenance &amp; Home Repair</div></div>
         </div>
         <div style="margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px;">First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
       </body></html>`);
-      win.document.close();
-      win.focus();
+      win.document.close(); win.focus();
       setTimeout(() => { win.print(); win.close(); }, 400);
     };
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
-        <h1>Generate Blank Invoice</h1>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 480, width: '100%', background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 24, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
-          <label style={{ fontWeight: 600, fontSize: 13 }}>
-            Property (optional)
-            <select value={blankProp} onChange={(e) => setBlankProp(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
-              <option value="">— None / leave blank —</option>
-              {properties.map((p: PropertyForm, i: number) => <option key={i} value={p.propertyName}>{p.propertyName}</option>)}
-            </select>
-          </label>
-          <label style={{ fontWeight: 600, fontSize: 13 }}>
-            Project Title (optional)
-            <input value={blankTitle} onChange={(e) => setBlankTitle(e.target.value)} placeholder="e.g. Plumbing Repair" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
-          </label>
-          <button onClick={printBlank} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 24px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>🖨️ Generate &amp; Print</button>
-        </div>
-        <button style={{ marginTop: 20 }} onClick={() => setPage("home")}>Return to Home</button>
+        <h1>Paid Invoices</h1>
+        {paidOrders.length === 0 ? (
+          <p>No paid invoices yet.</p>
+        ) : (
+          <table className="wo-table">
+            <thead>
+              <tr>
+                <th>WO #</th>
+                <th>Property</th>
+                <th>Title</th>
+                <th>Date</th>
+                <th>Print</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paidOrders.map((wo: WorkOrder, idx: number) => (
+                <tr key={idx}>
+                  <td data-label="WO #">{wo.number}</td>
+                  <td data-label="Property">{wo.propertyName}</td>
+                  <td data-label="Title">{wo.title}</td>
+                  <td data-label="Date">{wo.scheduledDate || '—'}</td>
+                  <td><button style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }} onClick={() => printPaidInvoice(wo)}>🖨️ Print</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <button style={{ marginTop: 16 }} onClick={() => setPage("home")}>Return to Home</button>
       </div>
     );
   }
@@ -2493,6 +2654,7 @@ function App() {
                   <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Processing</h2>
                   <button style={{ marginBottom: 8 }} onClick={() => setPage("deletedworkorders")}>Deleted Work Orders</button>
                   <button style={{ marginBottom: 8 }} onClick={() => setPage("invoicelist")}>Invoice List</button>
+                  <button style={{ marginBottom: 8 }} onClick={() => setPage("paidinvoices")}>Paid Invoices</button>
                 </div>
         {/* Properties */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
