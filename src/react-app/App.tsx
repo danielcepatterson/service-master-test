@@ -360,17 +360,17 @@ function App() {
     if (!file) return;
     setPhotoUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        await api.uploadWorkOrderPhoto(woNumber, file.name, file.type, base64);
-        // Reload photos
-        const wo = workOrders.find((w) => w.number === woNumber);
-        if (wo) await loadPhotosForWorkOrder(wo);
-      };
-      reader.readAsDataURL(file);
-    } catch (e) {
-      console.error("Failed to upload photo", e);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      await api.uploadWorkOrderPhoto(woNumber, file.name, file.type, base64);
+      const wo = workOrders.find((w) => w.number === woNumber);
+      if (wo) await loadPhotosForWorkOrder(wo);
+    } catch (err) {
+      console.error("Failed to upload photo", err);
     } finally {
       setPhotoUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
