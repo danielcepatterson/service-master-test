@@ -2083,7 +2083,7 @@ function App() {
         <span style={{ color: "#555" }}>Logged in as <strong>{authUser.username}</strong></span>
         <button onClick={handleLogout} style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "6px 16px", cursor: "pointer" }}>Logout</button>
       </div>
-      <h1>Welcome to the Service Master App</h1>
+      <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 260, width: "80%", marginBottom: "1.5rem" }} />
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
