@@ -394,9 +394,6 @@ function App() {
     await api.updateWorkOrderStatus(number, 'closed');
     await loadAllData();
     setViewHistoryWO(null);
-    setTimeout(() => {
-      setPage('closedworkorders');
-    }, 100);
   };
 
   const reactivateWorkOrder = async (number: string) => {
