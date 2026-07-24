@@ -28,17 +28,17 @@ function generateToken(): string {
 }
 
 // Auth middleware: checks Authorization header for Bearer token
-async function getUser(c: any): Promise<{ id: number; username: string } | null> {
+async function getUser(c: any): Promise<{ id: number; username: string; userType: string } | null> {
   const authHeader = c.req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7);
   const session = await c.env.DB.prepare(
-    "SELECT s.user_id, u.username FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')"
+    "SELECT s.user_id, u.username, u.user_type FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')"
   )
     .bind(token)
     .first();
   if (!session) return null;
-  return { id: session.user_id as number, username: session.username as string };
+  return { id: session.user_id as number, username: session.username as string, userType: session.user_type as string };
 }
 
 function unauthorized() {
@@ -234,7 +234,7 @@ app.post("/api/auth/login", async (c) => {
   if (!username || !password) return c.json({ error: "Username and password required" }, 400);
 
   const passwordHash = await hashPassword(password);
-  const user = await c.env.DB.prepare("SELECT id, username FROM users WHERE username = ? AND password_hash = ?")
+  const user = await c.env.DB.prepare("SELECT id, username, user_type FROM users WHERE username = ? AND password_hash = ?")
     .bind(username, passwordHash)
     .first();
   if (!user) return c.json({ error: "Invalid username or password" }, 401);
@@ -245,7 +245,7 @@ app.post("/api/auth/login", async (c) => {
     .bind(user.id, token, expiresAt)
     .run();
 
-  return c.json({ ok: true, token, user: { id: user.id, username: user.username } });
+  return c.json({ ok: true, token, user: { id: user.id, username: user.username, userType: user.user_type } });
 });
 
 app.post("/api/auth/logout", async (c) => {

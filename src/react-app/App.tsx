@@ -97,7 +97,7 @@ type WorkOrderExpense = {
 
 function App() {
   // ─── Auth state ─────────────────────────────────────────
-  const [authUser, setAuthUser] = React.useState<{ id: number; username: string } | null>(null);
+  const [authUser, setAuthUser] = React.useState<{ id: number; username: string; userType: string } | null>(null);
   const [authChecked, setAuthChecked] = React.useState(false);
   const [authPage, setAuthPage] = React.useState<'login' | 'register'>('login');
   const [authForm, setAuthForm] = React.useState({ username: '', password: '' });
@@ -2997,6 +2997,27 @@ function App() {
         <button onClick={handleLogout} style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "6px 16px", cursor: "pointer" }}>Logout</button>
       </div>
       <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 260, width: "80%", marginBottom: "1.5rem" }} />
+      {authUser.userType === 'tech' ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem", marginTop: "2rem", width: "100%", maxWidth: 400 }}>
+          {/* Work Orders — tech view */}
+          <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ marginBottom: 8 }}>
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="18" width="18" height="10" rx="2" fill="#0099FF"/>
+                <rect x="23" y="22" width="8" height="6" rx="1.5" fill="#00BFFF"/>
+                <circle cx="11" cy="30" r="3" fill="#00BFFF"/>
+                <circle cx="29" cy="30" r="3" fill="#00BFFF"/>
+              </svg>
+            </div>
+            <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Work Orders</h2>
+            <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
+            <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
+            <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
+            <button style={{ marginTop: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
+            <button style={{ marginTop: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
+          </div>
+        </div>
+      ) : (
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
@@ -3119,6 +3140,7 @@ function App() {
           <button onClick={() => setPage("adduser")}>Add New User</button>
         </div>
       </div>
+      )}
     </div>
   );
 }
