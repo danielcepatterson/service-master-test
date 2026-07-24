@@ -48,6 +48,34 @@ function unauthorized() {
   });
 }
 
+// ─── Auto-run migrations on cold start ────────────────────
+let migrationsRan = false;
+async function runMigrations(db: D1Database) {
+  if (migrationsRan) return;
+  migrationsRan = true;
+  try {
+    await db.exec(`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'tech';`);
+  } catch (_) { /* column already exists */ }
+  try {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS work_order_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        work_order_number TEXT NOT NULL,
+        note TEXT NOT NULL,
+        author TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT,
+        FOREIGN KEY (work_order_number) REFERENCES work_orders(number)
+      );
+    `);
+  } catch (_) { /* table already exists */ }
+}
+
+app.use("/api/*", async (c, next) => {
+  await runMigrations(c.env.DB);
+  return next();
+});
+
 // ─── DB Init (auto-run migrations) ────────────────────────
 app.get("/api/init", async (c) => {
   const db = c.env.DB;
