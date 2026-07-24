@@ -257,6 +257,7 @@ function App() {
   const [addUserDone, setAddUserDone] = React.useState(false);
   const [addUserError, setAddUserError] = React.useState('');
   const [showLogout, setShowLogout] = React.useState(false);
+  const [homeMenu, setHomeMenu] = React.useState<string | null>(null);
 
   // ─── System Logs state ────────────────────────────────────
   type SystemLog = { id: number; username: string; action: string; category: string; target: string; detail: string; created_at: string };
@@ -3002,155 +3003,140 @@ function App() {
   }
 
   // Main dashboard/homepage UI (non-tech)
+  const menuItems: { key: string; label: string; items: { label: string; page: string; role?: string[] }[] }[] = [
+    {
+      key: 'ewo',
+      label: 'Estimates & Work Orders',
+      items: [
+        { label: 'Create an Estimate', page: 'createestimate' },
+        { label: 'Estimate List', page: 'estimatelist' },
+        { label: 'Create a Work Order', page: 'workorder' },
+        { label: 'Draft Work Orders', page: 'workorderlistdraft' },
+        { label: 'Active Work Orders', page: 'workorderlist' },
+        { label: 'Completed Work Orders', page: 'completedworkorders' },
+      ],
+    },
+    {
+      key: 'lists',
+      label: 'Lists',
+      items: [
+        { label: 'Property List', page: 'propertylist' },
+        { label: 'Create a Property', page: 'property' },
+        { label: 'Vendor List', page: 'vendorlist' },
+        { label: 'Create a Vendor', page: 'vendor' },
+        { label: 'Purchase List', page: 'purchaselist' },
+        { label: 'Create a Purchase', page: 'createpurchase' },
+        { label: 'Inventory List', page: 'inventorylist' },
+        { label: 'Create Inventory Item', page: 'createinventoryitem' },
+        { label: 'Create Inventory Category', page: 'createinventorycategory' },
+        { label: 'User List', page: 'userlist', role: ['mgr', 'admin'] },
+        { label: 'Add New User', page: 'adduser', role: ['mgr', 'admin'] },
+        { label: 'System Logs', page: 'systemlogs', role: ['admin'] },
+      ],
+    },
+    {
+      key: 'billing',
+      label: 'Billing',
+      items: [
+        { label: 'Closed Work Orders', page: 'closedworkorders' },
+        { label: 'Deleted Work Orders', page: 'deletedworkorders' },
+        { label: 'Invoice List', page: 'invoicelist' },
+        { label: 'Paid Invoices', page: 'paidinvoices' },
+      ],
+    },
+  ];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 1100, marginBottom: 8 }}>
-        <span style={{ color: "#555" }}>Logged in as <strong>{authUser.username}</strong></span>
-        <button onClick={handleLogout} style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "6px 16px", cursor: "pointer" }}>Logout</button>
+    <div style={{ minHeight: '100vh', background: '#e8edf8' }} onClick={() => setHomeMenu(null)}>
+      {/* Top Nav Bar */}
+      <div style={{ background: '#1a3a7a', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '0 16px', height: 56 }}>
+          {/* Logo */}
+          <button onClick={() => setHomeMenu(null)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginRight: 24, flexShrink: 0 }}>
+            <img src="/logo.png" alt="Home" style={{ height: 36, objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
+          </button>
+          {/* Menu Items */}
+          <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+            {menuItems.map(menu => (
+              <div key={menu.key} style={{ position: 'relative' }}>
+                <button
+                  onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === menu.key ? null : menu.key); }}
+                  style={{
+                    background: homeMenu === menu.key ? 'rgba(255,255,255,0.18)' : 'none',
+                    border: 'none',
+                    color: '#fff',
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {menu.label}
+                  <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === menu.key ? '▲' : '▼'}</span>
+                </button>
+                {homeMenu === menu.key && (
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      background: '#fff',
+                      border: '1px solid #d0d8f0',
+                      borderRadius: 8,
+                      boxShadow: '0 6px 24px rgba(0,0,0,0.14)',
+                      minWidth: 220,
+                      padding: '6px 0',
+                      zIndex: 200,
+                    }}
+                  >
+                    {menu.items
+                      .filter(item => !item.role || item.role.includes(authUser.userType))
+                      .map(item => (
+                        <button
+                          key={item.page}
+                          onClick={() => { setPage(item.page); setHomeMenu(null); }}
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'left',
+                            background: 'none',
+                            border: 'none',
+                            padding: '9px 18px',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            color: '#1a3a7a',
+                            fontWeight: 500,
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* User / Logout */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{authUser.username}</span>
+            <button onClick={handleLogout} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Logout</button>
+          </div>
+        </div>
       </div>
-      <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 260, width: "80%", marginBottom: "1.5rem" }} />
-      {false ? null : (
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-        gap: "2rem",
-        marginTop: "2rem",
-        width: "100%",
-        maxWidth: 1100
-      }}>
-        {/* Estimates */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="8" y="6" width="24" height="30" rx="4" fill="#0099FF"/>
-              <rect x="13" y="13" width="14" height="2" rx="1" fill="#fff"/>
-              <rect x="13" y="18" width="14" height="2" rx="1" fill="#fff"/>
-              <rect x="13" y="23" width="8" height="2" rx="1" fill="#fff"/>
-              <circle cx="30" cy="30" r="7" fill="#00BFFF"/>
-              <text x="30" y="34" textAnchor="middle" fill="#fff" fontSize="9" fontWeight="bold">$</text>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Estimates</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("createestimate")}>Create an Estimate</button>
-          <button onClick={() => setPage("estimatelist")}>Estimate List</button>
-        </div>
-        {/* Work Orders */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="5" y="18" width="18" height="10" rx="2" fill="#0099FF"/>
-              <rect x="23" y="22" width="8" height="6" rx="1.5" fill="#00BFFF"/>
-              <circle cx="11" cy="30" r="3" fill="#00BFFF"/>
-              <circle cx="29" cy="30" r="3" fill="#00BFFF"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Work Orders</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
-          <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
-          <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
-        </div>
-        {/* Purchases */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="14" cy="32" r="3" fill="#00BFFF"/>
-              <circle cx="28" cy="32" r="3" fill="#00BFFF"/>
-              <rect x="8" y="12" width="24" height="12" rx="3" fill="#0099FF"/>
-              <rect x="10" y="10" width="20" height="4" rx="2" fill="#00BFFF"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Purchases</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("createpurchase")}>Create a Purchase</button>
-          <button onClick={() => setPage("purchaselist")}>Purchase List</button>
-        </div>
-        {/* Processing */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="20" cy="20" r="16" fill="#0099FF"/>
-              <path d="M20 12v4M20 24v4M28 20h-4M16 20h-4M24.24 15.76l-2.83 2.83M15.76 24.24l2.83-2.83M24.24 24.24l-2.83-2.83M15.76 15.76l2.83 2.83" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Processing</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("deletedworkorders")}>Deleted Work Orders</button>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("invoicelist")}>Invoice List</button>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("paidinvoices")}>Paid Invoices</button>
-        </div>
-        {/* Inventory */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="8" width="20" height="28" rx="4" fill="#0099FF"/>
-              <rect x="16" y="4" width="8" height="8" rx="2" fill="#00BFFF"/>
-              <rect x="14" y="16" width="12" height="2" fill="#fff"/>
-              <rect x="14" y="22" width="12" height="2" fill="#fff"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Inventory</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("createinventorycategory")}>Create Inventory Category</button>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("createinventoryitem")}>Create Inventory Item</button>
-          <button onClick={() => setPage("inventorylist")}>Inventory List</button>
-        </div>
-        {/* Vendors */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="14" y="6" width="12" height="28" rx="4" fill="#0099FF"/>
-              <rect x="18" y="32" width="4" height="2" rx="1" fill="#00BFFF"/>
-              <rect x="18" y="8" width="4" height="2" rx="1" fill="#00BFFF"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Vendors</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("vendor")}>Create a Vendor</button>
-          <button onClick={() => setPage("vendorlist")}>Vendor List</button>
-        </div>
-        {/* Properties */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 20L20 7L35 20" stroke="#00BFFF" strokeWidth="3" fill="none"/>
-              <rect x="10" y="20" width="20" height="13" fill="#0099FF" stroke="#00BFFF" strokeWidth="2" rx="2"/>
-              <rect x="17" y="26" width="6" height="7" fill="#fff"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Properties</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("property")}>Create a Property</button>
-          <button onClick={() => setPage("propertylist")}>Property List</button>
-        </div>
-        {/* Users */}
-        {authUser?.userType !== 'dispatch' && authUser?.userType !== 'tech' && (
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="20" cy="14" r="7" fill="#0099FF"/>
-              <path d="M6 34c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="#00BFFF" strokeWidth="3" fill="none" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Users</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("userlist")}>User List</button>
-          <button onClick={() => setPage("adduser")}>Add New User</button>
-        </div>
-        )}
-        {authUser?.userType === 'admin' && (
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="8" y="10" width="24" height="22" rx="3" fill="#0099FF"/>
-              <rect x="12" y="16" width="16" height="2" rx="1" fill="#fff"/>
-              <rect x="12" y="21" width="12" height="2" rx="1" fill="#fff"/>
-              <rect x="12" y="26" width="8" height="2" rx="1" fill="#fff"/>
-              <circle cx="30" cy="12" r="5" fill="#ff4d4d"/>
-              <text x="30" y="16" textAnchor="middle" fill="#fff" fontSize="7" fontWeight="bold">!</text>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>System Logs</h2>
-          <button onClick={() => setPage("systemlogs")}>Access Log</button>
-        </div>
-        )}
+
+      {/* Hero / Center Logo */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '8vh' }}>
+        <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 320, width: '70%', marginBottom: '2rem' }} />
+        <p style={{ color: '#555', fontSize: 15 }}>Select a menu above to get started.</p>
       </div>
-      )}
     </div>
   );
 }
