@@ -254,6 +254,7 @@ function App() {
   const [addUserSaving, setAddUserSaving] = React.useState(false);
   const [addUserDone, setAddUserDone] = React.useState(false);
   const [addUserError, setAddUserError] = React.useState('');
+  const [showLogout, setShowLogout] = React.useState(false);
 
   // ─── System Logs state ────────────────────────────────────
   type SystemLog = { id: number; username: string; action: string; category: string; target: string; detail: string; created_at: string };
@@ -2961,7 +2962,6 @@ function App() {
   // ── Tech mobile dashboard ──────────────────────────────
   if (authUser.userType === 'tech') {
     const activeOrders = workOrders.filter(wo => wo.status === 'active');
-    const [showLogout, setShowLogout] = React.useState(false);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', maxHeight: '100dvh', background: '#e8edf8', overflow: 'hidden' }}>
         {/* Header */}
