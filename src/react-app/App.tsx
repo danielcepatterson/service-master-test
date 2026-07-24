@@ -258,6 +258,12 @@ function App() {
   const [addUserError, setAddUserError] = React.useState('');
   const [showLogout, setShowLogout] = React.useState(false);
   const [homeMenu, setHomeMenu] = React.useState<string | null>(null);
+  const [homeSubMenu, setHomeSubMenu] = React.useState<string | null>(null);
+  const [clockTime, setClockTime] = React.useState(new Date());
+  React.useEffect(() => {
+    const t = setInterval(() => setClockTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // ─── System Logs state ────────────────────────────────────
   type SystemLog = { id: number; username: string; action: string; category: string; target: string; detail: string; created_at: string };
@@ -3003,139 +3009,187 @@ function App() {
   }
 
   // Main dashboard/homepage UI (non-tech)
-  const menuItems: { key: string; label: string; items: { label: string; page: string; role?: string[] }[] }[] = [
-    {
-      key: 'ewo',
-      label: 'Estimates & Work Orders',
-      items: [
-        { label: 'Create an Estimate', page: 'createestimate' },
-        { label: 'Estimate List', page: 'estimatelist' },
-        { label: 'Create a Work Order', page: 'workorder' },
-        { label: 'Draft Work Orders', page: 'workorderlistdraft' },
-        { label: 'Active Work Orders', page: 'workorderlist' },
-        { label: 'Completed Work Orders', page: 'completedworkorders' },
-      ],
-    },
-    {
-      key: 'lists',
-      label: 'Lists',
-      items: [
-        { label: 'Property List', page: 'propertylist' },
-        { label: 'Create a Property', page: 'property' },
-        { label: 'Vendor List', page: 'vendorlist' },
-        { label: 'Create a Vendor', page: 'vendor' },
-        { label: 'Purchase List', page: 'purchaselist' },
-        { label: 'Create a Purchase', page: 'createpurchase' },
-        { label: 'Inventory List', page: 'inventorylist' },
-        { label: 'Create Inventory Item', page: 'createinventoryitem' },
-        { label: 'Create Inventory Category', page: 'createinventorycategory' },
-        { label: 'User List', page: 'userlist', role: ['mgr', 'admin'] },
-        { label: 'Add New User', page: 'adduser', role: ['mgr', 'admin'] },
-        { label: 'System Logs', page: 'systemlogs', role: ['admin'] },
-      ],
-    },
-    {
-      key: 'billing',
-      label: 'Billing',
-      items: [
-        { label: 'Closed Work Orders', page: 'closedworkorders' },
-        { label: 'Deleted Work Orders', page: 'deletedworkorders' },
-        { label: 'Invoice List', page: 'invoicelist' },
-        { label: 'Paid Invoices', page: 'paidinvoices' },
-      ],
-    },
+  const listsSubMenus: { key: string; label: string; role?: string[]; items: { label: string; page: string; role?: string[] }[] }[] = [
+    { key: 'properties', label: 'Properties', items: [
+      { label: 'Property List', page: 'propertylist' },
+      { label: 'Create a Property', page: 'property' },
+    ]},
+    { key: 'vendors', label: 'Vendors', items: [
+      { label: 'Vendor List', page: 'vendorlist' },
+      { label: 'Create a Vendor', page: 'vendor' },
+    ]},
+    { key: 'purchases', label: 'Purchases', items: [
+      { label: 'Purchase List', page: 'purchaselist' },
+      { label: 'Create a Purchase', page: 'createpurchase' },
+    ]},
+    { key: 'inventory', label: 'Inventory', items: [
+      { label: 'Inventory List', page: 'inventorylist' },
+      { label: 'Create Inventory Item', page: 'createinventoryitem' },
+      { label: 'Create Category', page: 'createinventorycategory' },
+    ]},
+    { key: 'users', label: 'Users', role: ['mgr', 'admin'], items: [
+      { label: 'User List', page: 'userlist', role: ['mgr', 'admin'] },
+      { label: 'Add New User', page: 'adduser', role: ['mgr', 'admin'] },
+      { label: 'System Logs', page: 'systemlogs', role: ['admin'] },
+    ]},
   ];
 
+  const billingItems = [
+    { label: 'Closed Work Orders', page: 'closedworkorders' },
+    { label: 'Deleted Work Orders', page: 'deletedworkorders' },
+    { label: 'Invoice List', page: 'invoicelist' },
+    { label: 'Paid Invoices', page: 'paidinvoices' },
+  ];
+
+  const woItems = [
+    { label: 'Create an Estimate', page: 'createestimate' },
+    { label: 'Estimate List', page: 'estimatelist' },
+    { label: 'Create a Work Order', page: 'workorder' },
+    { label: 'Draft Work Orders', page: 'workorderlistdraft' },
+    { label: 'Active Work Orders', page: 'workorderlist' },
+    { label: 'Completed Work Orders', page: 'completedworkorders' },
+  ];
+
+  const allTimeWOs = workOrders.length;
+  const activeWOs = workOrders.filter(w => w.status === 'active').length;
+  const completedWOs = workOrders.filter(w => w.status === 'completed').length;
+  const closedWOs = workOrders.filter(w => w.status === 'closed' || w.status === 'invoiced' || w.status === 'paid' || w.status === 'nocharge').length;
+
+  const dateStr = clockTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = clockTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+
+  const dropdownStyle: React.CSSProperties = {
+    position: 'absolute', top: '100%', left: 0,
+    background: '#fff', border: '1px solid #d0d8f0', borderRadius: 8,
+    boxShadow: '0 6px 24px rgba(0,0,0,0.14)', minWidth: 200, padding: '6px 0', zIndex: 200,
+  };
+  const menuBtnStyle = (active: boolean): React.CSSProperties => ({
+    background: active ? 'rgba(255,255,255,0.18)' : 'none',
+    border: 'none', color: '#fff', padding: '8px 16px', borderRadius: 6,
+    cursor: 'pointer', fontWeight: 600, fontSize: 14,
+    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+  });
+  const dropItemStyle: React.CSSProperties = {
+    display: 'block', width: '100%', textAlign: 'left', background: 'none',
+    border: 'none', padding: '9px 18px', cursor: 'pointer', fontSize: 14,
+    color: '#1a3a7a', fontWeight: 500,
+  };
+
   return (
-    <div style={{ minHeight: '100vh', background: '#e8edf8' }} onClick={() => setHomeMenu(null)}>
+    <div style={{ minHeight: '100vh', background: '#e8edf8' }} onClick={() => { setHomeMenu(null); setHomeSubMenu(null); }}>
       {/* Top Nav Bar */}
       <div style={{ background: '#1a3a7a', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '0 16px', height: 56 }}>
-          {/* Logo */}
-          <button onClick={() => setHomeMenu(null)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginRight: 24, flexShrink: 0 }}>
-            <img src="/logo.png" alt="Home" style={{ height: 36, objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
+        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '0 20px', height: 56, gap: 8 }}>
+          {/* Logo top-left */}
+          <button onClick={() => { setHomeMenu(null); setHomeSubMenu(null); setPage('home'); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginRight: 20, flexShrink: 0 }}>
+            <img src="/logo.png" alt="Home" style={{ height: 38, objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
           </button>
-          {/* Menu Items */}
-          <div style={{ display: 'flex', gap: 4, flex: 1 }}>
-            {menuItems.map(menu => (
-              <div key={menu.key} style={{ position: 'relative' }}>
-                <button
-                  onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === menu.key ? null : menu.key); }}
-                  style={{
-                    background: homeMenu === menu.key ? 'rgba(255,255,255,0.18)' : 'none',
-                    border: 'none',
-                    color: '#fff',
-                    padding: '8px 16px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {menu.label}
-                  <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === menu.key ? '▲' : '▼'}</span>
-                </button>
-                {homeMenu === menu.key && (
-                  <div
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      background: '#fff',
-                      border: '1px solid #d0d8f0',
-                      borderRadius: 8,
-                      boxShadow: '0 6px 24px rgba(0,0,0,0.14)',
-                      minWidth: 220,
-                      padding: '6px 0',
-                      zIndex: 200,
-                    }}
-                  >
-                    {menu.items
-                      .filter(item => !item.role || item.role.includes(authUser.userType))
-                      .map(item => (
-                        <button
-                          key={item.page}
-                          onClick={() => { setPage(item.page); setHomeMenu(null); }}
-                          style={{
-                            display: 'block',
-                            width: '100%',
-                            textAlign: 'left',
-                            background: 'none',
-                            border: 'none',
-                            padding: '9px 18px',
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            color: '#1a3a7a',
-                            fontWeight: 500,
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                  </div>
-                )}
+
+          {/* ── Lists ── */}
+          <div style={{ position: 'relative' }}>
+            <button style={menuBtnStyle(homeMenu === 'lists')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'lists' ? null : 'lists'); setHomeSubMenu(null); }}>
+              Lists <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'lists' ? '▲' : '▼'}</span>
+            </button>
+            {homeMenu === 'lists' && (
+              <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                {listsSubMenus
+                  .filter((sub: { key: string; label: string; role?: string[]; items: { label: string; page: string; role?: string[] }[] }) => !sub.role || sub.role.includes(authUser.userType))
+                  .map(sub => (
+                    <div key={sub.key} style={{ position: 'relative' }}
+                      onMouseEnter={() => setHomeSubMenu(sub.key)}
+                      onMouseLeave={() => setHomeSubMenu(null)}
+                    >
+                      <button style={{ ...dropItemStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: homeSubMenu === sub.key ? '#f0f4ff' : 'none', width: '100%' }}>
+                        {sub.label} <span style={{ opacity: 0.5, fontSize: 11 }}>▶</span>
+                      </button>
+                      {homeSubMenu === sub.key && (
+                        <div style={{ ...dropdownStyle, left: '100%', top: 0 }}>
+                          {sub.items
+                            .filter(item => !item.role || item.role.includes(authUser.userType))
+                            .map(item => (
+                              <button key={item.page} style={dropItemStyle}
+                                onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                                onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                              >{item.label}</button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
-            ))}
+            )}
           </div>
+
+          {/* ── Work Orders ── */}
+          <div style={{ position: 'relative' }}>
+            <button style={menuBtnStyle(homeMenu === 'wo')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'wo' ? null : 'wo'); setHomeSubMenu(null); }}>
+              Work Orders <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'wo' ? '▲' : '▼'}</span>
+            </button>
+            {homeMenu === 'wo' && (
+              <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                {woItems.map(item => (
+                  <button key={item.page} style={dropItemStyle}
+                    onClick={() => { setPage(item.page); setHomeMenu(null); }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >{item.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Billing ── */}
+          <div style={{ position: 'relative' }}>
+            <button style={menuBtnStyle(homeMenu === 'billing')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'billing' ? null : 'billing'); setHomeSubMenu(null); }}>
+              Billing <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'billing' ? '▲' : '▼'}</span>
+            </button>
+            {homeMenu === 'billing' && (
+              <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                {billingItems.map(item => (
+                  <button key={item.page} style={dropItemStyle}
+                    onClick={() => { setPage(item.page); setHomeMenu(null); }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >{item.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* User / Logout */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-            <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{authUser.username}</span>
+            <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>{authUser.username}</span>
             <button onClick={handleLogout} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Logout</button>
           </div>
         </div>
       </div>
 
-      {/* Hero / Center Logo */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '8vh' }}>
-        <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 320, width: '70%', marginBottom: '2rem' }} />
-        <p style={{ color: '#555', fontSize: 15 }}>Select a menu above to get started.</p>
+      {/* Dashboard Body */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 20px' }}>
+        {/* Top row: Logo + Clock */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
+          <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 260, width: '50%' }} />
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
+            <div style={{ fontSize: 14, color: '#555', marginTop: 4 }}>{dateStr}</div>
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
+          {[
+            { label: 'All-Time Work Orders', value: allTimeWOs, color: '#1a3a7a' },
+            { label: 'Active', value: activeWOs, color: '#0099FF' },
+            { label: 'Completed', value: completedWOs, color: '#2a9d2a' },
+            { label: 'Closed / Invoiced', value: closedWOs, color: '#888' },
+          ].map(kpi => (
+            <div key={kpi.label} style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${kpi.color}` }}>
+              <div style={{ fontSize: 36, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
+              <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{kpi.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
