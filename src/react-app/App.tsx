@@ -2963,7 +2963,7 @@ function App() {
   if (authUser.userType === 'tech') {
     const activeOrders = workOrders.filter(wo => wo.status === 'active');
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', maxHeight: '100dvh', background: '#e8edf8', overflow: 'hidden' }}>
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#e8edf8', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#fff', boxShadow: '0 2px 6px rgba(26,58,122,0.10)', flexShrink: 0, zIndex: 10 }}>
           <button onClick={() => setPage('home')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
