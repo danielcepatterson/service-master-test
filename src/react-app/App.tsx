@@ -1149,7 +1149,17 @@ function App() {
             </ul>
           </div>
 
-          <button onClick={() => setPage(viewWOFromPage)}>← Back to List</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 8 }}>
+            <button onClick={() => setPage(viewWOFromPage)}>← Back to List</button>
+            {viewingWO.status === 'active' && (
+              <button
+                onClick={async () => { await completeWorkOrder(viewingWO.number); setPage(viewWOFromPage); }}
+                style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+              >
+                ✓ Mark Complete
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1692,79 +1702,40 @@ function App() {
   if (page === "workorderlistdraft") {
     const draftOrders = workOrders.filter((wo) => wo.status === 'draft');
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "1rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
         <h1>Draft Work Orders</h1>
         {draftOrders.length === 0 ? (
           <p>No draft work orders.</p>
         ) : (
-          <table className="wo-table">
-            <thead>
-              <tr>
-                <th>WO Number</th>
-                <th>Property</th>
-                <th>Title</th>
-                <th>Instructions</th>
-                <th>Scheduled Date</th>
-                <th>Scheduled Time</th>
-                <th>Photos</th>
-                <th>Action</th>
-                <th>View</th>
-              </tr>
-            </thead>
-            <tbody>
-              {draftOrders.map((wo: WorkOrder, idx: number) => (
-                <tr key={idx}>
-                  <td data-label="WO #">{wo.number}</td>
-                  <td data-label="Property">{wo.propertyName}</td>
-                  <td data-label="Title">{wo.title}</td>
-                  <td data-label="Instructions">{wo.instructions}</td>
-                  <td data-label="Date">{wo.scheduledDate}</td>
-                  <td data-label="Time">{wo.scheduledTime}</td>
-                  <td data-label="Photos">
-                    <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
-                  </td>
-                  <td>
-                    <button onClick={() => activateWorkOrder(wo.number)}>Activate</button>
-                  </td>
-                  <td>
-                    <button onClick={() => openWODetail(wo, 'workorderlistdraft')}>🔍 View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <button onClick={() => setPage("home")}>Return to Home</button>
-        
-        {/* Photo Modal */}
-        {selectedWOForPhotos && (
-          <div className="photo-modal">
-            <div className="photo-modal-content">
-              <h2>Photos for {selectedWOForPhotos.number}</h2>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
-                <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
-                <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading}>📁 Upload from Files</button>
-                <button onClick={() => cameraInputRef.current?.click()} disabled={photoUploading}>📷 Take Photo</button>
+          <div style={{ width: '100%', maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {draftOrders.map((wo: WorkOrder) => (
+              <div key={wo.number} style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: '14px 18px', boxShadow: '0 2px 6px rgba(26,58,122,0.08)', borderLeft: '4px solid #888' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 20px', alignItems: 'baseline', marginBottom: 12 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: '#1a3a7a' }}>{wo.number}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: '#333' }}>{wo.title}</span>
+                  <span style={{ fontSize: 13, color: '#555' }}>{wo.propertyName}</span>
+                  {wo.scheduledDate && <span style={{ fontSize: 12, color: '#888' }}>{wo.scheduledDate}{wo.scheduledTime ? ' @ ' + wo.scheduledTime : ''}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => activateWorkOrder(wo.number)}
+                    style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                  >
+                    ▶ Activate
+                  </button>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={() => openWODetail(wo, 'workorderlistdraft')}
+                    style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                  >
+                    🔍 View
+                  </button>
+                </div>
               </div>
-              {photoLoading && <p>Loading photos...</p>}
-              {photoUploading && <p>Uploading...</p>}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
-                {woPhotos.map((photo) => (
-                  <div key={photo.id} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
-                    <img src={photo.data} alt={photo.filename} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
-                    <div style={{ padding: 4, fontSize: 11, background: '#f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 60 }}>{photo.filename}</span>
-                      <button onClick={() => handleDeletePhoto(photo.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 11 }}>✕</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {woPhotos.length === 0 && !photoLoading && <p style={{ color: '#888' }}>No photos yet.</p>}
-              <button style={{ marginTop: 16 }} onClick={closePhotoModal}>Close</button>
-            </div>
+            ))}
           </div>
         )}
+        <button style={{ marginTop: 20 }} onClick={() => setPage("home")}>Return to Home</button>
       </div>
     );
   }
@@ -1810,101 +1781,46 @@ function App() {
   if (page === "completedworkorders") {
     const completedOrders = workOrders.filter((wo) => wo.status === 'completed');
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "1rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
         <h1>Completed Work Orders</h1>
         {completedOrders.length === 0 ? (
           <p>No work orders have been completed yet.</p>
         ) : (
-          <table className="wo-table">
-            <thead>
-              <tr>
-                <th>WO Number</th>
-                <th>Property</th>
-                <th>Title</th>
-                <th>Instructions</th>
-                <th>Scheduled Date</th>
-                <th>Scheduled Time</th>
-                <th>Action</th>
-                <th>Photos</th>
-                <th>History</th>
-                <th>Reactivate</th>
-                <th>View</th>
-              </tr>
-            </thead>
-            <tbody>
-              {completedOrders.map((wo: WorkOrder, idx: number) => (
-                <tr key={idx}>
-                  <td data-label="WO #">{wo.number}</td>
-                  <td data-label="Property">{wo.propertyName}</td>
-                  <td data-label="Title">{wo.title}</td>
-                  <td data-label="Instructions">{wo.instructions}</td>
-                  <td data-label="Date">{wo.scheduledDate}</td>
-                  <td data-label="Time">{wo.scheduledTime}</td>
-                  <td>
-                    <button onClick={() => closeWorkOrder(wo.number)}>Close Work Order</button>
-                  </td>
-                  <td>
-                    <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
-                  </td>
-                  <td>
-                    <button onClick={() => setViewHistoryWO(wo)}>View History</button>
-                  </td>
-                  <td>
-                    <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => reactivateWorkOrder(wo.number)}>↺ Reactivate</button>
-                  </td>
-                  <td>
-                    <button onClick={() => openWODetail(wo, 'completedworkorders')}>🔍 View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <button onClick={() => setPage("home")}>Return to Home</button>
-        
-        {/* Photo Modal */}
-        {selectedWOForPhotos && (
-          <div className="photo-modal">
-            <div className="photo-modal-content">
-              <h2>Photos for {selectedWOForPhotos.number}</h2>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
-                <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)} />
-                <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading}>📁 Upload from Files</button>
-                <button onClick={() => cameraInputRef.current?.click()} disabled={photoUploading}>📷 Take Photo</button>
+          <div style={{ width: '100%', maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {completedOrders.map((wo: WorkOrder) => (
+              <div key={wo.number} style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: '14px 18px', boxShadow: '0 2px 6px rgba(26,58,122,0.08)', borderLeft: '4px solid #2a9d2a' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 20px', alignItems: 'baseline', marginBottom: 12 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: '#1a3a7a' }}>{wo.number}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: '#333' }}>{wo.title}</span>
+                  <span style={{ fontSize: 13, color: '#555' }}>{wo.propertyName}</span>
+                  {wo.scheduledDate && <span style={{ fontSize: 12, color: '#888' }}>{wo.scheduledDate}{wo.scheduledTime ? ' @ ' + wo.scheduledTime : ''}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => reactivateWorkOrder(wo.number)}
+                    style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                  >
+                    ↺ Reactivate
+                  </button>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={() => openWODetail(wo, 'completedworkorders')}
+                    style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                  >
+                    🔍 View
+                  </button>
+                  <button
+                    onClick={() => closeWorkOrder(wo.number)}
+                    style={{ background: '#555', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                  >
+                    ✕ Close
+                  </button>
+                </div>
               </div>
-              {photoLoading && <p>Loading photos...</p>}
-              {photoUploading && <p>Uploading...</p>}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
-                {woPhotos.map((photo) => (
-                  <div key={photo.id} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
-                    <img src={photo.data} alt={photo.filename} style={{ width: '100%', height: 100, objectFit: 'cover' }} />
-                    <div style={{ padding: 4, fontSize: 11, background: '#f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 60 }}>{photo.filename}</span>
-                      <button onClick={() => handleDeletePhoto(photo.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 11 }}>✕</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {woPhotos.length === 0 && !photoLoading && <p style={{ color: '#888' }}>No photos yet.</p>}
-              <button style={{ marginTop: 16 }} onClick={closePhotoModal}>Close</button>
-            </div>
+            ))}
           </div>
         )}
-        
-        {viewHistoryWO && (
-          <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, maxWidth: '90%', width: 350 }}>
-            <h2>Work Order History: {viewHistoryWO.number}</h2>
-            <ul style={{ textAlign: 'left' }}>
-              {viewHistoryWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
-                <li key={idx}>
-                  {entry.status} at {new Date(entry.timestamp).toLocaleString()}
-                </li>
-              ))}
-            </ul>
-            <button onClick={() => setViewHistoryWO(null)}>Close</button>
-          </div>
-        )}
+        <button style={{ marginTop: 20 }} onClick={() => setPage("home")}>Return to Home</button>
       </div>
     );
   }
