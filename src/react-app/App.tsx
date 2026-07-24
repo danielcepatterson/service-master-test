@@ -3005,34 +3005,6 @@ function App() {
         width: "100%",
         maxWidth: 1100
       }}>
-                {/* Processing */}
-                <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <div style={{ marginBottom: 8 }}>
-                    {/* Sleek Electric Blue Gear Icon */}
-                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="20" cy="20" r="16" fill="#0099FF"/>
-                      <path d="M20 12v4M20 24v4M28 20h-4M16 20h-4M24.24 15.76l-2.83 2.83M15.76 24.24l2.83-2.83M24.24 24.24l-2.83-2.83M15.76 15.76l2.83 2.83" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                  <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Processing</h2>
-                  <button style={{ marginBottom: 8 }} onClick={() => setPage("deletedworkorders")}>Deleted Work Orders</button>
-                  <button style={{ marginBottom: 8 }} onClick={() => setPage("invoicelist")}>Invoice List</button>
-                  <button style={{ marginBottom: 8 }} onClick={() => setPage("paidinvoices")}>Paid Invoices</button>
-                </div>
-        {/* Properties */}
-        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div style={{ marginBottom: 8 }}>
-            {/* Sleek Electric Blue House Icon */}
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 20L20 7L35 20" stroke="#00BFFF" strokeWidth="3" fill="none"/>
-              <rect x="10" y="20" width="20" height="13" fill="#0099FF" stroke="#00BFFF" strokeWidth="2" rx="2"/>
-              <rect x="17" y="26" width="6" height="7" fill="#fff"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Properties</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("property")}>Create a Property</button>
-          <button onClick={() => setPage("propertylist")}>Property List</button>
-        </div>
         {/* Estimates */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
@@ -3052,7 +3024,6 @@ function App() {
         {/* Work Orders */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* Sleek Electric Blue Truck Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="5" y="18" width="18" height="10" rx="2" fill="#0099FF"/>
               <rect x="23" y="22" width="8" height="6" rx="1.5" fill="#00BFFF"/>
@@ -3067,10 +3038,36 @@ function App() {
           <button style={{ marginTop: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
           <button style={{ marginTop: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
         </div>
+        {/* Purchases */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ marginBottom: 8 }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="14" cy="32" r="3" fill="#00BFFF"/>
+              <circle cx="28" cy="32" r="3" fill="#00BFFF"/>
+              <rect x="8" y="12" width="24" height="12" rx="3" fill="#0099FF"/>
+              <rect x="10" y="10" width="20" height="4" rx="2" fill="#00BFFF"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Purchases</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("createpurchase")}>Create a Purchase</button>
+          <button onClick={() => setPage("purchaselist")}>Purchase List</button>
+        </div>
+        {/* Processing */}
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ marginBottom: 8 }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="20" cy="20" r="16" fill="#0099FF"/>
+              <path d="M20 12v4M20 24v4M28 20h-4M16 20h-4M24.24 15.76l-2.83 2.83M15.76 24.24l2.83-2.83M24.24 24.24l-2.83-2.83M15.76 15.76l2.83 2.83" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Processing</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("deletedworkorders")}>Deleted Work Orders</button>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("invoicelist")}>Invoice List</button>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("paidinvoices")}>Paid Invoices</button>
+        </div>
         {/* Inventory */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* Sleek Electric Blue Clipboard Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="10" y="8" width="20" height="28" rx="4" fill="#0099FF"/>
               <rect x="16" y="4" width="8" height="8" rx="2" fill="#00BFFF"/>
@@ -3086,7 +3083,6 @@ function App() {
         {/* Vendors */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* Sleek Electric Blue Phone Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="14" y="6" width="12" height="28" rx="4" fill="#0099FF"/>
               <rect x="18" y="32" width="4" height="2" rx="1" fill="#00BFFF"/>
@@ -3097,20 +3093,18 @@ function App() {
           <button style={{ marginBottom: 8 }} onClick={() => setPage("vendor")}>Create a Vendor</button>
           <button onClick={() => setPage("vendorlist")}>Vendor List</button>
         </div>
-        {/* Purchases */}
+        {/* Properties */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
-            {/* Sleek Electric Blue Cart Icon */}
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="14" cy="32" r="3" fill="#00BFFF"/>
-              <circle cx="28" cy="32" r="3" fill="#00BFFF"/>
-              <rect x="8" y="12" width="24" height="12" rx="3" fill="#0099FF"/>
-              <rect x="10" y="10" width="20" height="4" rx="2" fill="#00BFFF"/>
+              <path d="M5 20L20 7L35 20" stroke="#00BFFF" strokeWidth="3" fill="none"/>
+              <rect x="10" y="20" width="20" height="13" fill="#0099FF" stroke="#00BFFF" strokeWidth="2" rx="2"/>
+              <rect x="17" y="26" width="6" height="7" fill="#fff"/>
             </svg>
           </div>
-          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Purchases</h2>
-          <button style={{ marginBottom: 8 }} onClick={() => setPage("createpurchase")}>Create a Purchase</button>
-          <button onClick={() => setPage("purchaselist")}>Purchase List</button>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Properties</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("property")}>Create a Property</button>
+          <button onClick={() => setPage("propertylist")}>Property List</button>
         </div>
         {/* Users */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
