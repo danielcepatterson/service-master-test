@@ -155,6 +155,33 @@ export async function deleteUser(id: number) {
   return res.json();
 }
 
+// ─── Work Order Notes ─────────────────────────────────────
+export async function fetchWorkOrderNotes(workOrderNumber: string) {
+  const res = await apiFetch(`/api/work-orders/${workOrderNumber}/notes`);
+  return res.json();
+}
+
+export async function createWorkOrderNote(workOrderNumber: string, note: string) {
+  const res = await apiFetch(`/api/work-orders/${workOrderNumber}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+  return res.json();
+}
+
+export async function updateWorkOrderNote(id: number, note: string) {
+  const res = await apiFetch(`/api/work-order-notes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ note }),
+  });
+  return res.json();
+}
+
+export async function deleteWorkOrderNote(id: number) {
+  const res = await apiFetch(`/api/work-order-notes/${id}`, { method: "DELETE" });
+  return res.json();
+}
+
 // ─── Vendors ──────────────────────────────────────────────
 export async function fetchVendors() {
   const res = await apiFetch("/api/vendors");

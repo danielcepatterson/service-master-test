@@ -64,6 +64,17 @@ app.get("/api/init", async (c) => {
     await db.exec(`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'tech';`);
   } catch (_) { /* column already exists */ }
   await db.exec(`
+    CREATE TABLE IF NOT EXISTS work_order_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      work_order_number TEXT NOT NULL,
+      note TEXT NOT NULL,
+      author TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT,
+      FOREIGN KEY (work_order_number) REFERENCES work_orders(number)
+    );
+  `);
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -289,6 +300,48 @@ app.delete("/api/users/:id", async (c) => {
   const id = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(id).run();
   await c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(id).run();
+  return c.json({ ok: true });
+});
+
+// ─── Work Order Notes ─────────────────────────────────────
+app.get("/api/work-orders/:number/notes", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM work_order_notes WHERE work_order_number = ? ORDER BY created_at ASC"
+  ).bind(woNumber).all();
+  return c.json(results || []);
+});
+
+app.post("/api/work-orders/:number/notes", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { note } = await c.req.json();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    "INSERT INTO work_order_notes (work_order_number, note, author, created_at) VALUES (?, ?, ?, ?)"
+  ).bind(woNumber, note, user.username, now).run();
+  return c.json({ ok: true });
+});
+
+app.put("/api/work-order-notes/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  const { note } = await c.req.json();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare("UPDATE work_order_notes SET note = ?, updated_at = ? WHERE id = ?")
+    .bind(note, now, id).run();
+  return c.json({ ok: true });
+});
+
+app.delete("/api/work-order-notes/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM work_order_notes WHERE id = ?").bind(id).run();
   return c.json({ ok: true });
 });
 

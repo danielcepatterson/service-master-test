@@ -251,6 +251,29 @@ function App() {
   const [addUserDone, setAddUserDone] = React.useState(false);
   const [addUserError, setAddUserError] = React.useState('');
 
+  // ─── Work Order Notes state ──────────────────────────────
+  type WONote = { id: number; work_order_number: string; note: string; author: string; created_at: string; updated_at?: string };
+  const [viewWONotes, setViewWONotes] = React.useState<WONote[]>([]);
+  const [noteInput, setNoteInput] = React.useState('');
+  const [noteSaving, setNoteSaving] = React.useState(false);
+  const [editingNoteId, setEditingNoteId] = React.useState<number | null>(null);
+  const [editingNoteText, setEditingNoteText] = React.useState('');
+
+  // ─── Load users when navigating to userlist ──────────────
+  React.useEffect(() => {
+    if (page === 'userlist' && authUser) {
+      setUsersLoading(true);
+      api.fetchUsers().then(setUserList).catch(() => setUserList([])).finally(() => setUsersLoading(false));
+    }
+  }, [page, authUser]);
+
+  // ─── Load notes when viewing WO detail ───────────────────
+  React.useEffect(() => {
+    if (page === 'workorderdetail' && viewingWO) {
+      api.fetchWorkOrderNotes(viewingWO.number).then(setViewWONotes).catch(() => setViewWONotes([]));
+    }
+  }, [page, viewingWO]);
+
   // ─── Load all data from API when user is authenticated ──
   const loadAllData = React.useCallback(async () => {
     if (!authUser) return;
@@ -930,6 +953,73 @@ function App() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Notes */}
+          <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Notes</h2>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!noteInput.trim()) return;
+              setNoteSaving(true);
+              try {
+                await api.createWorkOrderNote(viewingWO.number, noteInput.trim());
+                setNoteInput('');
+                const notes = await api.fetchWorkOrderNotes(viewingWO.number);
+                setViewWONotes(notes);
+              } finally {
+                setNoteSaving(false);
+              }
+            }} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <input
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                placeholder="Add a note..."
+                style={{ flex: 1, padding: '6px 10px', border: '1px solid #b0c0e0', borderRadius: 6, fontSize: 14 }}
+              />
+              <button type="submit" disabled={noteSaving || !noteInput.trim()} style={{ padding: '6px 16px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
+                {noteSaving ? '...' : 'Add'}
+              </button>
+            </form>
+            {viewWONotes.length === 0 && <p style={{ color: '#888' }}>No notes yet.</p>}
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {viewWONotes.map((n: WONote) => (
+                <li key={n.id} style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px', marginBottom: 10, border: '1px solid #d0d8f0' }}>
+                  {editingNoteId === n.id ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        value={editingNoteText}
+                        onChange={e => setEditingNoteText(e.target.value)}
+                        style={{ flex: 1, padding: '4px 8px', border: '1px solid #b0c0e0', borderRadius: 6, fontSize: 14 }}
+                      />
+                      <button onClick={async () => {
+                        await api.updateWorkOrderNote(n.id, editingNoteText);
+                        setEditingNoteId(null);
+                        const notes = await api.fetchWorkOrderNotes(viewingWO.number);
+                        setViewWONotes(notes);
+                      }} style={{ padding: '4px 12px', background: '#1a7a3a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>Save</button>
+                      <button onClick={() => setEditingNoteId(null)} style={{ padding: '4px 10px', background: '#888', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 14, color: '#213547', marginBottom: 6 }}>{n.note}</div>
+                      <div style={{ fontSize: 11, color: '#666', display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <span>👤 {n.author}</span>
+                        <span>🕐 {new Date(n.created_at).toLocaleString()}</span>
+                        {n.updated_at && <span style={{ fontStyle: 'italic' }}>(edited)</span>}
+                        <button onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.note); }} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#1a3a7a', fontSize: 12 }}>✏️ Edit</button>
+                        <button onClick={async () => {
+                          if (!confirm('Delete this note?')) return;
+                          await api.deleteWorkOrderNote(n.id);
+                          const notes = await api.fetchWorkOrderNotes(viewingWO.number);
+                          setViewWONotes(notes);
+                        }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cc0000', fontSize: 12 }}>🗑 Delete</button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* History */}
@@ -2643,11 +2733,8 @@ function App() {
   if (page === "userlist") {
     const refreshUsers = () => {
       setUsersLoading(true);
-      api.fetchUsers().then(setUserList).finally(() => setUsersLoading(false));
+      api.fetchUsers().then(setUserList).catch(() => setUserList([])).finally(() => setUsersLoading(false));
     };
-
-    // Load on first visit
-    React.useEffect(() => { refreshUsers(); }, []);
 
     const handleDeleteUser = async (u: UserRecord) => {
       if (!confirm(`Delete user "${u.username}"? This cannot be undone.`)) return;
