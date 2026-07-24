@@ -786,7 +786,7 @@ function App() {
     const statusColors: Record<string, string> = {
       draft: '#888', active: '#0099FF', completed: '#2a9d2a', closed: '#555'
     };
-    const totalExpenses = viewWOExpenses.reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0);
+
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem", background: "#e8edf8" }}>
         <div style={{ width: '100%', maxWidth: 800 }}>
@@ -961,16 +961,13 @@ function App() {
               </form>
             )}
             {viewWOLoading && <p style={{ color: '#888' }}>Loading...</p>}
-            {!viewWOLoading && viewWOExpenses.length === 0 && <p style={{ color: '#888' }}>No expenses recorded.</p>}
-            {viewWOExpenses.length > 0 && (
+            {!viewWOLoading && viewWOExpenses.filter(e => e.category !== 'Labor').length === 0 && <p style={{ color: '#888' }}>No expenses recorded.</p>}
+            {viewWOExpenses.filter(e => e.category !== 'Labor').length > 0 && (
               <>
                 <table className="wo-table" style={{ background: '#fff' }}>
                   <thead>
                     <tr>
-                      <th>Category</th>
                       <th>Description</th>
-                      <th>Part #</th>
-                      <th>Vendor</th>
                       <th>Qty</th>
                       <th>Unit $</th>
                       <th>Total $</th>
@@ -978,12 +975,9 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {viewWOExpenses.map((exp, i) => (
+                    {viewWOExpenses.filter(e => e.category !== 'Labor').map((exp, i) => (
                       <tr key={exp.id} style={{ background: i % 2 === 0 ? '#f0f4ff' : '#fff' }}>
-                        <td data-label="Category" style={{ color: '#111', fontWeight: 500 }}>{exp.category}</td>
                         <td data-label="Description" style={{ color: '#111', fontWeight: 600 }}>{exp.description}</td>
-                        <td data-label="Part #" style={{ color: '#333' }}>{exp.partNumber || '—'}</td>
-                        <td data-label="Vendor" style={{ color: '#333' }}>{exp.vendor || '—'}</td>
                         <td data-label="Qty" style={{ color: '#111' }}>{exp.quantity}</td>
                         <td data-label="Unit $" style={{ color: '#111' }}>{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
                         <td data-label="Total $" style={{ color: '#0a6e0a', fontWeight: 700 }}>{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
@@ -993,7 +987,7 @@ function App() {
                   </tbody>
                 </table>
                 <p style={{ textAlign: 'right', fontWeight: 700, fontSize: 16, color: '#0a6e0a', marginTop: 8 }}>
-                  Total: ${totalExpenses.toFixed(2)}
+                  Total: ${viewWOExpenses.filter(e => e.category !== 'Labor').reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0).toFixed(2)}
                 </p>
               </>
             )}
@@ -1011,12 +1005,16 @@ function App() {
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 try {
+                  const [hStr, mStr] = laborTime.split(':');
+                  const totalHours = parseInt(hStr) + parseInt(mStr) / 60;
+                  const laborRate = 55.00;
+                  const laborTotal = (totalHours * laborRate).toFixed(2);
                   await api.createWorkOrderExpense(viewingWO.number, {
                     description: laborTime,
                     category: 'Labor',
-                    quantity: '1',
-                    unitCost: '',
-                    totalCost: '',
+                    quantity: String(totalHours),
+                    unitCost: String(laborRate),
+                    totalCost: laborTotal,
                     vendor: '',
                     partNumber: '',
                   });
@@ -1050,6 +1048,8 @@ function App() {
                 <thead>
                   <tr>
                     <th>Time</th>
+                    <th>Rate</th>
+                    <th>Total</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -1057,6 +1057,8 @@ function App() {
                   {viewWOExpenses.filter(e => e.category === 'Labor').map((exp, i) => (
                     <tr key={exp.id} style={{ background: i % 2 === 0 ? '#fff8ee' : '#fff' }}>
                       <td data-label="Time" style={{ fontWeight: 600, color: '#b35c00' }}>{exp.description}</td>
+                      <td data-label="Rate" style={{ color: '#555' }}>{exp.unitCost ? `$${exp.unitCost}/hr` : '—'}</td>
+                      <td data-label="Total" style={{ fontWeight: 700, color: '#0a6e0a' }}>{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
                       <td><button onClick={async () => { if (!confirm('Delete this labor entry?')) return; await api.deleteWorkOrderExpense(exp.id); const expenses = await api.fetchWorkOrderExpenses(viewingWO.number); setViewWOExpenses(expenses); }} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12 }}>🗑</button></td>
                     </tr>
                   ))}
