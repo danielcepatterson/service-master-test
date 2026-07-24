@@ -85,6 +85,11 @@ export async function deleteProperty(id: number) {
   return res.json();
 }
 
+export async function updateProperty(id: number, data: any) {
+  const res = await apiFetch(`/api/properties/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  return res.json();
+}
+
 // ─── Work Orders ──────────────────────────────────────────
 export async function fetchWorkOrders() {
   const res = await apiFetch("/api/work-orders");

@@ -512,6 +512,10 @@ function App() {
       await loadAllData();
     }
   };
+
+  const [editingProperty, setEditingProperty] = React.useState<PropertyForm | null>(null);
+  const [editPropertyForm, setEditPropertyForm] = React.useState<PropertyForm>({ propertyName: '', address: '', street: '', city: '', state: '', zip: '', ownerName: '', ownerPhone: '' });
+  const [editPropertySaving, setEditPropertySaving] = React.useState(false);
   const handleVendorFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setVendorForm((prev: VendorForm) => ({ ...prev, [name]: value }));
@@ -1594,12 +1598,12 @@ function App() {
   }
   if (page === "propertylist") {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: '1rem' }}>
         <h1>Property List</h1>
         {properties.length === 0 ? (
           <p>No properties have been added yet.</p>
         ) : (
-          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0" }}>
+          <table style={{ borderCollapse: "collapse", minWidth: 700, margin: "1rem 0", width: '100%', maxWidth: 1100 }}>
             <thead>
               <tr>
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Property Name</th>
@@ -1610,7 +1614,7 @@ function App() {
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Zip</th>
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Owner Name</th>
                 <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Owner Phone</th>
-                <th style={{ border: "1px solid #444", padding: "8px", background: "#ffe0e0" }}>Delete</th>
+                <th style={{ border: "1px solid #444", padding: "8px", background: "#f0f0f0" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1624,10 +1628,11 @@ function App() {
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.zip}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerName}</td>
                   <td style={{ border: "1px solid #444", padding: "8px" }}>{prop.ownerPhone}</td>
-                  <td style={{ border: "1px solid #444", padding: "8px", textAlign: "center" }}>
-                    <button style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer" }} onClick={() => handleDeleteProperty(prop)}>
-                      Delete
-                    </button>
+                  <td style={{ border: "1px solid #444", padding: "8px", textAlign: "center", whiteSpace: 'nowrap' }}>
+                    <button style={{ background: '#6c3db5', color: 'white', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', marginRight: 6 }} onClick={() => { setEditingProperty(prop); setEditPropertyForm({ ...prop }); }}>✏️ Edit</button>
+                    {authUser?.userType === 'admin' && (
+                      <button style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer" }} onClick={() => handleDeleteProperty(prop)}>🗑 Delete</button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1635,6 +1640,37 @@ function App() {
           </table>
         )}
         <button onClick={() => setPage("home")}>Return to Home</button>
+
+        {/* Edit Property Modal */}
+        {editingProperty && (
+          <div className="photo-modal">
+            <div className="photo-modal-content" style={{ maxWidth: 500 }}>
+              <h2>Edit Property</h2>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!editingProperty.id) return;
+                setEditPropertySaving(true);
+                try {
+                  await api.updateProperty(editingProperty.id, editPropertyForm);
+                  await loadAllData();
+                  setEditingProperty(null);
+                } catch { alert('Save failed.'); }
+                finally { setEditPropertySaving(false); }
+              }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {(['propertyName','address','street','city','state','zip','ownerName','ownerPhone'] as (keyof PropertyForm)[]).map(field => (
+                  <label key={field} style={{ fontWeight: 600, fontSize: 13, gridColumn: field === 'address' || field === 'propertyName' ? '1/-1' : undefined }}>
+                    {field.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
+                    <input value={editPropertyForm[field] as string} onChange={e => setEditPropertyForm(p => ({ ...p, [field]: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                  </label>
+                ))}
+                <div style={{ gridColumn: '1/-1', display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button type="submit" disabled={editPropertySaving} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{editPropertySaving ? 'Saving...' : '✓ Save'}</button>
+                  <button type="button" onClick={() => setEditingProperty(null)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2892,7 +2928,9 @@ function App() {
                     <td data-label="Created" style={{ fontSize: 12 }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }} onClick={() => { setEditingUser(u); setEditUserForm({ username: u.username, password: '', userType: u.user_type || 'tech' }); }}>✏️ Edit</button>
-                      <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }} onClick={() => handleDeleteUser(u)}>🗑 Delete</button>
+                      {authUser?.userType === 'admin' && (
+                        <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }} onClick={() => handleDeleteUser(u)}>🗑 Delete</button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -3011,10 +3049,9 @@ function App() {
             </div>
             <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Work Orders</h2>
             <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
+            <button style={{ marginBottom: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
             <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
             <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
-            <button style={{ marginTop: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
-            <button style={{ marginTop: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
           </div>
         </div>
       ) : (
@@ -3054,9 +3091,9 @@ function App() {
           </div>
           <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Work Orders</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
           <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
           <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
-          <button style={{ marginTop: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
           <button style={{ marginTop: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
         </div>
         {/* Purchases */}

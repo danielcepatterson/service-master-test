@@ -394,6 +394,17 @@ app.delete("/api/properties/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+app.put("/api/properties/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  const { propertyName, address, street, city, state, zip, ownerName, ownerPhone } = await c.req.json();
+  await c.env.DB.prepare(
+    "UPDATE properties SET property_name=?, address=?, street=?, city=?, state=?, zip=?, owner_name=?, owner_phone=? WHERE id=?"
+  ).bind(propertyName, address, street, city, state, zip, ownerName, ownerPhone, id).run();
+  return c.json({ ok: true });
+});
+
 // ─── Work Orders ──────────────────────────────────────────
 app.get("/api/work-orders", async (c) => {
   const user = await getUser(c);
