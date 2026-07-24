@@ -229,6 +229,8 @@ function App() {
   const [expenseSubmitting, setExpenseSubmitting] = React.useState(false);
 
   const [showViewExpenseForm, setShowViewExpenseForm] = React.useState(false);
+  const [showLaborForm, setShowLaborForm] = React.useState(false);
+  const [laborTime, setLaborTime] = React.useState('1:00');
   const viewDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
   const viewDetailCameraInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -932,7 +934,7 @@ function App() {
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 try {
-                  await api.createWorkOrderExpense(viewingWO.number, expenseForm);
+                  await api.createWorkOrderExpense(viewingWO.number, { ...expenseForm, category: 'Part' });
                   const expenses = await api.fetchWorkOrderExpenses(viewingWO.number);
                   setViewWOExpenses(expenses);
                   setExpenseForm({ description: '', category: 'Part', quantity: '1', unitCost: '', totalCost: '', vendor: '', partNumber: '' });
@@ -942,20 +944,6 @@ function App() {
                 <label style={{ fontWeight: 600, fontSize: 13, gridColumn: '1/-1' }}>
                   Description *
                   <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required placeholder="e.g. 3/4 PVC coupling" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
-                </label>
-                <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Category
-                  <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13 }}>
-                    <option>Part</option><option>Labor</option><option>Material</option><option>Tool</option><option>Other</option>
-                  </select>
-                </label>
-                <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Vendor
-                  <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} placeholder="Vendor name" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
-                </label>
-                <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Part #
-                  <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} placeholder="Optional" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
                 </label>
                 <label style={{ fontWeight: 600, fontSize: 13 }}>
                   Qty
@@ -1008,6 +996,72 @@ function App() {
                   Total: ${totalExpenses.toFixed(2)}
                 </p>
               </>
+            )}
+          </div>
+
+          {/* Labor */}
+          <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: '#333' }}>Labor</h2>
+              <button onClick={() => setShowLaborForm(v => !v)} style={{ background: showLaborForm ? '#888' : '#ff9900', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                {showLaborForm ? '✕ Cancel' : '+ Add Labor'}
+              </button>
+            </div>
+            {showLaborForm && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await api.createWorkOrderExpense(viewingWO.number, {
+                    description: laborTime,
+                    category: 'Labor',
+                    quantity: '1',
+                    unitCost: '',
+                    totalCost: '',
+                    vendor: '',
+                    partNumber: '',
+                  });
+                  const expenses = await api.fetchWorkOrderExpenses(viewingWO.number);
+                  setViewWOExpenses(expenses);
+                  setLaborTime('1:00');
+                  setShowLaborForm(false);
+                } catch { alert('Failed to add labor.'); }
+              }} style={{ background: '#fff8ee', border: '1px solid #f0d080', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                <label style={{ fontWeight: 600, fontSize: 13, display: 'block' }}>
+                  Time
+                  <select value={laborTime} onChange={e => setLaborTime(e.target.value)} style={{ display: 'block', width: '100%', marginTop: 6, padding: '8px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+                    {Array.from({ length: 48 }, (_, i) => {
+                      const totalMins = (i + 1) * 15;
+                      const h = Math.floor(totalMins / 60);
+                      const m = totalMins % 60;
+                      const label = h > 0 ? `${h}h ${m > 0 ? m + 'm' : ''}`.trim() : `${m}m`;
+                      const value = h > 0 ? `${h}:${m.toString().padStart(2, '0')}` : `0:${m.toString().padStart(2, '0')}`;
+                      return <option key={value} value={value}>{label}</option>;
+                    })}
+                  </select>
+                </label>
+                <button type="submit" style={{ marginTop: 14, width: '100%', background: '#ff9900', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>✓ Save Labor</button>
+              </form>
+            )}
+            {viewWOExpenses.filter(e => e.category === 'Labor').length === 0 && !showLaborForm && (
+              <p style={{ color: '#888' }}>No labor recorded.</p>
+            )}
+            {viewWOExpenses.filter(e => e.category === 'Labor').length > 0 && (
+              <table className="wo-table" style={{ background: '#fff' }}>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewWOExpenses.filter(e => e.category === 'Labor').map((exp, i) => (
+                    <tr key={exp.id} style={{ background: i % 2 === 0 ? '#fff8ee' : '#fff' }}>
+                      <td data-label="Time" style={{ fontWeight: 600, color: '#b35c00' }}>{exp.description}</td>
+                      <td><button onClick={async () => { if (!confirm('Delete this labor entry?')) return; await api.deleteWorkOrderExpense(exp.id); const expenses = await api.fetchWorkOrderExpenses(viewingWO.number); setViewWOExpenses(expenses); }} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12 }}>🗑</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
 
