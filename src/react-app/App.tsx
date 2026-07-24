@@ -2958,6 +2958,81 @@ function App() {
   }
 
   // Main dashboard/homepage UI
+  // ── Tech mobile dashboard ──────────────────────────────
+  if (authUser.userType === 'tech') {
+    const activeOrders = workOrders.filter(wo => wo.status === 'active');
+    const [showLogout, setShowLogout] = React.useState(false);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', maxHeight: '100dvh', background: '#e8edf8', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#fff', boxShadow: '0 2px 6px rgba(26,58,122,0.10)', flexShrink: 0, zIndex: 10 }}>
+          <button onClick={() => setPage('home')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+            <img src="/logo.png" alt="Home" style={{ height: 40, objectFit: 'contain', display: 'block' }} />
+          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowLogout(v => !v)}
+              style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 16px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" fill="#fff"/><path d="M2 18c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
+              {authUser.username}
+            </button>
+            {showLogout && (
+              <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #d0d8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 140, padding: 8 }}>
+                <button onClick={handleLogout} style={{ width: '100%', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Logout</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Active WO cards — scrollable center */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 6px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <h2 style={{ margin: '0 0 4px', fontSize: 16, color: '#1a3a7a', fontWeight: 700 }}>Active Work Orders</h2>
+          {activeOrders.length === 0 && (
+            <div style={{ background: '#fff', borderRadius: 12, padding: '28px 20px', textAlign: 'center', color: '#888', boxShadow: '0 2px 6px rgba(26,58,122,0.07)' }}>
+              No active work orders.
+            </div>
+          )}
+          {activeOrders.map(wo => (
+            <div
+              key={wo.number}
+              onClick={() => openWODetail(wo, 'home')}
+              style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', boxShadow: '0 2px 8px rgba(26,58,122,0.09)', cursor: 'pointer', borderLeft: '4px solid #0099FF', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#1a3a7a', marginBottom: 2 }}>{wo.number}</div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#222', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wo.title}</div>
+                <div style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wo.propertyName}</div>
+                {wo.scheduledDate && <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>{wo.scheduledDate}{wo.scheduledTime ? ' @ ' + wo.scheduledTime : ''}</div>}
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); completeWorkOrder(wo.number); }}
+                style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 14px', cursor: 'pointer', fontWeight: 700, fontSize: 18, flexShrink: 0 }}
+                title="Mark Complete"
+              >✓</button>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom nav bar */}
+        <div style={{ display: 'flex', background: '#fff', boxShadow: '0 -2px 10px rgba(26,58,122,0.10)', flexShrink: 0, zIndex: 10 }}>
+          {[
+            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><line x1="13" y1="4" x2="13" y2="22" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><line x1="4" y1="13" x2="22" y2="13" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/></svg>, label: 'New', action: () => setPage('workorder') },
+            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M5 21L21 5" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><path d="M13 5h8v8" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Drafts', action: () => setPage('workorderlistdraft') },
+            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="4" y="5" width="18" height="16" rx="3" stroke="#1a3a7a" strokeWidth="2"/><line x1="8" y1="10" x2="18" y2="10" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="14" x2="18" y2="14" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="18" x2="14" y2="18" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/></svg>, label: 'Active', action: () => setPage('workorderlist') },
+            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M4 13l6 6L22 7" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Done', action: () => setPage('completedworkorders') },
+          ].map(({ icon, label, action }) => (
+            <button key={label} onClick={action} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 3 }}>
+              {icon}
+              <span style={{ fontSize: 10, color: '#555', fontWeight: 600 }}>{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Main dashboard/homepage UI (non-tech)
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 1100, marginBottom: 8 }}>
@@ -2965,26 +3040,7 @@ function App() {
         <button onClick={handleLogout} style={{ background: "#ff4d4d", color: "white", border: "none", borderRadius: 4, padding: "6px 16px", cursor: "pointer" }}>Logout</button>
       </div>
       <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 260, width: "80%", marginBottom: "1.5rem" }} />
-      {authUser.userType === 'tech' ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem", marginTop: "2rem", width: "100%", maxWidth: 400 }}>
-          {/* Work Orders — tech view */}
-          <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ marginBottom: 8 }}>
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="5" y="18" width="18" height="10" rx="2" fill="#0099FF"/>
-                <rect x="23" y="22" width="8" height="6" rx="1.5" fill="#00BFFF"/>
-                <circle cx="11" cy="30" r="3" fill="#00BFFF"/>
-                <circle cx="29" cy="30" r="3" fill="#00BFFF"/>
-              </svg>
-            </div>
-            <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Work Orders</h2>
-            <button style={{ marginBottom: 8 }} onClick={() => setPage("workorder")}>Create a Work Order</button>
-            <button style={{ marginBottom: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
-            <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
-            <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
-          </div>
-        </div>
-      ) : (
+      {false ? null : (
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
