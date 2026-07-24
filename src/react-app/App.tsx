@@ -3082,7 +3082,7 @@ function App() {
         <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '0 20px', height: 56, gap: 8 }}>
           {/* Logo top-left */}
           <button onClick={() => { setHomeMenu(null); setHomeSubMenu(null); setPage('home'); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginRight: 20, flexShrink: 0 }}>
-            <img src="/logo.png" alt="Home" style={{ height: 38, objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
+            <img src="/logo.png" alt="Home" style={{ height: 44, objectFit: 'contain', display: 'block' }} />
           </button>
 
           {/* ── Lists ── */}
