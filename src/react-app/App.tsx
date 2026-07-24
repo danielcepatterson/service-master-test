@@ -1583,11 +1583,11 @@ function App() {
             </label>
             <label>
               Scheduled Time
-              <input name="scheduledTime" type="time" value={woForm.scheduledTime} onChange={handleWoFormChange} required />
+              <input name="scheduledTime" type="time" value={woForm.scheduledTime} onChange={handleWoFormChange} />
             </label>
             <label>
               Scheduled Date
-              <input name="scheduledDate" type="date" value={woForm.scheduledDate} onChange={handleWoFormChange} required />
+              <input name="scheduledDate" type="date" value={woForm.scheduledDate} onChange={handleWoFormChange} />
             </label>
             <button type="submit">Submit Work Order</button>
             <button type="button" onClick={() => setPage("home")}>Return to Home</button>
@@ -1758,233 +1758,39 @@ function App() {
   if (page === "workorderlist") {
     const activeOrders = workOrders.filter((wo) => wo.status === 'active');
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "1rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
         <h1>Active Work Order List</h1>
         {activeOrders.length === 0 ? (
           <p>No active work orders.</p>
         ) : (
-          <table className="wo-table">
-            <thead>
-              <tr>
-                <th>WO Number</th>
-                <th>Property</th>
-                <th>Title</th>
-                <th>Instructions</th>
-                <th>Scheduled Date</th>
-                <th>Scheduled Time</th>
-                <th>Action</th>
-                <th>Expenses</th>
-                <th>Photos</th>
-                <th>History</th>
-                <th>View</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeOrders.map((wo: WorkOrder, idx: number) => (
-                <tr key={idx}>
-                  <td data-label="WO #">{wo.number}</td>
-                  <td data-label="Property">{wo.propertyName}</td>
-                  <td data-label="Title">{wo.title}</td>
-                  <td data-label="Instructions">{wo.instructions}</td>
-                  <td data-label="Date">{wo.scheduledDate}</td>
-                  <td data-label="Time">{wo.scheduledTime}</td>
-                  <td>
-                    <button onClick={() => completeWorkOrder(wo.number)}>Mark Completed</button>
-                  </td>
-                  <td>
-                    <button onClick={() => loadExpensesForWorkOrder(wo)}>💰 Expenses</button>
-                  </td>
-                  <td>
-                    <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
-                  </td>
-                  <td>
-                    <button onClick={() => setViewHistoryWO(wo)}>View History</button>
-                  </td>
-                  <td>
-                    <button onClick={() => openWODetail(wo, 'workorderlist')}>🔍 View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <button onClick={() => setPage("home")}>Return to Home</button>
-        
-        {/* Photo Modal */}
-        {selectedWOForPhotos && (
-          <div className="photo-modal">
-            <div className="photo-modal-content">
-              <h2>Photos for {selectedWOForPhotos.number}</h2>
-              
-              {/* Upload buttons */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)}
-                />
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  ref={cameraInputRef}
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleFileUpload(e, selectedWOForPhotos.number)}
-                />
-                <button onClick={() => fileInputRef.current?.click()} disabled={photoUploading}>
-                  📁 Upload from Files
-                </button>
-                <button onClick={() => cameraInputRef.current?.click()} disabled={photoUploading}>
-                  📷 Take Photo
-                </button>
-              </div>
-              
-              {photoLoading && <p>Loading photos...</p>}
-              {photoUploading && <p>Uploading...</p>}
-              
-              {/* Photo grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
-                {woPhotos.map((photo) => (
-                  <div key={photo.id} style={{ position: 'relative', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
-                    <img
-                      src={photo.data}
-                      alt={photo.filename}
-                      style={{ width: '100%', height: 100, objectFit: 'cover' }}
-                    />
-                    <div style={{ padding: 4, fontSize: 11, background: '#f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 60 }}>{photo.filename}</span>
-                      <button
-                        onClick={() => handleDeletePhoto(photo.id)}
-                        style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 11 }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {woPhotos.length === 0 && !photoLoading && <p style={{ color: '#888' }}>No photos yet.</p>}
-              
-              <button style={{ marginTop: 16 }} onClick={closePhotoModal}>Close</button>
-            </div>
-          </div>
-        )}
-        
-        {viewHistoryWO && (
-          <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, maxWidth: '90%', width: 350 }}>
-            <h2>Work Order History: {viewHistoryWO.number}</h2>
-            <ul style={{ textAlign: 'left' }}>
-              {viewHistoryWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
-                <li key={idx}>
-                  {entry.status} at {new Date(entry.timestamp).toLocaleString()}
-                </li>
-              ))}
-            </ul>
-            <button onClick={() => setViewHistoryWO(null)}>Close</button>
-          </div>
-        )}
-
-        {/* Expense Modal */}
-        {selectedWOForExpenses && (
-          <div className="photo-modal">
-            <div className="photo-modal-content" style={{ maxWidth: 680 }}>
-              <h2>Parts &amp; Expenses — {selectedWOForExpenses.number}</h2>
-
-              {/* Add expense form */}
-              <form onSubmit={handleExpenseSubmit} style={{ background: '#e8f0fe', border: '1px solid #b0c4f0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#1a3a7a' }}>Add Item</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
-                    Category
-                    <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14 }}>
-                      <option>Part</option>
-                      <option>Labor</option>
-                      <option>Material</option>
-                      <option>Equipment</option>
-                      <option>Other</option>
-                    </select>
-                  </label>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222', gridColumn: 'span 2' }}>
-                    Description *
-                    <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required placeholder="e.g. 1/2&quot; copper elbow" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
-                  </label>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
-                    Part #
-                    <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} placeholder="optional" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
-                  </label>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
-                    Vendor
-                    <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} placeholder="optional" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
-                  </label>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
-                    Qty
-                    <input name="quantity" type="number" min="0" step="any" value={expenseForm.quantity} onChange={handleExpenseFormChange} style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
-                  </label>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
-                    Unit Cost ($)
-                    <input name="unitCost" type="number" min="0" step="0.01" value={expenseForm.unitCost} onChange={handleExpenseFormChange} placeholder="0.00" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }} />
-                  </label>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>
-                    Total ($)
-                    <input name="totalCost" type="number" min="0" step="0.01" value={expenseForm.totalCost} onChange={handleExpenseFormChange} placeholder="auto" style={{ width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 4, fontSize: 14, background: '#f0f4ff', boxSizing: 'border-box' }} />
-                  </label>
+          <div style={{ width: '100%', maxWidth: 860, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {activeOrders.map((wo: WorkOrder) => (
+              <div
+                key={wo.number}
+                onClick={() => openWODetail(wo, 'workorderlist')}
+                style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: '14px 18px', boxShadow: '0 2px 6px rgba(26,58,122,0.08)', cursor: 'pointer', display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 16px', alignItems: 'center' }}
+              >
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 24px', alignItems: 'baseline' }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: '#1a3a7a' }}>{wo.number}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: '#333' }}>{wo.title}</span>
+                  <span style={{ fontSize: 13, color: '#555' }}>{wo.propertyName}</span>
+                  {wo.scheduledDate && <span style={{ fontSize: 12, color: '#888' }}>{wo.scheduledDate}{wo.scheduledTime ? ' @ ' + wo.scheduledTime : ''}</span>}
                 </div>
-                <button type="submit" disabled={expenseSubmitting} style={{ marginTop: 14, background: '#0099FF', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                  {expenseSubmitting ? 'Adding...' : '+ Add Item'}
+                <button
+                  onClick={(e) => { e.stopPropagation(); completeWorkOrder(wo.number); }}
+                  style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}
+                >
+                  ✓ Complete
                 </button>
-              </form>
-
-              {/* Expense list */}
-              {expenseLoading && <p>Loading...</p>}
-              {!expenseLoading && woExpenses.length === 0 && <p style={{ color: '#888' }}>No items added yet.</p>}
-              {woExpenses.length > 0 && (
-                <>
-                  <table className="wo-table" style={{ background: '#fff' }}>
-                    <thead>
-                      <tr>
-                        <th>Category</th>
-                        <th>Description</th>
-                        <th>Part #</th>
-                        <th>Vendor</th>
-                        <th>Qty</th>
-                        <th>Unit $</th>
-                        <th>Total $</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {woExpenses.map((exp, i) => (
-                        <tr key={exp.id} style={{ background: i % 2 === 0 ? '#f0f4ff' : '#fff' }}>
-                          <td data-label="Category" style={{ color: '#111', fontWeight: 500 }}>{exp.category}</td>
-                          <td data-label="Description" style={{ color: '#111', fontWeight: 600 }}>{exp.description}</td>
-                          <td data-label="Part #" style={{ color: '#333' }}>{exp.partNumber || '—'}</td>
-                          <td data-label="Vendor" style={{ color: '#333' }}>{exp.vendor || '—'}</td>
-                          <td data-label="Qty" style={{ color: '#111', fontWeight: 500 }}>{exp.quantity}</td>
-                          <td data-label="Unit $" style={{ color: '#111' }}>{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
-                          <td data-label="Total $" style={{ color: '#0a6e0a', fontWeight: 700 }}>{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
-                          <td>
-                            <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}>✕</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <p style={{ textAlign: 'right', fontWeight: 700, marginTop: 8, fontSize: 16, color: '#0a6e0a' }}>
-                    Total: ${woExpenses.reduce((sum, e) => sum + (parseFloat(e.totalCost) || 0), 0).toFixed(2)}
-                  </p>
-                </>
-              )}
-
-              <button style={{ marginTop: 8 }} onClick={closeExpenseModal}>Close</button>
-            </div>
+              </div>
+            ))}
           </div>
         )}
+        <button style={{ marginTop: 20 }} onClick={() => setPage("home")}>Return to Home</button>
       </div>
     );
   }
+
   // Completed Work Orders
   if (page === "completedworkorders") {
     const completedOrders = workOrders.filter((wo) => wo.status === 'completed');
@@ -3165,6 +2971,7 @@ function App() {
           <button onClick={() => setPage("propertylist")}>Property List</button>
         </div>
         {/* Users */}
+        {authUser?.userType !== 'dispatch' && authUser?.userType !== 'tech' && (
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div style={{ marginBottom: 8 }}>
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -3176,6 +2983,7 @@ function App() {
           <button style={{ marginBottom: 8 }} onClick={() => setPage("userlist")}>User List</button>
           <button onClick={() => setPage("adduser")}>Add New User</button>
         </div>
+        )}
       </div>
       )}
     </div>
