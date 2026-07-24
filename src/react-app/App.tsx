@@ -3049,7 +3049,6 @@ function App() {
           <button style={{ marginBottom: 8 }} onClick={() => setPage("workorderlistdraft")}>Draft Work Orders</button>
           <button onClick={() => setPage("workorderlist")}>Active Work Order List</button>
           <button style={{ marginTop: 8 }} onClick={() => setPage("completedworkorders")}>Completed Work Orders</button>
-          <button style={{ marginTop: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
         </div>
         {/* Purchases */}
         <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -3074,6 +3073,7 @@ function App() {
             </svg>
           </div>
           <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Processing</h2>
+          <button style={{ marginBottom: 8 }} onClick={() => setPage("closedworkorders")}>Closed Work Orders</button>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("deletedworkorders")}>Deleted Work Orders</button>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("invoicelist")}>Invoice List</button>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("paidinvoices")}>Paid Invoices</button>

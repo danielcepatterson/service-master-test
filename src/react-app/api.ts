@@ -114,7 +114,7 @@ export async function fetchNextWorkOrderNumber() {
 export async function updateWorkOrderStatus(number: string, status: string) {
   const res = await apiFetch(`/api/work-orders/${number}/status`, {
     method: "PUT",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, timestamp: new Date().toISOString() }),
   });
   return res.json();
 }

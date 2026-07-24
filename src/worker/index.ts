@@ -487,8 +487,8 @@ app.put("/api/work-orders/:number/status", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
   const woNumber = c.req.param("number");
-  const { status } = await c.req.json();
-  const now = new Date().toISOString();
+  const { status, timestamp } = await c.req.json();
+  const now = timestamp || new Date().toISOString();
 
   if (status === "completed") {
     await c.env.DB.prepare("UPDATE work_orders SET status = ?, completed_at = ? WHERE number = ?")
