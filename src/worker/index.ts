@@ -57,6 +57,15 @@ async function runMigrations(db: D1Database) {
     await db.prepare(`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'tech'`).run();
   } catch (_) { /* column already exists */ }
   await db.prepare(`CREATE TABLE IF NOT EXISTS work_order_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, work_order_number TEXT NOT NULL, note TEXT NOT NULL, author TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT)`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL DEFAULT '', action TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general', target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+}
+
+async function writeLog(db: D1Database, username: string, action: string, category: string, target: string, detail: string) {
+  try {
+    const now = new Date().toISOString();
+    await db.prepare(`INSERT INTO system_logs (username, action, category, target, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(username, action, category, target, detail, now).run();
+  } catch (_) { /* never block the main request */ }
 }
 
 app.use("/api/*", async (c, next) => {
@@ -244,7 +253,7 @@ app.post("/api/auth/login", async (c) => {
   await c.env.DB.prepare("INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)")
     .bind(user.id, token, expiresAt)
     .run();
-
+  await writeLog(c.env.DB, user.username as string, 'login', 'auth', '', 'User logged in');
   return c.json({ ok: true, token, user: { id: user.id, username: user.username, userType: user.user_type } });
 });
 
@@ -282,8 +291,8 @@ app.post("/api/users", async (c) => {
   if (existing) return c.json({ error: "Username already exists" }, 409);
   const passwordHash = await hashPassword(password);
   await c.env.DB.prepare("INSERT INTO users (username, password_hash, user_type) VALUES (?, ?, ?)")
-    .bind(username, passwordHash, userType || 'tech').run();
-  return c.json({ ok: true });
+    .bind(username, passwordHash, userType || 'tech').run();  const actor = await getUser(c);
+  await writeLog(c.env.DB, actor?.username || '?', 'create_user', 'user', username, `Created user type=${userType || 'tech'}`);  return c.json({ ok: true });
 });
 
 app.put("/api/users/:id", async (c) => {
@@ -299,6 +308,7 @@ app.put("/api/users/:id", async (c) => {
     await c.env.DB.prepare("UPDATE users SET username = ?, user_type = ? WHERE id = ?")
       .bind(username, userType, id).run();
   }
+  await writeLog(c.env.DB, user.username, 'update_user', 'user', username, `Updated user id=${id}`);
   return c.json({ ok: true });
 });
 
@@ -308,7 +318,19 @@ app.delete("/api/users/:id", async (c) => {
   const id = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(id).run();
   await c.env.DB.prepare("DELETE FROM users WHERE id = ?").bind(id).run();
+  await writeLog(c.env.DB, user.username, 'delete_user', 'user', id, `Deleted user id=${id}`);
   return c.json({ ok: true });
+});
+
+// ─── System Logs ──────────────────────────────────────────
+app.get("/api/system-logs", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  if (user.userType !== 'admin') return c.json({ error: 'Forbidden' }, 403);
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM system_logs ORDER BY id DESC LIMIT 2000"
+  ).all();
+  return c.json(results || []);
 });
 
 // ─── Work Order Notes ─────────────────────────────────────
@@ -383,6 +405,7 @@ app.post("/api/properties", async (c) => {
   )
     .bind(propertyName, address, street, city, state, zip, ownerName, ownerPhone)
     .run();
+  await writeLog(c.env.DB, user.username, 'create_property', 'property', propertyName, `Created property`);
   return c.json({ ok: true });
 });
 
@@ -391,6 +414,7 @@ app.delete("/api/properties/:id", async (c) => {
   if (!user) return unauthorized();
   const id = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM properties WHERE id = ?").bind(id).run();
+  await writeLog(c.env.DB, user.username, 'delete_property', 'property', id, `Deleted property id=${id}`);
   return c.json({ ok: true });
 });
 
@@ -402,6 +426,7 @@ app.put("/api/properties/:id", async (c) => {
   await c.env.DB.prepare(
     "UPDATE properties SET property_name=?, address=?, street=?, city=?, state=?, zip=?, owner_name=?, owner_phone=? WHERE id=?"
   ).bind(propertyName, address, street, city, state, zip, ownerName, ownerPhone, id).run();
+  await writeLog(c.env.DB, user.username, 'update_property', 'property', propertyName, `Updated property id=${id}`);
   return c.json({ ok: true });
 });
 
@@ -446,8 +471,7 @@ app.post("/api/work-orders", async (c) => {
     .run();
   await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp) VALUES (?, 'draft', ?)")
     .bind(number, now)
-    .run();
-  return c.json({ ok: true });
+    .run();  await writeLog(c.env.DB, user.username, 'create_workorder', 'workorder', number, `Created WO: ${title} (${propertyName})`);  return c.json({ ok: true });
 });
 
 app.get("/api/work-orders/next-number", async (c) => {
@@ -476,6 +500,7 @@ app.put("/api/work-orders/:number/status", async (c) => {
   await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp) VALUES (?, ?, ?)")
     .bind(woNumber, status, now)
     .run();
+  await writeLog(c.env.DB, user.username, 'update_workorder', 'workorder', woNumber, `Status changed to ${status}`);
   return c.json({ ok: true });
 });
 
@@ -487,6 +512,7 @@ app.put("/api/work-orders/:number", async (c) => {
   await c.env.DB.prepare(
     "UPDATE work_orders SET property_name = ?, title = ?, instructions = ?, scheduled_date = ?, scheduled_time = ? WHERE number = ?"
   ).bind(propertyName, title, instructions, scheduledDate, scheduledTime, woNumber).run();
+  await writeLog(c.env.DB, user.username, 'update_workorder', 'workorder', woNumber, `Updated WO details`);
   return c.json({ ok: true });
 });
 
@@ -496,8 +522,9 @@ app.delete("/api/work-orders/:number", async (c) => {
   const woNumber = c.req.param("number");
   const now = new Date().toISOString();
   await c.env.DB.prepare("UPDATE work_orders SET status = 'deleted' WHERE number = ?").bind(woNumber).run();
-  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp) VALUES (?, 'deleted', ?)")
+  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp) VALUES (?, 'deleted', ?)") 
     .bind(woNumber, now).run();
+  await writeLog(c.env.DB, user.username, 'delete_workorder', 'workorder', woNumber, `Work order marked deleted`);
   return c.json({ ok: true });
 });
 

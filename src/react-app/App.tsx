@@ -255,6 +255,16 @@ function App() {
   const [addUserDone, setAddUserDone] = React.useState(false);
   const [addUserError, setAddUserError] = React.useState('');
 
+  // ─── System Logs state ────────────────────────────────────
+  type SystemLog = { id: number; username: string; action: string; category: string; target: string; detail: string; created_at: string };
+  const [systemLogs, setSystemLogs] = React.useState<SystemLog[]>([]);
+  const [logsLoading, setLogsLoading] = React.useState(false);
+  const [logSortField, setLogSortField] = React.useState<keyof SystemLog>('id');
+  const [logSortDir, setLogSortDir] = React.useState<'asc'|'desc'>('desc');
+  const [logFilterUser, setLogFilterUser] = React.useState('');
+  const [logFilterAction, setLogFilterAction] = React.useState('');
+  const [logFilterCategory, setLogFilterCategory] = React.useState('');
+
   // ─── Work Order Notes state ──────────────────────────────
   type WONote = { id: number; work_order_number: string; note: string; author: string; created_at: string; updated_at?: string };
   const [viewWONotes, setViewWONotes] = React.useState<WONote[]>([]);
@@ -268,6 +278,10 @@ function App() {
     if (page === 'userlist' && authUser) {
       setUsersLoading(true);
       api.fetchUsers().then(setUserList).catch(() => setUserList([])).finally(() => setUsersLoading(false));
+    }
+    if (page === 'systemlogs' && authUser?.userType === 'admin') {
+      setLogsLoading(true);
+      api.fetchSystemLogs().then(setSystemLogs).catch(() => setSystemLogs([])).finally(() => setLogsLoading(false));
     }
   }, [page, authUser]);
 
@@ -2781,7 +2795,117 @@ function App() {
     );
   }
 
-  // ── Add New User ─────────────────────────────────────────────────────────
+  // ── System Logs ──────────────────────────────────────────────────────────
+  if (page === "systemlogs") {
+    if (authUser?.userType !== 'admin') {
+      return <div style={{ padding: 40, textAlign: 'center' }}><p>Access denied.</p><button onClick={() => setPage('home')}>Return to Home</button></div>;
+    }
+
+    const actionColors: Record<string, string> = {
+      login: '#0099FF', create_user: '#2a9d2a', update_user: '#f0a500', delete_user: '#ff4d4d',
+      create_property: '#2a9d2a', update_property: '#f0a500', delete_property: '#ff4d4d',
+      create_workorder: '#2a9d2a', update_workorder: '#f0a500', delete_workorder: '#ff4d4d',
+    };
+
+    const uniqueVals = (field: keyof SystemLog) => Array.from(new Set(systemLogs.map(l => l[field] as string))).filter(Boolean).sort();
+
+    const filtered = systemLogs.filter(l =>
+      (!logFilterUser || l.username === logFilterUser) &&
+      (!logFilterAction || l.action === logFilterAction) &&
+      (!logFilterCategory || l.category === logFilterCategory)
+    );
+
+    const sorted = [...filtered].sort((a, b) => {
+      const av = a[logSortField] as string;
+      const bv = b[logSortField] as string;
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return logSortDir === 'asc' ? cmp : -cmp;
+    });
+
+    const SortTh = ({ field, label }: { field: keyof SystemLog; label: string }) => (
+      <th
+        onClick={() => { if (logSortField === field) setLogSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setLogSortField(field); setLogSortDir('desc'); } }}
+        style={{ cursor: 'pointer', userSelect: 'none', background: logSortField === field ? '#d0e8ff' : '#f0f0f0', padding: '8px 10px', border: '1px solid #bbb', whiteSpace: 'nowrap' }}
+      >
+        {label} {logSortField === field ? (logSortDir === 'asc' ? '▲' : '▼') : ''}
+      </th>
+    );
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', padding: '1rem', background: '#e8edf8' }}>
+        <h1 style={{ marginBottom: 8 }}>System Logs</h1>
+        <p style={{ color: '#555', marginBottom: 16, fontSize: 13 }}>{sorted.length} of {systemLogs.length} entries</p>
+
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18, width: '100%', maxWidth: 1100 }}>
+          <label style={{ fontWeight: 600, fontSize: 13 }}>
+            User
+            <select value={logFilterUser} onChange={e => setLogFilterUser(e.target.value)} style={{ display: 'block', marginTop: 4, padding: '6px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, minWidth: 130 }}>
+              <option value="">All Users</option>
+              {uniqueVals('username').map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
+          <label style={{ fontWeight: 600, fontSize: 13 }}>
+            Action
+            <select value={logFilterAction} onChange={e => setLogFilterAction(e.target.value)} style={{ display: 'block', marginTop: 4, padding: '6px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, minWidth: 160 }}>
+              <option value="">All Actions</option>
+              {uniqueVals('action').map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
+          <label style={{ fontWeight: 600, fontSize: 13 }}>
+            Category
+            <select value={logFilterCategory} onChange={e => setLogFilterCategory(e.target.value)} style={{ display: 'block', marginTop: 4, padding: '6px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, minWidth: 130 }}>
+              <option value="">All Categories</option>
+              {uniqueVals('category').map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button onClick={() => { setLogFilterUser(''); setLogFilterAction(''); setLogFilterCategory(''); }} style={{ padding: '6px 14px', background: '#888', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Clear Filters</button>
+          </div>
+        </div>
+
+        {logsLoading && <p>Loading logs...</p>}
+        {!logsLoading && (
+          <div style={{ width: '100%', maxWidth: 1100, overflowX: 'auto' }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+              <thead>
+                <tr>
+                  <SortTh field="id" label="#" />
+                  <SortTh field="created_at" label="Timestamp" />
+                  <SortTh field="username" label="User" />
+                  <SortTh field="action" label="Action" />
+                  <SortTh field="category" label="Category" />
+                  <SortTh field="target" label="Target" />
+                  <SortTh field="detail" label="Detail" />
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.length === 0 && (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 24, color: '#888' }}>No log entries found.</td></tr>
+                )}
+                {sorted.map((log, i) => (
+                  <tr key={log.id} style={{ background: i % 2 === 0 ? '#f7f9ff' : '#fff' }}>
+                    <td style={{ padding: '7px 10px', border: '1px solid #e0e8f0', fontSize: 12, color: '#888' }}>{log.id}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #e0e8f0', fontSize: 12, whiteSpace: 'nowrap' }}>{new Date(log.created_at).toLocaleString()}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #e0e8f0', fontWeight: 700, fontSize: 13 }}>{log.username}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #e0e8f0' }}>
+                      <span style={{ background: actionColors[log.action] || '#888', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{log.action.replace(/_/g, ' ')}</span>
+                    </td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #e0e8f0', fontSize: 12, color: '#555' }}>{log.category}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #e0e8f0', fontSize: 12, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.target}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #e0e8f0', fontSize: 12, color: '#444' }}>{log.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <button style={{ marginTop: 20 }} onClick={() => setPage('home')}>Return to Home</button>
+      </div>
+    );
+  }
+
+  // ── Add New User ──────────────────────────────────────────────────────────
   if (page === "adduser") {
     const handleAddUser = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -2982,6 +3106,22 @@ function App() {
           <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>Users</h2>
           <button style={{ marginBottom: 8 }} onClick={() => setPage("userlist")}>User List</button>
           <button onClick={() => setPage("adduser")}>Add New User</button>
+        </div>
+        )}
+        {authUser?.userType === 'admin' && (
+        <div style={{ background: "#f8f9fa", borderRadius: 12, boxShadow: "0 2px 8px #0001", padding: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ marginBottom: 8 }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="10" width="24" height="22" rx="3" fill="#0099FF"/>
+              <rect x="12" y="16" width="16" height="2" rx="1" fill="#fff"/>
+              <rect x="12" y="21" width="12" height="2" rx="1" fill="#fff"/>
+              <rect x="12" y="26" width="8" height="2" rx="1" fill="#fff"/>
+              <circle cx="30" cy="12" r="5" fill="#ff4d4d"/>
+              <text x="30" y="16" textAnchor="middle" fill="#fff" fontSize="7" fontWeight="bold">!</text>
+            </svg>
+          </div>
+          <h2 style={{ margin: 0, marginBottom: 16, color: '#111' }}>System Logs</h2>
+          <button onClick={() => setPage("systemlogs")}>Access Log</button>
         </div>
         )}
       </div>

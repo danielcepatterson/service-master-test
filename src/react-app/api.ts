@@ -187,6 +187,13 @@ export async function deleteWorkOrderNote(id: number) {
   return res.json();
 }
 
+// ─── System Logs ──────────────────────────────────────────
+export async function fetchSystemLogs() {
+  const res = await apiFetch("/api/system-logs");
+  if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+  return res.json();
+}
+
 // ─── Vendors ──────────────────────────────────────────────
 export async function fetchVendors() {
   const res = await apiFetch("/api/vendors");
