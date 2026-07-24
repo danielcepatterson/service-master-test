@@ -228,6 +228,10 @@ function App() {
   });
   const [expenseSubmitting, setExpenseSubmitting] = React.useState(false);
 
+  const [showViewExpenseForm, setShowViewExpenseForm] = React.useState(false);
+  const viewDetailPhotoInputRef = React.useRef<HTMLInputElement>(null);
+  const viewDetailCameraInputRef = React.useRef<HTMLInputElement>(null);
+
   // Work order detail view
   const [viewingWO, setViewingWO] = React.useState<WorkOrder | null>(null);
   const [viewWOPhotos, setViewWOPhotos] = React.useState<WorkOrderPhoto[]>([]);
@@ -902,7 +906,56 @@ function App() {
 
           {/* Expenses */}
           <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
-            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Parts &amp; Expenses</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: '#333' }}>Parts &amp; Expenses</h2>
+              <button onClick={() => setShowViewExpenseForm(v => !v)} style={{ background: showViewExpenseForm ? '#888' : '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                {showViewExpenseForm ? '✕ Cancel' : '+ Add Expense'}
+              </button>
+            </div>
+            {showViewExpenseForm && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await api.createWorkOrderExpense(viewingWO.number, expenseForm);
+                  const expenses = await api.fetchWorkOrderExpenses(viewingWO.number);
+                  setViewWOExpenses(expenses);
+                  setExpenseForm({ description: '', category: 'Part', quantity: '1', unitCost: '', totalCost: '', vendor: '', partNumber: '' });
+                  setShowViewExpenseForm(false);
+                } catch { alert('Failed to add expense.'); }
+              }} style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 16, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <label style={{ fontWeight: 600, fontSize: 13, gridColumn: '1/-1' }}>
+                  Description *
+                  <input name="description" value={expenseForm.description} onChange={handleExpenseFormChange} required placeholder="e.g. 3/4 PVC coupling" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Category
+                  <select name="category" value={expenseForm.category} onChange={handleExpenseFormChange} style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13 }}>
+                    <option>Part</option><option>Labor</option><option>Material</option><option>Tool</option><option>Other</option>
+                  </select>
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Vendor
+                  <input name="vendor" value={expenseForm.vendor} onChange={handleExpenseFormChange} placeholder="Vendor name" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Part #
+                  <input name="partNumber" value={expenseForm.partNumber} onChange={handleExpenseFormChange} placeholder="Optional" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Qty
+                  <input name="quantity" type="number" min="0" step="any" value={expenseForm.quantity} onChange={handleExpenseFormChange} style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Unit Cost ($)
+                  <input name="unitCost" type="number" min="0" step="0.01" value={expenseForm.unitCost} onChange={handleExpenseFormChange} placeholder="0.00" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontWeight: 600, fontSize: 13, gridColumn: '1/-1' }}>
+                  Total Cost ($)
+                  <input name="totalCost" type="number" min="0" step="0.01" value={expenseForm.totalCost} onChange={handleExpenseFormChange} placeholder="Auto-calculated" style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', border: '1px solid #aaa', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                </label>
+                <button type="submit" style={{ gridColumn: '1/-1', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>✓ Save Expense</button>
+              </form>
+            )}
             {viewWOLoading && <p style={{ color: '#888' }}>Loading...</p>}
             {!viewWOLoading && viewWOExpenses.length === 0 && <p style={{ color: '#888' }}>No expenses recorded.</p>}
             {viewWOExpenses.length > 0 && (
@@ -917,6 +970,7 @@ function App() {
                       <th>Qty</th>
                       <th>Unit $</th>
                       <th>Total $</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -929,6 +983,7 @@ function App() {
                         <td data-label="Qty" style={{ color: '#111' }}>{exp.quantity}</td>
                         <td data-label="Unit $" style={{ color: '#111' }}>{exp.unitCost ? `$${exp.unitCost}` : '—'}</td>
                         <td data-label="Total $" style={{ color: '#0a6e0a', fontWeight: 700 }}>{exp.totalCost ? `$${exp.totalCost}` : '—'}</td>
+                        <td><button onClick={async () => { if (!confirm('Delete this expense?')) return; await api.deleteWorkOrderExpense(exp.id); const expenses = await api.fetchWorkOrderExpenses(viewingWO.number); setViewWOExpenses(expenses); }} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12 }}>🗑</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -942,14 +997,50 @@ function App() {
 
           {/* Photos */}
           <div style={{ background: '#fff', border: '1px solid #b0c0e0', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
-            <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>Photos</h2>
+            <input type="file" accept="image/*" ref={viewDetailPhotoInputRef} style={{ display: 'none' }} onChange={async (e) => {
+              const file = e.target.files?.[0]; if (!file) return;
+              setPhotoUploading(true);
+              try {
+                const { base64, mimeType } = await compressImage(file);
+                const filename = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+                await api.uploadWorkOrderPhoto(viewingWO.number, filename, mimeType, base64);
+                const photos = await api.fetchWorkOrderPhotos(viewingWO.number);
+                const withData = await Promise.all(photos.map(async (p: WorkOrderPhoto) => ({ ...p, data: (await api.fetchPhotoData(p.id)).data })));
+                setViewWOPhotos(withData);
+              } catch { alert('Upload failed.'); }
+              finally { setPhotoUploading(false); if (viewDetailPhotoInputRef.current) viewDetailPhotoInputRef.current.value = ''; }
+            }} />
+            <input type="file" accept="image/*" capture="environment" ref={viewDetailCameraInputRef} style={{ display: 'none' }} onChange={async (e) => {
+              const file = e.target.files?.[0]; if (!file) return;
+              setPhotoUploading(true);
+              try {
+                const { base64, mimeType } = await compressImage(file);
+                const filename = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+                await api.uploadWorkOrderPhoto(viewingWO.number, filename, mimeType, base64);
+                const photos = await api.fetchWorkOrderPhotos(viewingWO.number);
+                const withData = await Promise.all(photos.map(async (p: WorkOrderPhoto) => ({ ...p, data: (await api.fetchPhotoData(p.id)).data })));
+                setViewWOPhotos(withData);
+              } catch { alert('Upload failed.'); }
+              finally { setPhotoUploading(false); if (viewDetailCameraInputRef.current) viewDetailCameraInputRef.current.value = ''; }
+            }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 style={{ margin: 0, fontSize: 16, color: '#333' }}>Photos</h2>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => viewDetailPhotoInputRef.current?.click()} disabled={photoUploading} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>📁 Upload</button>
+                <button onClick={() => viewDetailCameraInputRef.current?.click()} disabled={photoUploading} style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>📷 Camera</button>
+              </div>
+            </div>
+            {photoUploading && <p style={{ color: '#888' }}>Uploading...</p>}
             {viewWOLoading && <p style={{ color: '#888' }}>Loading...</p>}
             {!viewWOLoading && viewWOPhotos.length === 0 && <p style={{ color: '#888' }}>No photos attached.</p>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
               {viewWOPhotos.map((photo) => (
-                <div key={photo.id} style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+                <div key={photo.id} style={{ border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
                   <img src={photo.data} alt={photo.filename} style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
-                  <div style={{ padding: '4px 6px', fontSize: 11, background: '#f0f0f0', color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.filename}</div>
+                  <div style={{ padding: '4px 6px', fontSize: 11, background: '#f0f0f0', color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{photo.filename}</span>
+                    <button onClick={async () => { if (!confirm('Delete this photo?')) return; await api.deleteWorkOrderPhoto(photo.id); const photos = await api.fetchWorkOrderPhotos(viewingWO.number); const withData = await Promise.all(photos.map(async (p: WorkOrderPhoto) => ({ ...p, data: (await api.fetchPhotoData(p.id)).data }))); setViewWOPhotos(withData); }} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 11, flexShrink: 0, marginLeft: 4 }}>🗑</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -963,10 +1054,13 @@ function App() {
               if (!noteInput.trim()) return;
               setNoteSaving(true);
               try {
-                await api.createWorkOrderNote(viewingWO.number, noteInput.trim());
+                const res = await api.createWorkOrderNote(viewingWO.number, noteInput.trim());
+                if (res && res.error) { alert('Failed to add note: ' + res.error); return; }
                 setNoteInput('');
                 const notes = await api.fetchWorkOrderNotes(viewingWO.number);
-                setViewWONotes(notes);
+                setViewWONotes(Array.isArray(notes) ? notes : []);
+              } catch (err) {
+                alert('Failed to add note. Please try again.');
               } finally {
                 setNoteSaving(false);
               }
