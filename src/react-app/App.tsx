@@ -2374,10 +2374,8 @@ function App() {
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
             <div style="font-weight:700;font-size:15px;">${prop?.ownerName || wo.propertyName}</div>
-            ${addrLine1 ? `<div style="margin-top:2px;">${addrLine1}</div>` : ''}
-            ${addrLine2 ? `<div>${addrLine2}</div>` : ''}
+            ${(addrLine1 || addrLine2) ? `<div style="margin-top:2px;">${[addrLine1, addrLine2].filter(Boolean).join(' ')}</div>` : ''}
             ${billToLine2 ? `<div>${billToLine2}</div>` : ''}
-            ${prop?.ownerPhone ? `<div style="margin-top:2px;">${prop.ownerPhone}</div>` : ''}
           </div>
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
@@ -2535,10 +2533,8 @@ function App() {
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
                           <div style={{ fontWeight: 700, fontSize: 15 }}>{prop?.ownerName || wo.propertyName}</div>
-                          {addrLine1 && <div style={{ marginTop: 2 }}>{addrLine1}</div>}
-                          {addrLine2 && <div>{addrLine2}</div>}
+                          {(addrLine1 || addrLine2) && <div style={{ marginTop: 2 }}>{[addrLine1, addrLine2].filter(Boolean).join(' ')}</div>}
                           {billToLine2 && <div>{billToLine2}</div>}
-                          {prop?.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}
                         </div>
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
