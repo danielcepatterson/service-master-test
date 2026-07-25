@@ -3249,10 +3249,11 @@ function App() {
                         {wos.slice(0, 3).map(wo => (
                           <div key={wo.number}
                             onClick={() => openWODetail(wo, 'home')}
-                            style={{ background: '#0099FF', color: '#fff', borderRadius: 4, padding: '2px 5px', fontSize: 11, marginBottom: 2, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            style={{ background: '#0099FF', color: '#fff', borderRadius: 4, padding: '3px 6px', fontSize: 11, marginBottom: 2, cursor: 'pointer' }}
                             title={wo.number + ' – ' + wo.title}
                           >
-                            {wo.number}
+                            <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wo.number} / {wo.title}</div>
+                            <div style={{ opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10 }}>{wo.propertyName}{wo.scheduledTime ? ' / ' + wo.scheduledTime : ''}</div>
                           </div>
                         ))}
                         {wos.length > 3 && <div style={{ fontSize: 10, color: '#888' }}>+{wos.length - 3} more</div>}
@@ -3287,12 +3288,11 @@ function App() {
                       {wos.map(wo => (
                         <div key={wo.number}
                           onClick={() => openWODetail(wo, 'home')}
-                          style={{ background: '#0099FF', color: '#fff', borderRadius: 4, padding: '3px 6px', fontSize: 11, marginBottom: 3, cursor: 'pointer' }}
+                          style={{ background: '#0099FF', color: '#fff', borderRadius: 4, padding: '4px 6px', fontSize: 11, marginBottom: 4, cursor: 'pointer' }}
                           title={wo.number + ' – ' + wo.title}
                         >
-                          <div style={{ fontWeight: 700 }}>{wo.number}</div>
-                          <div style={{ opacity: 0.9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wo.title}</div>
-                          {wo.scheduledTime && <div style={{ opacity: 0.8 }}>{wo.scheduledTime}</div>}
+                          <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wo.number} / {wo.title}</div>
+                          <div style={{ opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10 }}>{wo.propertyName}{wo.scheduledTime ? ' / ' + wo.scheduledTime : ''}</div>
                         </div>
                       ))}
                       {wos.length === 0 && <div style={{ fontSize: 11, color: '#ccc' }}>—</div>}
