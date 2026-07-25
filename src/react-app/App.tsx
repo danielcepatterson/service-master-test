@@ -14,7 +14,7 @@ type PropertyForm = {
   ownerName: string;
   ownerPhone: string;
 };
-type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed' | 'invoiced' | 'nocharge' | 'deleted' | 'paid';
+type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed' | 'invoiced' | 'sent' | 'nocharge' | 'deleted' | 'paid';
 
 type WorkOrderHistoryEntry = {
   status: WorkOrderStatus;
@@ -217,12 +217,18 @@ function App() {
   const [previewInvoiceExpenses, setPreviewInvoiceExpenses] = React.useState<WorkOrderExpense[]>([]);
   const [previewInvoiceLoading, setPreviewInvoiceLoading] = React.useState(false);
   const [editingInvoiceWO, setEditingInvoiceWO] = React.useState<WorkOrder | null>(null);
-  const [editInvoiceForm, setEditInvoiceForm] = React.useState({ title: '', instructions: '' });
+  const [editInvoiceForm, setEditInvoiceForm] = React.useState<{
+    title: string;
+    instructions: string;
+    billingDescription: string;
+    editExpenses: Array<WorkOrderExpense & { markup: number }>;
+    expensesLoading: boolean;
+  }>({ title: '', instructions: '', billingDescription: '', editExpenses: [], expensesLoading: false });
 
   // Expense state
   const [selectedWOForExpenses, setSelectedWOForExpenses] = React.useState<WorkOrder | null>(null);
   const [woExpenses, setWoExpenses] = React.useState<WorkOrderExpense[]>([]);
-  const [expenseLoading, setExpenseLoading] = React.useState(false);
+  const [expenseLoading] = React.useState(false);
   const [expenseForm, setExpenseForm] = React.useState({
     description: '', category: 'Part', quantity: '1', unitCost: '', totalCost: '', vendor: '', partNumber: ''
   });
@@ -426,6 +432,17 @@ function App() {
     await loadAllData();
   };
 
+  const markSentWorkOrder = async (wo: WorkOrder) => {
+    if (wo.status === 'nocharge') {
+      if (!confirm('Mark this No Charge work order as sent? It will be automatically marked as Paid.')) return;
+      await api.updateWorkOrderStatus(wo.number, 'paid');
+    } else {
+      if (!confirm('Mark this invoice as Sent?')) return;
+      await api.updateWorkOrderStatus(wo.number, 'sent');
+    }
+    await loadAllData();
+  };
+
   const paidWorkOrder = async (number: string) => {
     if (!confirm('Mark this invoice as Paid?')) return;
     await api.updateWorkOrderStatus(number, 'paid');
@@ -587,20 +604,6 @@ function App() {
   };
 
   // ─── Expense Handlers ────────────────────────────────────
-  const loadExpensesForWorkOrder = async (wo: WorkOrder) => {
-    setSelectedWOForExpenses(wo);
-    setExpenseLoading(true);
-    try {
-      const expenses = await api.fetchWorkOrderExpenses(wo.number);
-      setWoExpenses(expenses);
-    } catch (e) {
-      console.error("Failed to load expenses", e);
-      setWoExpenses([]);
-    } finally {
-      setExpenseLoading(false);
-    }
-  };
-
   const handleExpenseFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setExpenseForm((prev) => {
@@ -1684,7 +1687,24 @@ function App() {
               Scheduled Date
               <input name="scheduledDate" type="date" value={woForm.scheduledDate} onChange={handleWoFormChange} />
             </label>
-            <button type="submit">Submit Work Order</button>
+            <button type="submit">Draft Work Order</button>
+            <button type="button" onClick={async () => {
+              const form = document.querySelector('form') as HTMLFormElement;
+              if (form && !form.reportValidity()) return;
+              const newWO = {
+                number: nextWoNumber,
+                propertyName: woForm.propertyName,
+                title: woForm.title,
+                instructions: woForm.instructions,
+                scheduledTime: woForm.scheduledTime,
+                scheduledDate: woForm.scheduledDate,
+              };
+              await api.createWorkOrder(newWO);
+              await api.updateWorkOrderStatus(newWO.number, 'active');
+              await loadAllData();
+              setWoSubmitted(true);
+              setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', status: 'draft', history: [] });
+            }}>Activate Work Order</button>
             <button type="button" onClick={() => setPage("home")}>Return to Home</button>
           </form>
         )}
@@ -1913,7 +1933,6 @@ function App() {
                 <th>Instructions</th>
                 <th>Scheduled Date</th>
                 <th>Scheduled Time</th>
-                <th>Expenses</th>
                 <th>Photos</th>
                 <th>History</th>
                 <th>Reactivate</th>
@@ -1930,9 +1949,6 @@ function App() {
                   <td data-label="Instructions">{wo.instructions}</td>
                   <td data-label="Date">{wo.scheduledDate}</td>
                   <td data-label="Time">{wo.scheduledTime}</td>
-                  <td>
-                    <button onClick={() => loadExpensesForWorkOrder(wo)}>💰 Expenses</button>
-                  </td>
                   <td>
                     <button onClick={() => loadPhotosForWorkOrder(wo)}>📷 Photos</button>
                   </td>
@@ -2330,7 +2346,7 @@ function App() {
 
   // ── Invoice List ─────────────────────────────────────────────────────────
   if (page === "invoicelist") {
-    const invoicedOrders = workOrders.filter((wo) => wo.status === 'invoiced' || wo.status === 'nocharge');
+    const invoicedOrders = workOrders.filter((wo) => wo.status === 'invoiced' || wo.status === 'sent' || wo.status === 'nocharge');
 
     const openInvoicePreview = async (wo: WorkOrder) => {
       setPreviewInvoiceWO(wo);
@@ -2342,12 +2358,13 @@ function App() {
       finally { setPreviewInvoiceLoading(false); }
     };
 
-    const buildInvoiceHTML = (wo: WorkOrder, exps: WorkOrderExpense[], overrideTitle?: string, overrideInstructions?: string) => {
+    const buildInvoiceHTML = (wo: WorkOrder, exps: WorkOrderExpense[], overrideTitle?: string, overrideInstructions?: string, overrideBillingDesc?: string) => {
       const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       const total = exps.reduce((s, e) => s + (parseFloat(e.totalCost) || 0), 0);
       const title = overrideTitle ?? wo.title;
       const instructions = overrideInstructions ?? wo.instructions;
+      const billingDesc = overrideBillingDesc ?? (localStorage.getItem(`bd_${wo.number}`) || '');
       // Invoice number: address number + date of service (MMDDYY)
       const addrNum = [prop?.address, prop?.street].reduce((found: string | undefined, f) => found || (f || '').match(/\d+/)?.[0], undefined) || wo.number.replace('WO-','');
       const todayMMDDYY = (() => { const n = new Date(); const m = String(n.getMonth()+1).padStart(2,'0'); const d = String(n.getDate()).padStart(2,'0'); const y = String(n.getFullYear()).slice(2); return m+d+y; })();
@@ -2380,6 +2397,7 @@ function App() {
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
             <div style="font-weight:700;font-size:15px;">${title}</div>
+            ${billingDesc ? `<div style="margin-top:4px;color:#333;font-size:14px;">${billingDesc}</div>` : ''}
             <div style="margin-top:4px;color:#555;font-size:13px;">${wo.propertyName}</div>
           </div>
         </div>
@@ -2436,18 +2454,41 @@ function App() {
                   <td data-label="Title">{wo.title}</td>
                   <td data-label="Date">{wo.scheduledDate || '—'}</td>
                   <td data-label="Status">
-                    <span style={{ background: wo.status === 'nocharge' ? '#888' : '#2a9d2a', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 700 }}>
-                      {wo.status === 'nocharge' ? 'No Charge' : 'Invoiced'}
+                    <span style={{
+                      background: wo.status === 'nocharge' ? '#888' : wo.status === 'sent' ? '#1a3a7a' : '#2a9d2a',
+                      color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 700
+                    }}>
+                      {wo.status === 'nocharge' ? 'No Charge' : wo.status === 'sent' ? 'Sent' : 'Created'}
                     </span>
                   </td>
                   <td style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                     <button style={{ background: '#555', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={() => openInvoicePreview(wo)}>📄 Preview</button>
-                    <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={() => { setEditingInvoiceWO(wo); setEditInvoiceForm({ title: wo.title, instructions: wo.instructions }); }}>✏️ Edit</button>
-                    {wo.status === 'invoiced' && (
+                    <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={async () => {
+                      const exps = await api.fetchWorkOrderExpenses(wo.number);
+                      const savedBillingDesc = localStorage.getItem(`bd_${wo.number}`) || '';
+                      setEditingInvoiceWO(wo);
+                      setEditInvoiceForm({
+                        title: wo.title,
+                        instructions: wo.instructions,
+                        billingDescription: savedBillingDesc,
+                        editExpenses: exps.map((e: WorkOrderExpense) => ({
+                          ...e,
+                          markup: e.category === 'Part' ? 10 : 0
+                        })),
+                        expensesLoading: false
+                      });
+                    }}>✏️ Edit</button>
+                    {(wo.status === 'invoiced' || wo.status === 'nocharge') && (
+                      <button style={{ background: '#0077cc', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={() => markSentWorkOrder(wo)}>📤 Mark Sent</button>
+                    )}
+                    {wo.status === 'sent' && (
                       <>
                         <button style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={() => paidWorkOrder(wo.number)}>✓ Mark Paid</button>
                         <button style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={async () => { const exps = await api.fetchWorkOrderExpenses(wo.number); printInvoiceDoc(wo, exps); }}>🖨️ Print</button>
                       </>
+                    )}
+                    {wo.status === 'invoiced' && (
+                      <button style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 9px', cursor: 'pointer', fontSize: 12 }} onClick={async () => { const exps = await api.fetchWorkOrderExpenses(wo.number); printInvoiceDoc(wo, exps); }}>🖨️ Print</button>
                     )}
                   </td>
                 </tr>
@@ -2460,10 +2501,13 @@ function App() {
         {/* ── Edit Invoice Modal ── */}
         {editingInvoiceWO && (
           <div className="photo-modal">
-            <div className="photo-modal-content" style={{ maxWidth: 500 }}>
+            <div className="photo-modal-content" style={{ maxWidth: 680 }}>
               <h2>Edit Invoice — {editingInvoiceWO.number}</h2>
               <form onSubmit={async (e) => {
                 e.preventDefault();
+                // Save billing description to localStorage
+                localStorage.setItem(`bd_${editingInvoiceWO.number}`, editInvoiceForm.billingDescription);
+                // Save WO fields
                 await api.updateWorkOrder(editingInvoiceWO.number, {
                   propertyName: editingInvoiceWO.propertyName,
                   title: editInvoiceForm.title,
@@ -2471,17 +2515,129 @@ function App() {
                   scheduledDate: editingInvoiceWO.scheduledDate,
                   scheduledTime: editingInvoiceWO.scheduledTime,
                 });
+                // Update expenses: delete all existing, recreate with updated values
+                for (const exp of editInvoiceForm.editExpenses) {
+                  await api.deleteWorkOrderExpense(exp.id);
+                }
+                for (const exp of editInvoiceForm.editExpenses) {
+                  await api.createWorkOrderExpense(editingInvoiceWO.number, {
+                    description: exp.description,
+                    category: exp.category,
+                    quantity: exp.quantity,
+                    unitCost: exp.unitCost,
+                    totalCost: exp.totalCost,
+                    vendor: exp.vendor,
+                    partNumber: exp.partNumber,
+                  });
+                }
                 await loadAllData();
                 setEditingInvoiceWO(null);
-              }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <label style={{ fontWeight: 600, fontSize: 13 }}>
                   Project Title
                   <input value={editInvoiceForm.title} onChange={(e) => setEditInvoiceForm(p => ({ ...p, title: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
                 </label>
                 <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Scope of Work / Notes
-                  <textarea value={editInvoiceForm.instructions} onChange={(e) => setEditInvoiceForm(p => ({ ...p, instructions: e.target.value }))} rows={4} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }} />
+                  Billing Description <span style={{ fontWeight: 400, color: '#888', fontSize: 12 }}>(shown in Project box on invoice)</span>
+                  <input value={editInvoiceForm.billingDescription} onChange={(e) => setEditInvoiceForm(p => ({ ...p, billingDescription: e.target.value }))} placeholder="e.g. Exterior Painting Services" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
                 </label>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>
+                  Scope of Work / Notes
+                  <textarea value={editInvoiceForm.instructions} onChange={(e) => setEditInvoiceForm(p => ({ ...p, instructions: e.target.value }))} rows={3} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }} />
+                </label>
+
+                {editInvoiceForm.editExpenses.length > 0 && (
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: '#1a3a7a' }}>Line Items</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#1a3a7a', color: '#fff' }}>
+                          <th style={{ padding: '6px 8px', textAlign: 'left' }}>Description</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'left' }}>Category</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', width: 60 }}>Qty</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', width: 80 }}>Unit Cost</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', width: 70 }}>Markup%</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right', width: 80 }}>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editInvoiceForm.editExpenses.map((exp, i) => {
+                          const isLabor = exp.category === 'Labor';
+                          const isPart = exp.category === 'Part';
+                          return (
+                            <tr key={i} style={{ background: i % 2 === 0 ? '#f0f4ff' : '#fff' }}>
+                              <td style={{ padding: '4px 6px', borderBottom: '1px solid #dde' }}>
+                                <input value={exp.description} onChange={(e) => {
+                                  const exps = [...editInvoiceForm.editExpenses];
+                                  exps[i] = { ...exps[i], description: e.target.value };
+                                  setEditInvoiceForm(p => ({ ...p, editExpenses: exps }));
+                                }} style={{ width: '100%', padding: '3px 6px', border: '1px solid #ccc', borderRadius: 4, fontSize: 12, boxSizing: 'border-box' }} />
+                              </td>
+                              <td style={{ padding: '4px 6px', borderBottom: '1px solid #dde', color: '#555' }}>{exp.category}</td>
+                              <td style={{ padding: '4px 6px', borderBottom: '1px solid #dde' }}>
+                                {isLabor ? (
+                                  <input type="number" min="0" step="0.25" value={parseFloat(exp.quantity) || 0} onChange={(e) => {
+                                    const hrs = parseFloat(e.target.value) || 0;
+                                    const exps = [...editInvoiceForm.editExpenses];
+                                    exps[i] = { ...exps[i], quantity: String(hrs), totalCost: String((hrs * 55).toFixed(2)) };
+                                    setEditInvoiceForm(p => ({ ...p, editExpenses: exps }));
+                                  }} style={{ width: 54, padding: '3px 4px', border: '1px solid #ccc', borderRadius: 4, fontSize: 12, textAlign: 'right' }} />
+                                ) : (
+                                  <input type="number" min="0" step="1" value={parseFloat(exp.quantity) || 0} onChange={(e) => {
+                                    const qty = parseFloat(e.target.value) || 0;
+                                    const unit = parseFloat(exp.unitCost) || 0;
+                                    const markup = exp.markup ?? 0;
+                                    const total = (qty * unit * (1 + markup / 100)).toFixed(2);
+                                    const exps = [...editInvoiceForm.editExpenses];
+                                    exps[i] = { ...exps[i], quantity: String(qty), totalCost: total };
+                                    setEditInvoiceForm(p => ({ ...p, editExpenses: exps }));
+                                  }} style={{ width: 54, padding: '3px 4px', border: '1px solid #ccc', borderRadius: 4, fontSize: 12, textAlign: 'right' }} />
+                                )}
+                              </td>
+                              <td style={{ padding: '4px 6px', borderBottom: '1px solid #dde' }}>
+                                {isLabor ? (
+                                  <span style={{ fontSize: 12, color: '#555' }}>$55/hr</span>
+                                ) : (
+                                  <input type="number" min="0" step="0.01" value={parseFloat(exp.unitCost) || 0} onChange={(e) => {
+                                    const unit = parseFloat(e.target.value) || 0;
+                                    const qty = parseFloat(exp.quantity) || 0;
+                                    const markup = exp.markup ?? 0;
+                                    const total = (qty * unit * (1 + markup / 100)).toFixed(2);
+                                    const exps = [...editInvoiceForm.editExpenses];
+                                    exps[i] = { ...exps[i], unitCost: String(unit), totalCost: total };
+                                    setEditInvoiceForm(p => ({ ...p, editExpenses: exps }));
+                                  }} style={{ width: 68, padding: '3px 4px', border: '1px solid #ccc', borderRadius: 4, fontSize: 12, textAlign: 'right' }} />
+                                )}
+                              </td>
+                              <td style={{ padding: '4px 6px', borderBottom: '1px solid #dde' }}>
+                                {isPart ? (
+                                  <input type="number" min="0" step="1" value={exp.markup ?? 10} onChange={(e) => {
+                                    const markup = parseFloat(e.target.value) || 0;
+                                    const qty = parseFloat(exp.quantity) || 0;
+                                    const unit = parseFloat(exp.unitCost) || 0;
+                                    const total = (qty * unit * (1 + markup / 100)).toFixed(2);
+                                    const exps = [...editInvoiceForm.editExpenses];
+                                    exps[i] = { ...exps[i], markup, totalCost: total };
+                                    setEditInvoiceForm(p => ({ ...p, editExpenses: exps }));
+                                  }} style={{ width: 54, padding: '3px 4px', border: '1px solid #ccc', borderRadius: 4, fontSize: 12, textAlign: 'right' }} />
+                                ) : (
+                                  <span style={{ fontSize: 12, color: '#aaa' }}>—</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '4px 6px', borderBottom: '1px solid #dde', textAlign: 'right', fontWeight: 600 }}>
+                                ${parseFloat(exp.totalCost).toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, marginTop: 8, color: '#1a3a7a' }}>
+                      Total: ${editInvoiceForm.editExpenses.reduce((s, e) => s + (parseFloat(e.totalCost) || 0), 0).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button type="submit" style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>✓ Save</button>
                   <button type="button" onClick={() => setEditingInvoiceWO(null)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
@@ -2503,6 +2659,7 @@ function App() {
           const addrLine1 = prop?.address || '';
           const addrLine2 = prop?.street || '';
           const billToLine2 = `${prop?.city||''}${prop?.city&&prop?.state?', ':''}${prop?.state||''} ${prop?.zip||''}`.trim();
+          const previewBillingDesc = localStorage.getItem(`bd_${wo.number}`) || '';
           return (
             <div className="photo-modal">
               <div className="photo-modal-content" style={{ maxWidth: 700, padding: 0, overflow: 'hidden' }}>
@@ -2539,6 +2696,7 @@ function App() {
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
                           <div style={{ fontWeight: 700, fontSize: 15 }}>{wo.title}</div>
+                          {previewBillingDesc && <div style={{ marginTop: 4, color: '#333', fontSize: 14 }}>{previewBillingDesc}</div>}
                           <div style={{ marginTop: 4, color: '#555', fontSize: 13 }}>{wo.propertyName}</div>
                         </div>
                       </div>
