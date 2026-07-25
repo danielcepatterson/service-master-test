@@ -1221,6 +1221,14 @@ function App() {
                 ✓ Mark Complete
               </button>
             )}
+            {viewingWO.status === 'completed' && (
+              <button
+                onClick={async () => { await closeWorkOrder(viewingWO.number); setPage(viewWOFromPage); }}
+                style={{ background: '#555', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+              >
+                ✕ Close Work Order
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2340,16 +2348,23 @@ function App() {
       const total = exps.reduce((s, e) => s + (parseFloat(e.totalCost) || 0), 0);
       const title = overrideTitle ?? wo.title;
       const instructions = overrideInstructions ?? wo.instructions;
+      // Invoice number: address number + date of service (MMDDYY)
+      const addrNum = (prop?.street || prop?.address || '').match(/^\d+/)?.[0] || wo.number.replace('WO-','');
+      const svcDate = wo.scheduledDate ? wo.scheduledDate.replace(/-/g,'').slice(2) /* YYMMDD */ : '';
+      const svcDateMMDDYY = wo.scheduledDate ? (() => { const [y,m,d] = wo.scheduledDate.split('-'); return m+d+y.slice(2); })() : new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}).replace(/\//g,''); void svcDate;
+      const invoiceNum = `${addrNum}-${svcDateMMDDYY}`;
+      const addrLine = prop?.street || prop?.address || '';
       const itemRows = exps.length > 0
         ? exps.map((e, i) => `<tr style="background:${i%2===0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${i+1}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.description}${e.partNumber ? ` <span style="color:#888;font-size:11px;">(${e.partNumber})</span>` : ''}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.category}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;">${e.totalCost ? '$'+parseFloat(e.totalCost).toFixed(2) : '—'}</td></tr>`).join('')
         : `<tr style="background:#f0f4ff;"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">1</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;white-space:pre-wrap;">${instructions}</td><td></td><td></td></tr>${[2,3,4,5].map(n=>`<tr><td style="padding:10px 12px;border-bottom:1px solid #eee;color:#bbb;">${n}</td><td style="padding:10px 12px;border-bottom:1px solid #eee;">&nbsp;</td><td></td><td></td></tr>`).join('')}`;
-      return `<!DOCTYPE html><html><head><title>Invoice ${wo.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
+      return `<!DOCTYPE html><html><head><title>Invoice ${invoiceNum}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #1a3a7a;">
           <img src="/logo.png" alt="First Choice" style="height:80px;object-fit:contain;" />
           <div style="text-align:right;">
             <div style="font-size:30px;font-weight:900;color:#1a3a7a;letter-spacing:2px;">INVOICE</div>
             <table style="margin-top:8px;font-size:13px;border-collapse:collapse;">
-              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Invoice #</td><td style="font-weight:700;">${wo.number}</td></tr>
+              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Invoice #</td><td style="font-weight:700;">${invoiceNum}</td></tr>
+              <tr><td style="padding-right:12px;color:#555;font-weight:600;">Work Order</td><td>${wo.number}</td></tr>
               <tr><td style="padding-right:12px;color:#555;font-weight:600;">Date</td><td>${today}</td></tr>
             </table>
           </div>
@@ -2358,7 +2373,8 @@ function App() {
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
             <div style="font-weight:700;font-size:15px;">${prop?.ownerName || wo.propertyName}</div>
-            ${prop ? `<div style="margin-top:2px;">${prop.street||''}</div><div>${prop.city||''}${prop.city&&prop.state?', ':''}${prop.state||''} ${prop.zip||''}</div>${prop.ownerPhone?`<div style="margin-top:2px;">${prop.ownerPhone}</div>`:''}` : ''}
+            ${addrLine ? `<div style="margin-top:2px;">${addrLine}</div>` : ''}
+            ${prop ? `<div>${prop.city||''}${prop.city&&prop.state?', ':''}${prop.state||''} ${prop.zip||''}</div>${prop.ownerPhone?`<div style="margin-top:2px;">${prop.ownerPhone}</div>`:''}` : ''}
           </div>
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
@@ -2381,11 +2397,8 @@ function App() {
             <tr style="background:#1a3a7a;color:#fff;"><td style="padding:10px 14px;font-weight:900;font-size:15px;">TOTAL</td><td style="padding:10px 14px;text-align:right;font-weight:900;font-size:15px;">${total>0?'$'+total.toFixed(2):'—'}</td></tr>
           </table>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;padding-top:16px;border-top:1px solid #ddd;">
-          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Client Signature &amp; Acceptance</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">Signature &nbsp;&nbsp;&nbsp; Date</div></div>
-          <div><div style="font-weight:700;color:#1a3a7a;font-size:11px;text-transform:uppercase;margin-bottom:28px;">Authorized By</div><div style="border-bottom:1px solid #333;margin-bottom:6px;">&nbsp;</div><div style="font-size:11px;color:#555;">First Choice Maintenance &amp; Home Repair</div></div>
-        </div>
-        <div style="margin-top:24px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px;">First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
+        <div style="margin-top:24px;text-align:center;font-size:14px;font-weight:600;color:#1a3a7a;border-top:1px solid #eee;padding-top:16px;">Thank you for your business!</div>
+        <div style="text-align:center;font-size:11px;color:#999;margin-top:4px;">First Choice Maintenance &amp; Home Repair</div>
       </body></html>`;
     };
 
@@ -2477,18 +2490,21 @@ function App() {
           </div>
         )}
 
-        {/* ── Preview Invoice Modal ── */}
         {previewInvoiceWO && (() => {
           const wo = previewInvoiceWO;
           const exps = previewInvoiceExpenses;
           const total = exps.reduce((s, e) => s + (parseFloat(e.totalCost) || 0), 0);
           const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
           const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          const addrNum = (prop?.street || prop?.address || '').match(/^\d+/)?.[0] || wo.number.replace('WO-','');
+          const svcDateMMDDYY = wo.scheduledDate ? (() => { const [y,m,d] = wo.scheduledDate.split('-'); return m+d+y.slice(2); })() : new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}).replace(/\//g,'');
+          const invoiceNum = `${addrNum}-${svcDateMMDDYY}`;
+          const addrLine = prop?.street || prop?.address || '';
           return (
             <div className="photo-modal">
               <div className="photo-modal-content" style={{ maxWidth: 700, padding: 0, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: '#1a3a7a', color: '#fff' }}>
-                  <span style={{ fontWeight: 700, fontSize: 15 }}>Invoice {wo.number}</span>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Invoice {invoiceNum}</span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => printInvoiceDoc(wo, exps)} style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 16px', cursor: 'pointer', fontWeight: 700 }}>🖨️ Download / Print</button>
                     <button onClick={() => { setPreviewInvoiceWO(null); setPreviewInvoiceExpenses([]); }} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 14px', cursor: 'pointer', fontWeight: 700 }}>✕ Close</button>
@@ -2503,7 +2519,8 @@ function App() {
                           <div style={{ fontSize: 30, fontWeight: 900, color: '#1a3a7a', letterSpacing: 2 }}>INVOICE</div>
                           <table style={{ marginTop: 8, fontSize: 13, borderCollapse: 'collapse' }}>
                             <tbody>
-                              <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Invoice #</td><td style={{ fontWeight: 700 }}>{wo.number}</td></tr>
+                              <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Invoice #</td><td style={{ fontWeight: 700 }}>{invoiceNum}</td></tr>
+                              <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Work Order</td><td>{wo.number}</td></tr>
                               <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Date</td><td>{today}</td></tr>
                             </tbody>
                           </table>
@@ -2513,7 +2530,8 @@ function App() {
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
                           <div style={{ fontWeight: 700, fontSize: 15 }}>{prop?.ownerName || wo.propertyName}</div>
-                          {prop && <><div style={{ marginTop: 2 }}>{prop.street}</div><div>{prop.city}{prop.city && prop.state ? ', ' : ''}{prop.state} {prop.zip}</div>{prop.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}</>}
+                          {addrLine && <div style={{ marginTop: 2 }}>{addrLine}</div>}
+                          {prop && <><div>{prop.city}{prop.city && prop.state ? ', ' : ''}{prop.state} {prop.zip}</div>{prop.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}</>}
                         </div>
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
@@ -2558,11 +2576,8 @@ function App() {
                           </tbody>
                         </table>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, paddingTop: 16, borderTop: '1px solid #ddd' }}>
-                        <div><div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', marginBottom: 28 }}>Client Signature &amp; Acceptance</div><div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div><div style={{ fontSize: 11, color: '#555' }}>Signature &nbsp;&nbsp;&nbsp; Date</div></div>
-                        <div><div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', marginBottom: 28 }}>Authorized By</div><div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div><div style={{ fontSize: 11, color: '#555' }}>First Choice Maintenance &amp; Home Repair</div></div>
-                      </div>
-                      <div style={{ marginTop: 24, textAlign: 'center', fontSize: 11, color: '#999', borderTop: '1px solid #eee', paddingTop: 12 }}>First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
+                      <div style={{ marginTop: 24, textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#1a3a7a', borderTop: '1px solid #eee', paddingTop: 16 }}>Thank you for your business!</div>
+                      <div style={{ textAlign: 'center', fontSize: 11, color: '#999', marginTop: 4 }}>First Choice Maintenance &amp; Home Repair</div>
                     </>
                   )}
                 </div>
