@@ -2352,7 +2352,8 @@ function App() {
       const addrNum = [prop?.address, prop?.street].reduce((found: string | undefined, f) => found || (f || '').match(/\d+/)?.[0], undefined) || wo.number.replace('WO-','');
       const todayMMDDYY = (() => { const n = new Date(); const m = String(n.getMonth()+1).padStart(2,'0'); const d = String(n.getDate()).padStart(2,'0'); const y = String(n.getFullYear()).slice(2); return m+d+y; })();
       const invoiceNum = `${addrNum}-${todayMMDDYY}`;
-      const addrLine = prop?.address || prop?.street || '';
+      const addrLine1 = prop?.address || '';
+      const addrLine2 = prop?.street || '';
       const billToLine2 = `${prop?.city||''}${prop?.city&&prop?.state?', ':''}${prop?.state||''} ${prop?.zip||''}`.trim();
       const itemRows = exps.length > 0
         ? exps.map((e, i) => `<tr style="background:${i%2===0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${i+1}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.description}${e.partNumber ? ` <span style="color:#888;font-size:11px;">(${e.partNumber})</span>` : ''}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.category}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;">${e.totalCost ? '$'+parseFloat(e.totalCost).toFixed(2) : '—'}</td></tr>`).join('')
@@ -2373,7 +2374,8 @@ function App() {
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
             <div style="font-weight:700;font-size:15px;">${prop?.ownerName || wo.propertyName}</div>
-            ${addrLine ? `<div style="margin-top:2px;">${addrLine}</div>` : ''}
+            ${addrLine1 ? `<div style="margin-top:2px;">${addrLine1}</div>` : ''}
+            ${addrLine2 ? `<div>${addrLine2}</div>` : ''}
             ${billToLine2 ? `<div>${billToLine2}</div>` : ''}
             ${prop?.ownerPhone ? `<div style="margin-top:2px;">${prop.ownerPhone}</div>` : ''}
           </div>
@@ -2500,7 +2502,8 @@ function App() {
           const addrNum = [prop?.address, prop?.street].reduce((found: string | undefined, f) => found || (f || '').match(/\d+/)?.[0], undefined) || wo.number.replace('WO-','');
           const todayMMDDYY = (() => { const n = new Date(); const m = String(n.getMonth()+1).padStart(2,'0'); const d = String(n.getDate()).padStart(2,'0'); const y = String(n.getFullYear()).slice(2); return m+d+y; })();
           const invoiceNum = `${addrNum}-${todayMMDDYY}`;
-          const addrLine = prop?.address || prop?.street || '';
+          const addrLine1 = prop?.address || '';
+          const addrLine2 = prop?.street || '';
           const billToLine2 = `${prop?.city||''}${prop?.city&&prop?.state?', ':''}${prop?.state||''} ${prop?.zip||''}`.trim();
           return (
             <div className="photo-modal">
@@ -2532,7 +2535,8 @@ function App() {
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
                           <div style={{ fontWeight: 700, fontSize: 15 }}>{prop?.ownerName || wo.propertyName}</div>
-                          {addrLine && <div style={{ marginTop: 2 }}>{addrLine}</div>}
+                          {addrLine1 && <div style={{ marginTop: 2 }}>{addrLine1}</div>}
+                          {addrLine2 && <div>{addrLine2}</div>}
                           {billToLine2 && <div>{billToLine2}</div>}
                           {prop?.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}
                         </div>
