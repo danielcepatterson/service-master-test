@@ -3165,19 +3165,30 @@ function App() {
           <button onClick={() => setPage('home')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
             <img src="/logo.png" alt="Home" style={{ height: 40, objectFit: 'contain', display: 'block' }} />
           </button>
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowLogout(v => !v)}
-              style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 16px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" fill="#fff"/><path d="M2 18c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
-              {authUser.username}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+            <button onClick={() => setPage('property')} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 14px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2L2 8.5h2V17h5v-5h2v5h5V8.5h2L10 2z" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/><line x1="15" y1="3" x2="15" y2="6.5" stroke="#6fdd6f" strokeWidth="2" strokeLinecap="round"/><line x1="13.2" y1="4.75" x2="16.8" y2="4.75" stroke="#6fdd6f" strokeWidth="2" strokeLinecap="round"/></svg>
+              New Property
             </button>
-            {showLogout && (
-              <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #d0d8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 140, padding: 8 }}>
-                <button onClick={handleLogout} style={{ width: '100%', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Logout</button>
-              </div>
-            )}
+            <button onClick={() => setPage('createpurchase')} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 14px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><rect x="4" y="2" width="12" height="16" rx="2" stroke="#fff" strokeWidth="1.8"/><line x1="7" y1="7" x2="13" y2="7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="7" y1="10" x2="13" y2="10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="7" y1="13" x2="10" y2="13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><text x="13" y="7.5" style={{fontSize:6,fontWeight:900,fill:'#6fdd6f',dominantBaseline:'middle',textAnchor:'middle'}}>$</text></svg>
+              Purchase
+            </button>
+            <div style={{ width: 1, height: 28, background: 'rgba(26,58,122,0.15)', margin: '0 4px' }} />
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowLogout(v => !v)}
+                style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 16px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" fill="#fff"/><path d="M2 18c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
+                {authUser.username}
+              </button>
+              {showLogout && (
+                <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #d0d8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 140, padding: 8 }}>
+                  <button onClick={handleLogout} style={{ width: '100%', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Logout</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -3217,8 +3228,6 @@ function App() {
             { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M5 21L21 5" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><path d="M13 5h8v8" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Drafts', action: () => setPage('workorderlistdraft') },
             { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="4" y="5" width="18" height="16" rx="3" stroke="#1a3a7a" strokeWidth="2"/><line x1="8" y1="10" x2="18" y2="10" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="14" x2="18" y2="14" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="18" x2="14" y2="18" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/></svg>, label: 'Active', action: () => setPage('workorderlist') },
             { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M4 13l6 6L22 7" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Done', action: () => setPage('completedworkorders') },
-            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M13 4L4 11h3v10h5v-6h2v6h5V11h3L13 4z" fill="none" stroke="#1a3a7a" strokeWidth="2" strokeLinejoin="round"/><line x1="18" y1="5" x2="18" y2="8" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round"/><line x1="16" y1="6.5" x2="20" y2="6.5" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round"/></svg>, label: 'New Prop', action: () => setPage('property') },
-            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="5" y="4" width="16" height="18" rx="2" stroke="#1a3a7a" strokeWidth="2"/><line x1="9" y1="9" x2="17" y2="9" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="9" y1="13" x2="17" y2="13" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="9" y1="17" x2="13" y2="17" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><text x="13" y="9" style={{fontSize:8,fontWeight:700,fill:'#2a9d2a',dominantBaseline:'middle',textAnchor:'middle'}}>$</text></svg>, label: 'Purchase', action: () => setPage('createpurchase') },
           ].map(({ icon, label, action }) => (
             <button key={label} onClick={action} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 3 }}>
               {icon}
