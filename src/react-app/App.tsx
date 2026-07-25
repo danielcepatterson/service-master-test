@@ -260,6 +260,8 @@ function App() {
   const [homeMenu, setHomeMenu] = React.useState<string | null>(null);
   const [homeSubMenu, setHomeSubMenu] = React.useState<string | null>(null);
   const [clockTime, setClockTime] = React.useState(new Date());
+  const [calView, setCalView] = React.useState<'month' | 'week'>('month');
+  const [calDate, setCalDate] = React.useState(() => new Date());
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -3166,30 +3168,181 @@ function App() {
       </div>
 
       {/* Dashboard Body */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 20px' }}>
-        {/* Top row: Logo + Clock */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
-          <img src="/logo.png" alt="First Choice Maintenance & Home Repair" style={{ maxWidth: 260, width: '50%' }} />
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 20px' }}>
+
+        {/* Clock row */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
-            <div style={{ fontSize: 14, color: '#555', marginTop: 4 }}>{dateStr}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
+            <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{dateStr}</div>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
-          {[
-            { label: 'All-Time Work Orders', value: allTimeWOs, color: '#1a3a7a' },
-            { label: 'Active', value: activeWOs, color: '#0099FF' },
-            { label: 'Completed', value: completedWOs, color: '#2a9d2a' },
-            { label: 'Closed / Invoiced', value: closedWOs, color: '#888' },
-          ].map(kpi => (
-            <div key={kpi.label} style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${kpi.color}` }}>
-              <div style={{ fontSize: 36, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
+          {([
+            { label: 'All-Time Work Orders', value: allTimeWOs, color: '#1a3a7a', page: null },
+            { label: 'Active', value: activeWOs, color: '#0099FF', page: 'workorderlist' },
+            { label: 'Completed', value: completedWOs, color: '#2a9d2a', page: 'completedworkorders' },
+            { label: 'Closed / Invoiced', value: closedWOs, color: '#888', page: 'closedworkorders' },
+          ] as { label: string; value: number; color: string; page: string | null }[]).map(kpi => (
+            <div key={kpi.label}
+              onClick={() => kpi.page && setPage(kpi.page)}
+              style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${kpi.color}`, cursor: kpi.page ? 'pointer' : 'default', transition: 'box-shadow 0.15s' }}
+              onMouseEnter={e => { if (kpi.page) (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(26,58,122,0.18)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(26,58,122,0.08)'; }}
+            >
+              <div style={{ fontSize: 38, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
               <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{kpi.label}</div>
             </div>
           ))}
         </div>
+
+        {/* Calendar */}
+        {(() => {
+          const activeOrders = workOrders.filter(wo => wo.status === 'active' && wo.scheduledDate);
+          const woByDate: Record<string, typeof workOrders> = {};
+          activeOrders.forEach(wo => {
+            const d = wo.scheduledDate!;
+            if (!woByDate[d]) woByDate[d] = [];
+            woByDate[d].push(wo);
+          });
+
+          const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+          const year = calDate.getFullYear();
+          const month = calDate.getMonth();
+
+          const goMonth = (delta: number) => {
+            setCalDate(d => { const n = new Date(d); n.setDate(1); n.setMonth(n.getMonth() + delta); return n; });
+          };
+          const goWeek = (delta: number) => {
+            setCalDate(d => { const n = new Date(d); n.setDate(n.getDate() + delta * 7); return n; });
+          };
+          const goToday = () => setCalDate(new Date());
+
+          const todayStr = new Date().toISOString().slice(0, 10);
+
+          const renderMonthView = () => {
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const cells: (number | null)[] = [
+              ...Array(firstDay).fill(null),
+              ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+            ];
+            while (cells.length % 7 !== 0) cells.push(null);
+
+            return (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: '#d0d8f0', border: '1px solid #d0d8f0', borderRadius: 2 }}>
+                  {dayNames.map(d => (
+                    <div key={d} style={{ background: '#1a3a7a', color: '#fff', textAlign: 'center', padding: '8px 0', fontSize: 12, fontWeight: 700 }}>{d}</div>
+                  ))}
+                  {cells.map((day, i) => {
+                    const dateStr2 = day ? `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
+                    const wos = day ? (woByDate[dateStr2] || []) : [];
+                    const isToday = dateStr2 === todayStr;
+                    return (
+                      <div key={i} style={{ background: isToday ? '#e8f4ff' : '#fff', minHeight: 80, padding: '4px 6px', verticalAlign: 'top', borderTop: isToday ? '2px solid #0099FF' : 'none' }}>
+                        {day && <div style={{ fontSize: 12, fontWeight: isToday ? 800 : 500, color: isToday ? '#0099FF' : '#333', marginBottom: 3 }}>{day}</div>}
+                        {wos.slice(0, 3).map(wo => (
+                          <div key={wo.number}
+                            onClick={() => openWODetail(wo, 'home')}
+                            style={{ background: '#0099FF', color: '#fff', borderRadius: 4, padding: '2px 5px', fontSize: 11, marginBottom: 2, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={wo.number + ' – ' + wo.title}
+                          >
+                            {wo.number}
+                          </div>
+                        ))}
+                        {wos.length > 3 && <div style={{ fontSize: 10, color: '#888' }}>+{wos.length - 3} more</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          };
+
+          const renderWeekView = () => {
+            const dow = calDate.getDay();
+            const weekStart = new Date(calDate);
+            weekStart.setDate(calDate.getDate() - dow);
+            const days = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(weekStart);
+              d.setDate(weekStart.getDate() + i);
+              return d;
+            });
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: '#d0d8f0', border: '1px solid #d0d8f0', borderRadius: 2 }}>
+                {days.map(d => {
+                  const ds = d.toISOString().slice(0, 10);
+                  const wos = woByDate[ds] || [];
+                  const isToday = ds === todayStr;
+                  return (
+                    <div key={ds} style={{ background: isToday ? '#e8f4ff' : '#fff', minHeight: 160, padding: '6px 8px', borderTop: isToday ? '2px solid #0099FF' : 'none' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? '#0099FF' : '#1a3a7a', marginBottom: 6 }}>
+                        {dayNames[d.getDay()]} {d.getDate()}
+                      </div>
+                      {wos.map(wo => (
+                        <div key={wo.number}
+                          onClick={() => openWODetail(wo, 'home')}
+                          style={{ background: '#0099FF', color: '#fff', borderRadius: 4, padding: '3px 6px', fontSize: 11, marginBottom: 3, cursor: 'pointer' }}
+                          title={wo.number + ' – ' + wo.title}
+                        >
+                          <div style={{ fontWeight: 700 }}>{wo.number}</div>
+                          <div style={{ opacity: 0.9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wo.title}</div>
+                          {wo.scheduledTime && <div style={{ opacity: 0.8 }}>{wo.scheduledTime}</div>}
+                        </div>
+                      ))}
+                      {wos.length === 0 && <div style={{ fontSize: 11, color: '#ccc' }}>—</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          };
+
+          const headerLabel = calView === 'month'
+            ? `${monthNames[month]} ${year}`
+            : (() => {
+                const dow = calDate.getDay();
+                const ws = new Date(calDate); ws.setDate(calDate.getDate() - dow);
+                const we = new Date(ws); we.setDate(ws.getDate() + 6);
+                return `${monthNames[ws.getMonth()]} ${ws.getDate()} – ${monthNames[we.getMonth()]} ${we.getDate()}, ${we.getFullYear()}`;
+              })();
+
+          return (
+            <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', overflow: 'hidden' }}>
+              {/* Calendar header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid #e0e8f0', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button onClick={() => calView === 'month' ? goMonth(-1) : goWeek(-1)} style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#1a3a7a' }}>‹</button>
+                  <button onClick={goToday} style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#1a3a7a' }}>Today</button>
+                  <button onClick={() => calView === 'month' ? goMonth(1) : goWeek(1)} style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#1a3a7a' }}>›</button>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: '#1a3a7a', marginLeft: 8 }}>{headerLabel}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Month jump buttons */}
+                  <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginRight: 8 }}>
+                    {monthNames.map((mn, mi) => (
+                      <button key={mn} onClick={() => setCalDate(new Date(year, mi, 1))}
+                        style={{ background: mi === month && calView === 'month' ? '#1a3a7a' : '#f0f4ff', color: mi === month && calView === 'month' ? '#fff' : '#1a3a7a', border: '1px solid #c0d0f0', borderRadius: 4, padding: '3px 7px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+                      >{mn.slice(0, 3)}</button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={() => setCalView('month')} style={{ background: calView === 'month' ? '#1a3a7a' : '#f0f4ff', color: calView === 'month' ? '#fff' : '#1a3a7a', border: '1px solid #c0d0f0', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Month</button>
+                    <button onClick={() => setCalView('week')} style={{ background: calView === 'week' ? '#1a3a7a' : '#f0f4ff', color: calView === 'week' ? '#fff' : '#1a3a7a', border: '1px solid #c0d0f0', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Week</button>
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding: '0' }}>
+                {calView === 'month' ? renderMonthView() : renderWeekView()}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
