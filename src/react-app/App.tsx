@@ -2350,9 +2350,9 @@ function App() {
       const instructions = overrideInstructions ?? wo.instructions;
       // Invoice number: address number + date of service (MMDDYY)
       const addrNum = [prop?.address, prop?.street].reduce((found: string | undefined, f) => found || (f || '').match(/\d+/)?.[0], undefined) || wo.number.replace('WO-','');
-      const svcDateMMDDYY = wo.scheduledDate ? (() => { const [y,m,d] = wo.scheduledDate.split('-'); return m+d+y.slice(2); })() : new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}).replace(/\//g,'');
-      const invoiceNum = `${addrNum}-${svcDateMMDDYY}`;
-      const addrLine = [prop?.address, prop?.street].filter(Boolean).join(', ');
+      const todayMMDDYY = (() => { const n = new Date(); const m = String(n.getMonth()+1).padStart(2,'0'); const d = String(n.getDate()).padStart(2,'0'); const y = String(n.getFullYear()).slice(2); return m+d+y; })();
+      const invoiceNum = `${addrNum}-${todayMMDDYY}`;
+      const addrLine = prop?.address || prop?.street || '';
       const billToLine2 = `${prop?.city||''}${prop?.city&&prop?.state?', ':''}${prop?.state||''} ${prop?.zip||''}`.trim();
       const itemRows = exps.length > 0
         ? exps.map((e, i) => `<tr style="background:${i%2===0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${i+1}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.description}${e.partNumber ? ` <span style="color:#888;font-size:11px;">(${e.partNumber})</span>` : ''}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.category}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;">${e.totalCost ? '$'+parseFloat(e.totalCost).toFixed(2) : '—'}</td></tr>`).join('')
@@ -2498,9 +2498,9 @@ function App() {
           const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
           const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
           const addrNum = [prop?.address, prop?.street].reduce((found: string | undefined, f) => found || (f || '').match(/\d+/)?.[0], undefined) || wo.number.replace('WO-','');
-          const svcDateMMDDYY = wo.scheduledDate ? (() => { const [y,m,d] = wo.scheduledDate.split('-'); return m+d+y.slice(2); })() : new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}).replace(/\//g,'');
-          const invoiceNum = `${addrNum}-${svcDateMMDDYY}`;
-          const addrLine = [prop?.address, prop?.street].filter(Boolean).join(', ');
+          const todayMMDDYY = (() => { const n = new Date(); const m = String(n.getMonth()+1).padStart(2,'0'); const d = String(n.getDate()).padStart(2,'0'); const y = String(n.getFullYear()).slice(2); return m+d+y; })();
+          const invoiceNum = `${addrNum}-${todayMMDDYY}`;
+          const addrLine = prop?.address || prop?.street || '';
           const billToLine2 = `${prop?.city||''}${prop?.city&&prop?.state?', ':''}${prop?.state||''} ${prop?.zip||''}`.trim();
           return (
             <div className="photo-modal">
