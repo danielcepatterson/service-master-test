@@ -367,3 +367,37 @@ export async function deleteWorkOrderExpense(expenseId: number) {
   const res = await apiFetch(`/api/work-order-expenses/${expenseId}`, { method: "DELETE" });
   return res.json();
 }
+
+// ─── Team ─────────────────────────────────────────────────
+export async function fetchTeamProfiles() {
+  const res = await apiFetch("/api/team/profiles");
+  return res.json();
+}
+
+export async function saveTeamProfile(userId: number, data: {
+  schedule: Record<string, { start: string; end: string; hours: number }>;
+  payRate: string;
+  ptoTotal: number;
+  ptoUsed: number;
+  sickTotal: number;
+  sickUsed: number;
+  notes: string;
+}) {
+  const res = await apiFetch(`/api/team/profiles/${userId}`, { method: "PUT", body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function fetchDaysOff() {
+  const res = await apiFetch("/api/team/days-off");
+  return res.json();
+}
+
+export async function saveDayOff(data: { userId: number; date: string; reason: string; type: string }) {
+  const res = await apiFetch("/api/team/days-off", { method: "POST", body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteDayOff(id: number) {
+  const res = await apiFetch(`/api/team/days-off/${id}`, { method: "DELETE" });
+  return res.json();
+}

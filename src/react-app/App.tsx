@@ -269,6 +269,16 @@ function App() {
   const [weather, setWeather] = React.useState<{ date: string; maxTemp: number; minTemp: number; code: number }[]>([]);
   const [calView, setCalView] = React.useState<'month' | 'week'>('month');
   const [calDate, setCalDate] = React.useState(() => new Date());
+
+  // Team state
+  type TeamProfile = { userId: number; username: string; userType: string; schedule: Record<string, { start: string; end: string; hours: number }>; payRate: string; ptoTotal: number; ptoUsed: number; sickTotal: number; sickUsed: number; notes: string; };
+  type DayOff = { id: number; user_id: number; username: string; date: string; reason: string; type: string; status: string; };
+  const [teamProfiles, setTeamProfiles] = React.useState<TeamProfile[]>([]);
+  const [daysOff, setDaysOff] = React.useState<DayOff[]>([]);
+  const [editingProfile, setEditingProfile] = React.useState<TeamProfile | null>(null);
+  const [profileForm, setProfileForm] = React.useState<TeamProfile | null>(null);
+  const [dayOffForm, setDayOffForm] = React.useState({ userId: 0, date: '', reason: '', type: 'PTO' });
+  const [teamLoading, setTeamLoading] = React.useState(false);
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -326,6 +336,17 @@ function App() {
       api.fetchWorkOrderNotes(viewingWO.number).then(setViewWONotes).catch(() => setViewWONotes([]));
     }
   }, [page, viewingWO]);
+
+  // ─── Load team data when navigating to team pages ───────
+  React.useEffect(() => {
+    if ((page === 'teaminfo' || page === 'payroll' || page === 'submitdayoff') && authUser) {
+      setTeamLoading(true);
+      Promise.all([api.fetchTeamProfiles(), api.fetchDaysOff()])
+        .then(([profiles, offs]) => { setTeamProfiles(profiles); setDaysOff(offs); })
+        .catch(() => {})
+        .finally(() => setTeamLoading(false));
+    }
+  }, [page, authUser]);
 
   // ─── Load all data from API when user is authenticated ──
   const loadAllData = React.useCallback(async () => {
@@ -2326,6 +2347,334 @@ function App() {
     );
   }
 
+  // ── Team Info ────────────────────────────────────────────────────────────
+  if (page === 'teaminfo') {
+    const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', padding: '1rem' }}>
+        <h1>Team Info</h1>
+        {teamLoading && <p>Loading...</p>}
+        {!teamLoading && teamProfiles.length === 0 && <p style={{ color: '#888' }}>No team members found.</p>}
+        {!teamLoading && teamProfiles.map(profile => (
+          <div key={profile.userId} style={{ background: '#fff', border: '1px solid #d0d8f0', borderRadius: 12, padding: 20, marginBottom: 16, width: '100%', maxWidth: 860, boxShadow: '0 2px 8px rgba(26,58,122,0.07)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <span style={{ fontWeight: 800, fontSize: 17, color: '#1a3a7a' }}>{profile.username}</span>
+                <span style={{ marginLeft: 10, background: '#e8f0fe', color: '#1a3a7a', borderRadius: 8, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>{profile.userType}</span>
+              </div>
+              <button onClick={() => { setEditingProfile(profile); setProfileForm({ ...profile, schedule: { ...profile.schedule } }); }}
+                style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', cursor: 'pointer', fontWeight: 600 }}>✏️ Edit</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 12 }}>
+              <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>Pay Rate</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#1a3a7a' }}>${profile.payRate}/hr</div>
+              </div>
+              <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>PTO</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#2a9d2a' }}>{profile.ptoTotal - profile.ptoUsed} left</div>
+                <div style={{ fontSize: 11, color: '#888' }}>{profile.ptoUsed} used / {profile.ptoTotal} total days</div>
+              </div>
+              <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>Sick Days</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#ff9900' }}>{profile.sickTotal - profile.sickUsed} left</div>
+                <div style={{ fontSize: 11, color: '#888' }}>{profile.sickUsed} used / {profile.sickTotal} total days</div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1a3a7a', marginBottom: 6 }}>Weekly Schedule</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {DAYS.map(day => {
+                  const s = profile.schedule[day];
+                  return s ? (
+                    <div key={day} style={{ background: '#1a3a7a', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12 }}>
+                      <strong>{day.slice(0,3)}</strong> {s.start}–{s.end} ({s.hours}h)
+                    </div>
+                  ) : (
+                    <div key={day} style={{ background: '#eee', color: '#aaa', borderRadius: 6, padding: '4px 10px', fontSize: 12 }}>{day.slice(0,3)}</div>
+                  );
+                })}
+              </div>
+            </div>
+            {profile.notes && <div style={{ background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6, padding: '8px 12px', fontSize: 13, color: '#555' }}>📝 {profile.notes}</div>}
+          </div>
+        ))}
+        <button onClick={() => setPage('home')} style={{ marginTop: 16 }}>Return to Home</button>
+
+        {/* Edit Profile Modal */}
+        {editingProfile && profileForm && (
+          <div className="photo-modal">
+            <div className="photo-modal-content" style={{ maxWidth: 640 }}>
+              <h2 style={{ margin: '0 0 16px', color: '#1a3a7a' }}>Edit — {editingProfile.username}</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  <label style={{ fontWeight: 600, fontSize: 13 }}>Pay Rate ($/hr)
+                    <input type="number" min="0" step="0.01" value={profileForm.payRate} onChange={e => setProfileForm(p => p ? { ...p, payRate: e.target.value } : p)}
+                      style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                  </label>
+                  <label style={{ fontWeight: 600, fontSize: 13 }}>PTO Total (days)
+                    <input type="number" min="0" value={profileForm.ptoTotal} onChange={e => setProfileForm(p => p ? { ...p, ptoTotal: parseInt(e.target.value) || 0 } : p)}
+                      style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                  </label>
+                  <label style={{ fontWeight: 600, fontSize: 13 }}>PTO Used (days)
+                    <input type="number" min="0" value={profileForm.ptoUsed} onChange={e => setProfileForm(p => p ? { ...p, ptoUsed: parseInt(e.target.value) || 0 } : p)}
+                      style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                  </label>
+                  <label style={{ fontWeight: 600, fontSize: 13 }}>Sick Total (days)
+                    <input type="number" min="0" value={profileForm.sickTotal} onChange={e => setProfileForm(p => p ? { ...p, sickTotal: parseInt(e.target.value) || 0 } : p)}
+                      style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                  </label>
+                  <label style={{ fontWeight: 600, fontSize: 13 }}>Sick Used (days)
+                    <input type="number" min="0" value={profileForm.sickUsed} onChange={e => setProfileForm(p => p ? { ...p, sickUsed: parseInt(e.target.value) || 0 } : p)}
+                      style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                  </label>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: '#1a3a7a' }}>Weekly Schedule</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: '#f0f4ff' }}>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700 }}>Day</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700 }}>Start</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700 }}>End</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700 }}>Hours</th>
+                        <th style={{ padding: '6px 8px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {DAYS.map(day => {
+                        const s = profileForm.schedule[day];
+                        return (
+                          <tr key={day} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '4px 8px', fontWeight: 600 }}>{day}</td>
+                            <td style={{ padding: '4px 8px' }}>
+                              <input type="time" value={s?.start || ''} onChange={e => {
+                                const start = e.target.value;
+                                const end = s?.end || '';
+                                const hours = start && end ? Math.round(Math.abs(new Date(`2000-01-01T${end}`).getTime() - new Date(`2000-01-01T${start}`).getTime()) / 36e5 * 4) / 4 : 0;
+                                setProfileForm(p => p ? { ...p, schedule: { ...p.schedule, [day]: { start, end, hours } } } : p);
+                              }} style={{ padding: '3px 6px', border: '1px solid #ccc', borderRadius: 4, fontSize: 12 }} />
+                            </td>
+                            <td style={{ padding: '4px 8px' }}>
+                              <input type="time" value={s?.end || ''} onChange={e => {
+                                const end = e.target.value;
+                                const start = s?.start || '';
+                                const hours = start && end ? Math.round(Math.abs(new Date(`2000-01-01T${end}`).getTime() - new Date(`2000-01-01T${start}`).getTime()) / 36e5 * 4) / 4 : 0;
+                                setProfileForm(p => p ? { ...p, schedule: { ...p.schedule, [day]: { start, end, hours } } } : p);
+                              }} style={{ padding: '3px 6px', border: '1px solid #ccc', borderRadius: 4, fontSize: 12 }} />
+                            </td>
+                            <td style={{ padding: '4px 8px', color: '#1a3a7a', fontWeight: 600 }}>{s?.hours || 0}h</td>
+                            <td style={{ padding: '4px 8px' }}>
+                              {s && <button onClick={() => setProfileForm(p => { if (!p) return p; const sc = { ...p.schedule }; delete sc[day]; return { ...p, schedule: sc }; })} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}>✕</button>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <label style={{ fontWeight: 600, fontSize: 13 }}>Notes
+                  <textarea value={profileForm.notes} onChange={e => setProfileForm(p => p ? { ...p, notes: e.target.value } : p)} rows={3}
+                    style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }} />
+                </label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={async () => {
+                    if (!profileForm) return;
+                    await api.saveTeamProfile(profileForm.userId, profileForm);
+                    const [profiles, offs] = await Promise.all([api.fetchTeamProfiles(), api.fetchDaysOff()]);
+                    setTeamProfiles(profiles); setDaysOff(offs);
+                    setEditingProfile(null); setProfileForm(null);
+                  }} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>✓ Save</button>
+                  <button onClick={() => { setEditingProfile(null); setProfileForm(null); }} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Payroll ───────────────────────────────────────────────────────────────
+  if (page === 'payroll') {
+    // Pay period: starts Fri 7/10/2026, ends Thu 7/22/2026, paid 7/30/2026 — biweekly
+    const PAY_PERIOD_START = new Date('2026-07-10'); // First period start (Friday)
+    const PERIOD_DAYS = 14;
+    const today = new Date();
+    // Find current period
+    const msSincFirst = today.getTime() - PAY_PERIOD_START.getTime();
+    const periodIndex = Math.floor(msSincFirst / (PERIOD_DAYS * 86400000));
+    const currentPeriodStart = new Date(PAY_PERIOD_START.getTime() + periodIndex * PERIOD_DAYS * 86400000);
+    const currentPeriodEnd = new Date(currentPeriodStart.getTime() + 12 * 86400000); // +12 days = Thursday
+    const currentPayday = new Date(currentPeriodStart.getTime() + 20 * 86400000); // +20 days = following Friday
+    const fmtDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    // Calc weekly hours per person from schedule
+    const weeklyHours = (profile: { schedule: Record<string, { hours: number }> }) =>
+      Object.values(profile.schedule).reduce((s, v) => s + (v.hours || 0), 0);
+
+    const periodHours = (profile: { schedule: Record<string, { hours: number }> }) => weeklyHours(profile) * 2;
+    const periodPay = (profile: { schedule: Record<string, { hours: number }>; payRate: string }) =>
+      (periodHours(profile) * parseFloat(profile.payRate || '0')).toFixed(2);
+
+    // Days off in current period
+    const daysOffInPeriod = (userId: number) =>
+      daysOff.filter(d => d.user_id === userId && d.date >= currentPeriodStart.toISOString().slice(0,10) && d.date <= currentPeriodEnd.toISOString().slice(0,10));
+
+    const fmtDayOff = (d: { date: string; type: string }) => `${d.date} (${d.type})`;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', padding: '1rem' }}>
+        <h1>Payroll</h1>
+        {/* Period info */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, width: '100%', maxWidth: 860, marginBottom: 24 }}>
+          <div style={{ background: '#fff', border: '1px solid #d0d8f0', borderRadius: 10, padding: '14px 18px', boxShadow: '0 2px 6px rgba(26,58,122,0.07)' }}>
+            <div style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>Current Pay Period</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#1a3a7a' }}>{fmtDate(currentPeriodStart)} – {fmtDate(currentPeriodEnd)}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #d0d8f0', borderRadius: 10, padding: '14px 18px', boxShadow: '0 2px 6px rgba(26,58,122,0.07)' }}>
+            <div style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>Payday</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: '#2a9d2a' }}>💵 {fmtDate(currentPayday)}</div>
+          </div>
+        </div>
+        {teamLoading && <p>Loading...</p>}
+        {!teamLoading && (
+          <table className="wo-table" style={{ width: '100%', maxWidth: 860 }}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Pay Rate</th>
+                <th>Sched Hrs/Wk</th>
+                <th>Period Hrs</th>
+                <th>Gross Pay</th>
+                <th>Days Off This Period</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamProfiles.map(profile => (
+                <tr key={profile.userId}>
+                  <td data-label="Name"><strong>{profile.username}</strong></td>
+                  <td data-label="Pay Rate">${profile.payRate}/hr</td>
+                  <td data-label="Hrs/Wk">{weeklyHours(profile)}h</td>
+                  <td data-label="Period Hrs">{periodHours(profile)}h</td>
+                  <td data-label="Gross Pay" style={{ fontWeight: 700, color: '#2a9d2a' }}>${periodPay(profile)}</td>
+                  <td data-label="Days Off">
+                    {daysOffInPeriod(profile.userId).length === 0
+                      ? <span style={{ color: '#aaa' }}>—</span>
+                      : daysOffInPeriod(profile.userId).map(d => <div key={d.id} style={{ fontSize: 12 }}>{fmtDayOff(d)}</div>)
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div style={{ marginTop: 24, width: '100%', maxWidth: 860 }}>
+          <h3 style={{ color: '#1a3a7a' }}>Upcoming Pay Periods</h3>
+          <table className="wo-table">
+            <thead><tr><th>#</th><th>Period Start (Fri)</th><th>Period End (Thu)</th><th>Payday (Fri)</th></tr></thead>
+            <tbody>
+              {Array.from({ length: 6 }, (_, i) => {
+                const ps = new Date(currentPeriodStart.getTime() + i * PERIOD_DAYS * 86400000);
+                const pe = new Date(ps.getTime() + 12 * 86400000);
+                const pd = new Date(ps.getTime() + 20 * 86400000);
+                return (
+                  <tr key={i} style={{ background: i === 0 ? '#e8f4ff' : undefined }}>
+                    <td>{i === 0 ? '▶ Current' : `+${i}`}</td>
+                    <td>{fmtDate(ps)}</td>
+                    <td>{fmtDate(pe)}</td>
+                    <td style={{ fontWeight: 700, color: '#2a9d2a' }}>💵 {fmtDate(pd)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 16 }}>Return to Home</button>
+      </div>
+    );
+  }
+
+  // ── Submit Day Off ────────────────────────────────────────────────────────
+  if (page === 'submitdayoff') {
+    const myDaysOff = daysOff.filter(d => d.user_id === authUser.id || authUser.userType === 'admin' || authUser.userType === 'mgr');
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', padding: '1rem' }}>
+        <h1>Submit Day Off</h1>
+        <div style={{ background: '#fff', border: '1px solid #d0d8f0', borderRadius: 12, padding: 24, width: '100%', maxWidth: 500, marginBottom: 24, boxShadow: '0 2px 8px rgba(26,58,122,0.07)' }}>
+          <h3 style={{ margin: '0 0 14px', color: '#1a3a7a' }}>New Request</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {(authUser.userType === 'admin' || authUser.userType === 'mgr') && (
+              <label style={{ fontWeight: 600, fontSize: 13 }}>Team Member
+                <select value={dayOffForm.userId} onChange={e => setDayOffForm(p => ({ ...p, userId: parseInt(e.target.value) }))}
+                  style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+                  <option value={0}>Select...</option>
+                  {teamProfiles.map(p => <option key={p.userId} value={p.userId}>{p.username}</option>)}
+                </select>
+              </label>
+            )}
+            <label style={{ fontWeight: 600, fontSize: 13 }}>Date
+              <input type="date" value={dayOffForm.date} onChange={e => setDayOffForm(p => ({ ...p, date: e.target.value }))}
+                style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }} />
+            </label>
+            <label style={{ fontWeight: 600, fontSize: 13 }}>Type
+              <select value={dayOffForm.type} onChange={e => setDayOffForm(p => ({ ...p, type: e.target.value }))}
+                style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+                <option value="PTO">PTO</option>
+                <option value="Sick">Sick</option>
+                <option value="Personal">Personal</option>
+                <option value="Unpaid">Unpaid</option>
+              </select>
+            </label>
+            <label style={{ fontWeight: 600, fontSize: 13 }}>Reason (optional)
+              <input value={dayOffForm.reason} onChange={e => setDayOffForm(p => ({ ...p, reason: e.target.value }))} placeholder="Brief note..."
+                style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }} />
+            </label>
+            <button onClick={async () => {
+              if (!dayOffForm.date) return alert('Please select a date.');
+              const uid = (authUser.userType === 'admin' || authUser.userType === 'mgr') ? dayOffForm.userId : authUser.id;
+              if (!uid) return alert('Please select a team member.');
+              await api.saveDayOff({ userId: uid, date: dayOffForm.date, reason: dayOffForm.reason, type: dayOffForm.type });
+              setDayOffForm({ userId: 0, date: '', reason: '', type: 'PTO' });
+              const [profiles, offs] = await Promise.all([api.fetchTeamProfiles(), api.fetchDaysOff()]);
+              setTeamProfiles(profiles); setDaysOff(offs);
+            }} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '9px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>✓ Submit</button>
+          </div>
+        </div>
+
+        <div style={{ width: '100%', maxWidth: 700 }}>
+          <h3 style={{ color: '#1a3a7a' }}>Days Off Requests</h3>
+          {teamLoading && <p>Loading...</p>}
+          {!teamLoading && myDaysOff.length === 0 && <p style={{ color: '#888' }}>No days off submitted yet.</p>}
+          {!teamLoading && myDaysOff.length > 0 && (
+            <table className="wo-table">
+              <thead><tr><th>Name</th><th>Date</th><th>Type</th><th>Reason</th><th>Remove</th></tr></thead>
+              <tbody>
+                {myDaysOff.map(d => (
+                  <tr key={d.id}>
+                    <td data-label="Name">{d.username}</td>
+                    <td data-label="Date">{d.date}</td>
+                    <td data-label="Type"><span style={{ background: d.type === 'PTO' ? '#e8f4ff' : d.type === 'Sick' ? '#fff0e6' : '#f0f4ff', color: '#1a3a7a', borderRadius: 8, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{d.type}</span></td>
+                    <td data-label="Reason">{d.reason || '—'}</td>
+                    <td>
+                      <button onClick={async () => {
+                        if (!confirm('Remove this day off request?')) return;
+                        await api.deleteDayOff(d.id);
+                        const [profiles, offs] = await Promise.all([api.fetchTeamProfiles(), api.fetchDaysOff()]);
+                        setTeamProfiles(profiles); setDaysOff(offs);
+                      }} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', fontSize: 12 }}>✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 16 }}>Return to Home</button>
+      </div>
+    );
+  }
+
   // ── Deleted Work Orders (formerly "Close Work Orders") ──────────────────
   if (page === "deletedworkorders") {
     const deletedOrders = workOrders.filter((wo) => wo.status === 'deleted');
@@ -3410,6 +3759,30 @@ function App() {
             )}
           </div>
 
+          {/* ── Team ── */}
+          {(authUser.userType === 'admin' || authUser.userType === 'mgr') && (
+            <div style={{ position: 'relative' }}>
+              <button style={menuBtnStyle(homeMenu === 'team')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'team' ? null : 'team'); setHomeSubMenu(null); }}>
+                Team <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'team' ? '▲' : '▼'}</span>
+              </button>
+              {homeMenu === 'team' && (
+                <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                  {[
+                    { label: 'Team Info', page: 'teaminfo' },
+                    { label: 'Payroll', page: 'payroll' },
+                    { label: 'Submit Day Off', page: 'submitdayoff' },
+                  ].map(item => (
+                    <button key={item.page} style={dropItemStyle}
+                      onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >{item.label}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* User / Logout */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>{authUser.username}</span>
@@ -3512,6 +3885,21 @@ function App() {
 
           const todayStr = new Date().toISOString().slice(0, 10);
 
+          // Pay period markers: period starts Fri 7/10/2026, biweekly; payday is 20 days after period start
+          const PAY_PERIOD_ANCHOR = new Date('2026-07-10');
+          const PERIOD_MS = 14 * 86400000;
+          const isPayPeriodStart = (ds: string) => {
+            if (!ds) return false;
+            const diff = new Date(ds + 'T12:00:00').getTime() - PAY_PERIOD_ANCHOR.getTime();
+            return diff >= 0 && diff % PERIOD_MS === 0;
+          };
+          const isPayday = (ds: string) => {
+            if (!ds) return false;
+            const diff = new Date(ds + 'T12:00:00').getTime() - new Date('2026-07-30').getTime();
+            return diff >= 0 && diff % PERIOD_MS === 0;
+          };
+          const isDayOff = (ds: string) => daysOff.filter(d => d.date === ds);
+
           const renderMonthView = () => {
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -3531,9 +3919,15 @@ function App() {
                     const dateStr2 = day ? `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
                     const wos = day ? (woByDate[dateStr2] || []) : [];
                     const isToday = dateStr2 === todayStr;
+                    const payStart = day && isPayPeriodStart(dateStr2);
+                    const payday = day && isPayday(dateStr2);
+                    const offs = day ? isDayOff(dateStr2) : [];
                     return (
                       <div key={i} style={{ background: isToday ? '#e8f4ff' : '#fff', minHeight: 80, padding: '4px 6px', verticalAlign: 'top', borderTop: isToday ? '2px solid #0099FF' : 'none' }}>
-                        {day && <div style={{ fontSize: 12, fontWeight: isToday ? 800 : 500, color: isToday ? '#0099FF' : '#333', marginBottom: 3 }}>{day}</div>}
+                        {day && <div style={{ fontSize: 12, fontWeight: isToday ? 800 : 500, color: isToday ? '#0099FF' : '#333', marginBottom: 2 }}>{day}</div>}
+                        {payStart && <div style={{ background: '#1a3a7a', color: '#fff', borderRadius: 3, padding: '2px 5px', fontSize: 10, fontWeight: 700, marginBottom: 2 }}>📅 Pay Period Start</div>}
+                        {payday && <div style={{ background: '#2a9d2a', color: '#fff', borderRadius: 3, padding: '2px 5px', fontSize: 10, fontWeight: 700, marginBottom: 2 }}>💵 Payday</div>}
+                        {offs.map(d => <div key={d.id} style={{ background: '#ff9900', color: '#fff', borderRadius: 3, padding: '2px 5px', fontSize: 10, marginBottom: 2 }} title={`${d.username} — ${d.type}${d.reason ? ': ' + d.reason : ''}`}>🏖 {d.username}</div>)}
                         {wos.slice(0, 3).map(wo => (
                           <div key={wo.number}
                             onClick={() => openWODetail(wo, 'home')}

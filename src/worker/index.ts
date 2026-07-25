@@ -58,6 +58,8 @@ async function runMigrations(db: D1Database) {
   } catch (_) { /* column already exists */ }
   await db.prepare(`CREATE TABLE IF NOT EXISTS work_order_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, work_order_number TEXT NOT NULL, note TEXT NOT NULL, author TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT)`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL DEFAULT '', action TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general', target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS team_profiles (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL UNIQUE, schedule TEXT NOT NULL DEFAULT '{}', pay_rate TEXT NOT NULL DEFAULT '0', pto_total INTEGER NOT NULL DEFAULT 0, pto_used INTEGER NOT NULL DEFAULT 0, sick_total INTEGER NOT NULL DEFAULT 0, sick_used INTEGER NOT NULL DEFAULT 0, notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS days_off (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, date TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT 'PTO', status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
 }
 
 async function writeLog(db: D1Database, username: string, action: string, category: string, target: string, detail: string) {
@@ -809,6 +811,71 @@ app.delete("/api/work-order-expenses/:id", async (c) => {
   if (!user) return unauthorized();
   const expenseId = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM work_order_expenses WHERE id = ?").bind(expenseId).run();
+  return c.json({ ok: true });
+});
+
+// ─── Team Profiles ────────────────────────────────────────
+app.get("/api/team/profiles", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const users = await c.env.DB.prepare("SELECT id, username, user_type FROM users WHERE username != 'root' ORDER BY username ASC").all();
+  const profiles = await c.env.DB.prepare("SELECT * FROM team_profiles").all();
+  const profileMap: Record<number, any> = {};
+  (profiles.results || []).forEach((p: any) => { profileMap[p.user_id] = p; });
+  const result = (users.results || []).map((u: any) => ({
+    userId: u.id, username: u.username, userType: u.user_type,
+    schedule: profileMap[u.id] ? JSON.parse(profileMap[u.id].schedule || '{}') : {},
+    payRate: profileMap[u.id]?.pay_rate || '0',
+    ptoTotal: profileMap[u.id]?.pto_total || 0,
+    ptoUsed: profileMap[u.id]?.pto_used || 0,
+    sickTotal: profileMap[u.id]?.sick_total || 0,
+    sickUsed: profileMap[u.id]?.sick_used || 0,
+    notes: profileMap[u.id]?.notes || '',
+  }));
+  return c.json(result);
+});
+
+app.put("/api/team/profiles/:userId", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const userId = parseInt(c.req.param("userId"));
+  const { schedule, payRate, ptoTotal, ptoUsed, sickTotal, sickUsed, notes } = await c.req.json();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(`INSERT INTO team_profiles (user_id, schedule, pay_rate, pto_total, pto_used, sick_total, sick_used, notes, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET schedule=excluded.schedule, pay_rate=excluded.pay_rate,
+    pto_total=excluded.pto_total, pto_used=excluded.pto_used, sick_total=excluded.sick_total,
+    sick_used=excluded.sick_used, notes=excluded.notes, updated_at=excluded.updated_at`)
+    .bind(userId, JSON.stringify(schedule || {}), payRate || '0', ptoTotal || 0, ptoUsed || 0, sickTotal || 0, sickUsed || 0, notes || '', now).run();
+  return c.json({ ok: true });
+});
+
+// ─── Days Off ─────────────────────────────────────────────
+app.get("/api/team/days-off", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const rows = await c.env.DB.prepare(
+    "SELECT d.*, u.username FROM days_off d JOIN users u ON d.user_id = u.id ORDER BY d.date ASC"
+  ).all();
+  return c.json(rows.results || []);
+});
+
+app.post("/api/team/days-off", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const { userId, date, reason, type } = await c.req.json();
+  const now = new Date().toISOString();
+  const res = await c.env.DB.prepare(
+    "INSERT INTO days_off (user_id, date, reason, type, status, created_at) VALUES (?, ?, ?, ?, 'approved', ?)"
+  ).bind(userId, date, reason || '', type || 'PTO', now).run();
+  return c.json({ ok: true, id: res.meta?.last_row_id });
+});
+
+app.delete("/api/team/days-off/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM days_off WHERE id = ?").bind(id).run();
   return c.json({ ok: true });
 });
 
