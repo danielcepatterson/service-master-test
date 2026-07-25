@@ -266,11 +266,28 @@ function App() {
   const [homeMenu, setHomeMenu] = React.useState<string | null>(null);
   const [homeSubMenu, setHomeSubMenu] = React.useState<string | null>(null);
   const [clockTime, setClockTime] = React.useState(new Date());
+  const [weather, setWeather] = React.useState<{ date: string; maxTemp: number; minTemp: number; code: number }[]>([]);
   const [calView, setCalView] = React.useState<'month' | 'week'>('month');
   const [calDate, setCalDate] = React.useState(() => new Date());
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  React.useEffect(() => {
+    // Wilmington, NC: lat=34.2257, lon=-77.9447
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=34.2257&longitude=-77.9447&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=7')
+      .then(r => r.json())
+      .then(data => {
+        const days = data.daily.time.map((date: string, i: number) => ({
+          date,
+          maxTemp: Math.round(data.daily.temperature_2m_max[i]),
+          minTemp: Math.round(data.daily.temperature_2m_min[i]),
+          code: data.daily.weathercode[i],
+        }));
+        setWeather(days);
+      })
+      .catch(() => {});
   }, []);
 
   // ─── System Logs state ────────────────────────────────────
@@ -2398,9 +2415,9 @@ function App() {
           </div>
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
+            <div style="font-size:13px;color:#555;margin-bottom:4px;">${wo.propertyName}</div>
             <div style="font-weight:700;font-size:15px;">${title}</div>
             ${billingDesc ? `<div style="margin-top:4px;color:#333;font-size:14px;">${billingDesc}</div>` : ''}
-            <div style="margin-top:4px;color:#555;font-size:13px;">${wo.propertyName}</div>
           </div>
         </div>
         <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
@@ -2720,9 +2737,9 @@ function App() {
                         </div>
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
+                          <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>{wo.propertyName}</div>
                           <div style={{ fontWeight: 700, fontSize: 15 }}>{wo.title}</div>
                           {previewBillingDesc && <div style={{ marginTop: 4, color: '#333', fontSize: 14 }}>{previewBillingDesc}</div>}
-                          <div style={{ marginTop: 4, color: '#555', fontSize: 13 }}>{wo.propertyName}</div>
                         </div>
                       </div>
                       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 4 }}>
@@ -3196,10 +3213,12 @@ function App() {
         {/* Bottom nav bar */}
         <div style={{ display: 'flex', background: '#fff', boxShadow: '0 -2px 10px rgba(26,58,122,0.10)', flexShrink: 0, zIndex: 10 }}>
           {[
-            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><line x1="13" y1="4" x2="13" y2="22" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><line x1="4" y1="13" x2="22" y2="13" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/></svg>, label: 'New', action: () => setPage('workorder') },
+            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><line x1="13" y1="4" x2="13" y2="22" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><line x1="4" y1="13" x2="22" y2="13" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/></svg>, label: 'New WO', action: () => setPage('workorder') },
             { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M5 21L21 5" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><path d="M13 5h8v8" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Drafts', action: () => setPage('workorderlistdraft') },
             { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="4" y="5" width="18" height="16" rx="3" stroke="#1a3a7a" strokeWidth="2"/><line x1="8" y1="10" x2="18" y2="10" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="14" x2="18" y2="14" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="18" x2="14" y2="18" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/></svg>, label: 'Active', action: () => setPage('workorderlist') },
             { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M4 13l6 6L22 7" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Done', action: () => setPage('completedworkorders') },
+            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M13 4L4 11h3v10h5v-6h2v6h5V11h3L13 4z" fill="none" stroke="#1a3a7a" strokeWidth="2" strokeLinejoin="round"/><line x1="18" y1="5" x2="18" y2="8" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round"/><line x1="16" y1="6.5" x2="20" y2="6.5" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round"/></svg>, label: 'New Prop', action: () => setPage('property') },
+            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="5" y="4" width="16" height="18" rx="2" stroke="#1a3a7a" strokeWidth="2"/><line x1="9" y1="9" x2="17" y2="9" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="9" y1="13" x2="17" y2="13" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="9" y1="17" x2="13" y2="17" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><text x="13" y="9" style={{fontSize:8,fontWeight:700,fill:'#2a9d2a',dominantBaseline:'middle',textAnchor:'middle'}}>$</text></svg>, label: 'Purchase', action: () => setPage('createpurchase') },
           ].map(({ icon, label, action }) => (
             <button key={label} onClick={action} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 3 }}>
               {icon}
@@ -3393,9 +3412,46 @@ function App() {
       {/* Dashboard Body */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 20px' }}>
 
-        {/* Clock row */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-          <div style={{ textAlign: 'right' }}>
+        {/* Clock + Weather row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
+          {/* Weather widget */}
+          {weather.length > 0 && (() => {
+            const wmoIcon = (code: number) => {
+              if (code === 0) return '☀️';
+              if (code <= 2) return '🌤️';
+              if (code <= 3) return '☁️';
+              if (code <= 48) return '🌫️';
+              if (code <= 57) return '🌧️';
+              if (code <= 67) return '🌧️';
+              if (code <= 77) return '❄️';
+              if (code <= 82) return '🌦️';
+              if (code <= 86) return '🌨️';
+              if (code <= 99) return '⛈️';
+              return '🌤️';
+            };
+            const dayLabel = (dateStr: string, i: number) => {
+              if (i === 0) return 'Today';
+              if (i === 1) return 'Tomorrow';
+              return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+            };
+            return (
+              <div style={{ background: '#fff', borderRadius: 12, padding: '12px 16px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Wilmington, NC — 7-Day Forecast</div>
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                  {weather.map((day, i) => (
+                    <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 54, background: i === 0 ? '#e8f0fe' : '#f8f9ff', borderRadius: 8, padding: '8px 6px', border: i === 0 ? '1px solid #b0c4f0' : '1px solid #e8eaf0' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#1a3a7a', marginBottom: 2 }}>{dayLabel(day.date, i)}</div>
+                      <div style={{ fontSize: 20, lineHeight: 1.2 }}>{wmoIcon(day.code)}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#c00', marginTop: 3 }}>{day.maxTemp}°</div>
+                      <div style={{ fontSize: 11, color: '#666' }}>{day.minTemp}°</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+          {/* Clock */}
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div style={{ fontSize: 26, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
             <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{dateStr}</div>
           </div>
