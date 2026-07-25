@@ -2349,11 +2349,11 @@ function App() {
       const title = overrideTitle ?? wo.title;
       const instructions = overrideInstructions ?? wo.instructions;
       // Invoice number: address number + date of service (MMDDYY)
-      const addrNum = (prop?.street || prop?.address || '').match(/^\d+/)?.[0] || wo.number.replace('WO-','');
-      const svcDate = wo.scheduledDate ? wo.scheduledDate.replace(/-/g,'').slice(2) /* YYMMDD */ : '';
-      const svcDateMMDDYY = wo.scheduledDate ? (() => { const [y,m,d] = wo.scheduledDate.split('-'); return m+d+y.slice(2); })() : new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}).replace(/\//g,''); void svcDate;
+      const addrNum = [prop?.address, prop?.street].reduce((found: string | undefined, f) => found || (f || '').match(/\d+/)?.[0], undefined) || wo.number.replace('WO-','');
+      const svcDateMMDDYY = wo.scheduledDate ? (() => { const [y,m,d] = wo.scheduledDate.split('-'); return m+d+y.slice(2); })() : new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}).replace(/\//g,'');
       const invoiceNum = `${addrNum}-${svcDateMMDDYY}`;
-      const addrLine = prop?.street || prop?.address || '';
+      const addrLine = [prop?.address, prop?.street].filter(Boolean).join(', ');
+      const billToLine2 = `${prop?.city||''}${prop?.city&&prop?.state?', ':''}${prop?.state||''} ${prop?.zip||''}`.trim();
       const itemRows = exps.length > 0
         ? exps.map((e, i) => `<tr style="background:${i%2===0?'#f0f4ff':'#fff'};"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${i+1}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.description}${e.partNumber ? ` <span style="color:#888;font-size:11px;">(${e.partNumber})</span>` : ''}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">${e.category}</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;text-align:right;">${e.totalCost ? '$'+parseFloat(e.totalCost).toFixed(2) : '—'}</td></tr>`).join('')
         : `<tr style="background:#f0f4ff;"><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;">1</td><td style="padding:10px 12px;border-bottom:1px solid #dde;font-size:13px;white-space:pre-wrap;">${instructions}</td><td></td><td></td></tr>${[2,3,4,5].map(n=>`<tr><td style="padding:10px 12px;border-bottom:1px solid #eee;color:#bbb;">${n}</td><td style="padding:10px 12px;border-bottom:1px solid #eee;">&nbsp;</td><td></td><td></td></tr>`).join('')}`;
@@ -2374,7 +2374,8 @@ function App() {
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Bill To</div>
             <div style="font-weight:700;font-size:15px;">${prop?.ownerName || wo.propertyName}</div>
             ${addrLine ? `<div style="margin-top:2px;">${addrLine}</div>` : ''}
-            ${prop ? `<div>${prop.city||''}${prop.city&&prop.state?', ':''}${prop.state||''} ${prop.zip||''}</div>${prop.ownerPhone?`<div style="margin-top:2px;">${prop.ownerPhone}</div>`:''}` : ''}
+            ${billToLine2 ? `<div>${billToLine2}</div>` : ''}
+            ${prop?.ownerPhone ? `<div style="margin-top:2px;">${prop.ownerPhone}</div>` : ''}
           </div>
           <div style="background:#f0f4ff;border:1px solid #c0d0f0;border-radius:8px;padding:14px;">
             <div style="font-weight:800;color:#1a3a7a;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Project</div>
@@ -2496,10 +2497,11 @@ function App() {
           const total = exps.reduce((s, e) => s + (parseFloat(e.totalCost) || 0), 0);
           const prop = properties.find((p: PropertyForm) => p.propertyName === wo.propertyName);
           const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-          const addrNum = (prop?.street || prop?.address || '').match(/^\d+/)?.[0] || wo.number.replace('WO-','');
+          const addrNum = [prop?.address, prop?.street].reduce((found: string | undefined, f) => found || (f || '').match(/\d+/)?.[0], undefined) || wo.number.replace('WO-','');
           const svcDateMMDDYY = wo.scheduledDate ? (() => { const [y,m,d] = wo.scheduledDate.split('-'); return m+d+y.slice(2); })() : new Date().toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'}).replace(/\//g,'');
           const invoiceNum = `${addrNum}-${svcDateMMDDYY}`;
-          const addrLine = prop?.street || prop?.address || '';
+          const addrLine = [prop?.address, prop?.street].filter(Boolean).join(', ');
+          const billToLine2 = `${prop?.city||''}${prop?.city&&prop?.state?', ':''}${prop?.state||''} ${prop?.zip||''}`.trim();
           return (
             <div className="photo-modal">
               <div className="photo-modal-content" style={{ maxWidth: 700, padding: 0, overflow: 'hidden' }}>
@@ -2531,7 +2533,8 @@ function App() {
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
                           <div style={{ fontWeight: 700, fontSize: 15 }}>{prop?.ownerName || wo.propertyName}</div>
                           {addrLine && <div style={{ marginTop: 2 }}>{addrLine}</div>}
-                          {prop && <><div>{prop.city}{prop.city && prop.state ? ', ' : ''}{prop.state} {prop.zip}</div>{prop.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}</>}
+                          {billToLine2 && <div>{billToLine2}</div>}
+                          {prop?.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}
                         </div>
                         <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
                           <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
