@@ -3794,69 +3794,72 @@ function App() {
       {/* Dashboard Body */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 20px' }}>
 
-        {/* Clock + Weather row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, gap: 16, flexWrap: 'wrap' }}>
-          {/* Weather widget */}
-          {weather.length > 0 && (() => {
-            const wmoIcon = (code: number) => {
-              if (code === 0) return '☀️';
-              if (code <= 2) return '🌤️';
-              if (code <= 3) return '☁️';
-              if (code <= 48) return '🌫️';
-              if (code <= 57) return '🌧️';
-              if (code <= 67) return '🌧️';
-              if (code <= 77) return '❄️';
-              if (code <= 82) return '🌦️';
-              if (code <= 86) return '🌨️';
-              if (code <= 99) return '⛈️';
-              return '🌤️';
-            };
-            const dayLabel = (dateStr: string, i: number) => {
-              if (i === 0) return 'Today';
-              if (i === 1) return 'Tomorrow';
-              return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
-            };
-            return (
-              <div style={{ background: '#fff', borderRadius: 12, padding: '12px 16px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Wilmington, NC — 7-Day Forecast</div>
-                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
-                  {weather.map((day, i) => (
-                    <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 54, background: i === 0 ? '#e8f0fe' : '#f8f9ff', borderRadius: 8, padding: '8px 6px', border: i === 0 ? '1px solid #b0c4f0' : '1px solid #e8eaf0' }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#1a3a7a', marginBottom: 2 }}>{dayLabel(day.date, i)}</div>
-                      <div style={{ fontSize: 20, lineHeight: 1.2 }}>{wmoIcon(day.code)}</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#c00', marginTop: 3 }}>{day.maxTemp}°</div>
-                      <div style={{ fontSize: 11, color: '#666' }}>{day.minTemp}°</div>
-                    </div>
-                  ))}
-                </div>
+        {/* Dashboard top row: KPIs left, Weather+Clock right */}
+        <div style={{ display: 'flex', gap: 20, marginBottom: 32, alignItems: 'stretch', flexWrap: 'wrap' }}>
+          {/* KPI Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, flex: '1 1 340px' }}>
+            {([
+              { label: 'All-Time Work Orders', value: allTimeWOs, color: '#1a3a7a', page: null },
+              { label: 'Active', value: activeWOs, color: '#0099FF', page: 'workorderlist' },
+              { label: 'Completed', value: completedWOs, color: '#2a9d2a', page: 'completedworkorders' },
+              { label: 'Closed / Invoiced', value: closedWOs, color: '#888', page: 'closedworkorders' },
+            ] as { label: string; value: number; color: string; page: string | null }[]).map(kpi => (
+              <div key={kpi.label}
+                onClick={() => kpi.page && setPage(kpi.page)}
+                style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${kpi.color}`, cursor: kpi.page ? 'pointer' : 'default', transition: 'box-shadow 0.15s' }}
+                onMouseEnter={e => { if (kpi.page) (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(26,58,122,0.18)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(26,58,122,0.08)'; }}
+              >
+                <div style={{ fontSize: 38, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
+                <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{kpi.label}</div>
               </div>
-            );
-          })()}
-          {/* Clock */}
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 26, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
-            <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{dateStr}</div>
+            ))}
           </div>
-        </div>
 
-        {/* KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
-          {([
-            { label: 'All-Time Work Orders', value: allTimeWOs, color: '#1a3a7a', page: null },
-            { label: 'Active', value: activeWOs, color: '#0099FF', page: 'workorderlist' },
-            { label: 'Completed', value: completedWOs, color: '#2a9d2a', page: 'completedworkorders' },
-            { label: 'Closed / Invoiced', value: closedWOs, color: '#888', page: 'closedworkorders' },
-          ] as { label: string; value: number; color: string; page: string | null }[]).map(kpi => (
-            <div key={kpi.label}
-              onClick={() => kpi.page && setPage(kpi.page)}
-              style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${kpi.color}`, cursor: kpi.page ? 'pointer' : 'default', transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => { if (kpi.page) (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(26,58,122,0.18)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(26,58,122,0.08)'; }}
-            >
-              <div style={{ fontSize: 38, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
-              <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{kpi.label}</div>
+          {/* Weather + Clock */}
+          <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Clock */}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 26, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
+              <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{dateStr}</div>
             </div>
-          ))}
+            {/* Weather */}
+            {weather.length > 0 && (() => {
+              const wmoIcon = (code: number) => {
+                if (code === 0) return '☀️';
+                if (code <= 2) return '🌤️';
+                if (code <= 3) return '☁️';
+                if (code <= 48) return '🌫️';
+                if (code <= 57) return '🌧️';
+                if (code <= 67) return '🌧️';
+                if (code <= 77) return '❄️';
+                if (code <= 82) return '🌦️';
+                if (code <= 86) return '🌨️';
+                if (code <= 99) return '⛈️';
+                return '🌤️';
+              };
+              const dayLabel = (dateStr: string, i: number) => {
+                if (i === 0) return 'Today';
+                if (i === 1) return 'Tom';
+                return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+              };
+              return (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>Wilmington, NC — 7-Day Forecast</div>
+                  <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, justifyContent: 'center' }}>
+                    {weather.map((day, i) => (
+                      <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 52, background: i === 0 ? '#e8f0fe' : '#f8f9ff', borderRadius: 8, padding: '8px 6px', border: i === 0 ? '1px solid #b0c4f0' : '1px solid #e8eaf0' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#1a3a7a', marginBottom: 2 }}>{dayLabel(day.date, i)}</div>
+                        <div style={{ fontSize: 20, lineHeight: 1.2 }}>{wmoIcon(day.code)}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#c00', marginTop: 3 }}>{day.maxTemp}°</div>
+                        <div style={{ fontSize: 11, color: '#666' }}>{day.minTemp}°</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Calendar */}
