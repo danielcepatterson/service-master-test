@@ -3168,11 +3168,11 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
             <button onClick={() => setPage('property')} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 14px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M10 2L2 8.5h2V17h5v-5h2v5h5V8.5h2L10 2z" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/><line x1="15" y1="3" x2="15" y2="6.5" stroke="#6fdd6f" strokeWidth="2" strokeLinecap="round"/><line x1="13.2" y1="4.75" x2="16.8" y2="4.75" stroke="#6fdd6f" strokeWidth="2" strokeLinecap="round"/></svg>
-              New Property
+              +
             </button>
             <button onClick={() => setPage('createpurchase')} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 14px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><rect x="4" y="2" width="12" height="16" rx="2" stroke="#fff" strokeWidth="1.8"/><line x1="7" y1="7" x2="13" y2="7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="7" y1="10" x2="13" y2="10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="7" y1="13" x2="10" y2="13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><text x="13" y="7.5" style={{fontSize:6,fontWeight:900,fill:'#6fdd6f',dominantBaseline:'middle',textAnchor:'middle'}}>$</text></svg>
-              Purchase
+              $
             </button>
             <div style={{ width: 1, height: 28, background: 'rgba(26,58,122,0.15)', margin: '0 4px' }} />
             <div style={{ position: 'relative' }}>
