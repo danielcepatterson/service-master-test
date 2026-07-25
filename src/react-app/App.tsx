@@ -1961,7 +1961,9 @@ function App() {
                   <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     <button style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 12 }} onClick={() => invoiceWorkOrder(wo.number)}>🧾 Invoice</button>
                     <button style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 12 }} onClick={() => noChargeWorkOrder(wo.number)}>✓ No Charge</button>
-                    <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 12 }} onClick={() => deleteWorkOrder(wo.number)}>🗑 Delete</button>
+                    {authUser.userType === 'admin' && (
+                      <button style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: 12 }} onClick={() => deleteWorkOrder(wo.number)}>🗑 Delete</button>
+                    )}
                   </td>
                   <td>
                     <button onClick={() => openWODetail(wo, 'closedworkorders')}>🔍 View</button>
@@ -2471,10 +2473,13 @@ function App() {
                         title: wo.title,
                         instructions: wo.instructions,
                         billingDescription: savedBillingDesc,
-                        editExpenses: exps.map((e: WorkOrderExpense) => ({
-                          ...e,
-                          markup: e.category === 'Part' ? 10 : 0
-                        })),
+                        editExpenses: exps.map((e: WorkOrderExpense) => {
+                          const markup = e.category === 'Part' ? 10 : 0;
+                          const totalWithMarkup = e.category === 'Part'
+                            ? (parseFloat(e.quantity) * parseFloat(e.unitCost) * (1 + markup / 100)).toFixed(2)
+                            : e.totalCost;
+                          return { ...e, markup, totalCost: totalWithMarkup };
+                        }),
                         expensesLoading: false
                       });
                     }}>✏️ Edit</button>
@@ -2517,7 +2522,7 @@ function App() {
                 });
                 // Update expenses: delete all existing, recreate with updated values
                 for (const exp of editInvoiceForm.editExpenses) {
-                  await api.deleteWorkOrderExpense(exp.id);
+                  if (exp.id > 0) await api.deleteWorkOrderExpense(exp.id);
                 }
                 for (const exp of editInvoiceForm.editExpenses) {
                   await api.createWorkOrderExpense(editingInvoiceWO.number, {
@@ -2637,6 +2642,26 @@ function App() {
                     </div>
                   </div>
                 )}
+                <div>
+                  <button type="button" style={{ background: '#e8f0fe', color: '#1a3a7a', border: '1px solid #b0c4f0', borderRadius: 6, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => setEditInvoiceForm(p => ({
+                      ...p,
+                      editExpenses: [...p.editExpenses, {
+                        id: -Date.now(),
+                        workOrderNumber: editingInvoiceWO?.number || '',
+                        description: 'Service Fee (Card/Pay Link)',
+                        category: 'Fee',
+                        quantity: '1',
+                        unitCost: '3.00',
+                        totalCost: '3.00',
+                        vendor: '',
+                        partNumber: '',
+                        markup: 0,
+                      }]
+                    }))}>
+                    ➕ Add Service Fee ($3.00)
+                  </button>
+                </div>
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button type="submit" style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>✓ Save</button>
@@ -3212,10 +3237,12 @@ function App() {
     ]},
   ];
 
-  const billingItems = [
+  const billingDirectItems = [
     { label: 'Closed Work Orders', page: 'closedworkorders' },
-    { label: 'Deleted Work Orders', page: 'deletedworkorders' },
     { label: 'Invoice List', page: 'invoicelist' },
+  ];
+  const billingArchiveItems = [
+    { label: 'Deleted Work Orders', page: 'deletedworkorders' },
     { label: 'Paid Invoices', page: 'paidinvoices' },
   ];
 
@@ -3324,13 +3351,33 @@ function App() {
             </button>
             {homeMenu === 'billing' && (
               <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
-                {billingItems.map(item => (
+                {billingDirectItems.map(item => (
                   <button key={item.page} style={dropItemStyle}
-                    onClick={() => { setPage(item.page); setHomeMenu(null); }}
+                    onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                   >{item.label}</button>
                 ))}
+                {/* Archive submenu */}
+                <div style={{ position: 'relative' }}
+                  onMouseEnter={() => setHomeSubMenu('billingArchive')}
+                  onMouseLeave={() => setHomeSubMenu(null)}
+                >
+                  <button style={{ ...dropItemStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: homeSubMenu === 'billingArchive' ? '#f0f4ff' : 'none', width: '100%' }}>
+                    Archive <span style={{ opacity: 0.5, fontSize: 11 }}>▶</span>
+                  </button>
+                  {homeSubMenu === 'billingArchive' && (
+                    <div style={{ ...dropdownStyle, left: '100%', top: 0 }}>
+                      {billingArchiveItems.map(item => (
+                        <button key={item.page} style={dropItemStyle}
+                          onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                        >{item.label}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
