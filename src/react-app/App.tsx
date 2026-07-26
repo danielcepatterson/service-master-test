@@ -2722,7 +2722,6 @@ function App() {
   if (page === 'reportrevenue') {
     const now = new Date();
     const thisMonth = now.toISOString().slice(0, 7);
-    const thisYear = String(now.getFullYear());
     const revenueWOs = workOrders.filter(w => ['invoiced','sent','paid','nocharge'].includes(w.status));
     const byMonth: Record<string, number> = {};
     allExpenses.filter(e => ['invoiced','sent','paid'].includes(e.status)).forEach(e => {
