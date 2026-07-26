@@ -280,6 +280,7 @@ function App() {
   const [dayOffForm, setDayOffForm] = React.useState({ userId: 0, date: '', reason: '', type: 'PTO' });
   const [teamLoading, setTeamLoading] = React.useState(false);
   const [allExpenses, setAllExpenses] = React.useState<{ total_cost: string; created_at: string; status: string; scheduled_date: string }[]>([]);
+  const [kpiRange, setKpiRange] = React.useState<'alltime'|'year'|'month'|'week'|'day'>('alltime');
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -3645,7 +3646,23 @@ function App() {
   const allTimeWOs = workOrders.length;
   const activeWOs = workOrders.filter(w => w.status === 'active').length;
   const completedWOs = workOrders.filter(w => w.status === 'completed').length;
-  const closedWOs = workOrders.filter(w => w.status === 'closed' || w.status === 'invoiced' || w.status === 'paid' || w.status === 'nocharge').length;
+  const closedWOs = workOrders.filter(w => w.status === 'closed').length;
+  const invoicedWOs = workOrders.filter(w => w.status === 'invoiced' || w.status === 'sent' || w.status === 'nocharge').length;
+  const draftWOs = workOrders.filter(w => w.status === 'draft').length;
+
+  // KPI range filter helpers
+  const kpiRangeStart = (() => {
+    const now = new Date();
+    if (kpiRange === 'day') return now.toISOString().slice(0,10);
+    if (kpiRange === 'week') { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0,10); }
+    if (kpiRange === 'month') return now.toISOString().slice(0,7) + '-01';
+    if (kpiRange === 'year') return now.getFullYear() + '-01-01';
+    return null;
+  })();
+  const filterByRange = (wos: typeof workOrders) =>
+    kpiRangeStart ? wos.filter(w => (w.scheduledDate || '') >= kpiRangeStart) : wos;
+  const rangedTotal = filterByRange(workOrders).length;
+  const rangedDraft = filterByRange(workOrders.filter(w => w.status === 'draft')).length;
 
   const dateStr = clockTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const timeStr = clockTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
@@ -3804,88 +3821,88 @@ function App() {
       {/* Dashboard Body */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 20px' }}>
 
-        {/* Dashboard top row: KPIs left, Weather+Clock right */}
+        {/* Dashboard top row: KPIs left, Weather+Widgets+Clock right */}
         <div style={{ display: 'flex', gap: 20, marginBottom: 32, alignItems: 'stretch', flexWrap: 'wrap' }}>
-          {/* KPI Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, flex: '1 1 340px' }}>
-            {([
-              { label: 'All-Time Work Orders', value: allTimeWOs, color: '#1a3a7a', page: null },
-              { label: 'Active', value: activeWOs, color: '#0099FF', page: 'workorderlist' },
-              { label: 'Completed', value: completedWOs, color: '#2a9d2a', page: 'completedworkorders' },
-              { label: 'Closed / Invoiced', value: closedWOs, color: '#888', page: 'closedworkorders' },
-            ] as { label: string; value: number; color: string; page: string | null }[]).map(kpi => (
-              <div key={kpi.label}
-                onClick={() => kpi.page && setPage(kpi.page)}
-                style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${kpi.color}`, cursor: kpi.page ? 'pointer' : 'default', transition: 'box-shadow 0.15s' }}
-                onMouseEnter={e => { if (kpi.page) (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(26,58,122,0.18)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(26,58,122,0.08)'; }}
-              >
-                <div style={{ fontSize: 38, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
-                <div style={{ fontSize: 13, color: '#555', marginTop: 4, fontWeight: 500 }}>{kpi.label}</div>
-              </div>
-            ))}
+
+          {/* KPI Cards — 2 rows × 3 cols */}
+          <div style={{ flex: '1 1 420px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Range selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: '#888', fontWeight: 600 }}>Show:</span>
+              {(['alltime','year','month','week','day'] as const).map(r => (
+                <button key={r} onClick={() => setKpiRange(r)}
+                  style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                    background: kpiRange === r ? '#1a3a7a' : '#e8edf8', color: kpiRange === r ? '#fff' : '#555' }}>
+                  {r === 'alltime' ? 'All Time' : r.charAt(0).toUpperCase() + r.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {([
+                { label: kpiRange === 'alltime' ? 'All-Time WOs' : `WOs (${kpiRange})`, value: kpiRange === 'alltime' ? allTimeWOs : rangedTotal, color: '#1a3a7a', page: null },
+                { label: kpiRange === 'alltime' ? 'Draft' : `Drafts (${kpiRange})`, value: kpiRange === 'alltime' ? draftWOs : rangedDraft, color: '#9b59b6', page: 'workorderlistdraft' },
+                { label: 'Active', value: activeWOs, color: '#0099FF', page: 'workorderlist' },
+                { label: 'Completed', value: completedWOs, color: '#2a9d2a', page: 'completedworkorders' },
+                { label: 'Closed', value: closedWOs, color: '#888', page: 'closedworkorders' },
+                { label: 'Invoiced', value: invoicedWOs, color: '#e67e22', page: 'invoicelist' },
+              ] as { label: string; value: number; color: string; page: string | null }[]).map(kpi => (
+                <div key={kpi.label}
+                  onClick={() => kpi.page && setPage(kpi.page)}
+                  style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${kpi.color}`, cursor: kpi.page ? 'pointer' : 'default', transition: 'box-shadow 0.15s' }}
+                  onMouseEnter={e => { if (kpi.page) (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(26,58,122,0.18)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(26,58,122,0.08)'; }}
+                >
+                  <div style={{ fontSize: 32, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
+                  <div style={{ fontSize: 12, color: '#555', marginTop: 3, fontWeight: 500 }}>{kpi.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Weather + Clock + Widgets */}
-          <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Clock */}
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 26, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
-              <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{dateStr}</div>
-            </div>
-
-            {/* Mini widgets row */}
+          {/* Right card: widgets + clock on same row, then weather below */}
+          <div style={{ background: '#fff', borderRadius: 12, padding: '14px 18px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Widgets + Clock in one row */}
             {(() => {
               const todayStr2 = new Date().toISOString().slice(0, 10);
               const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0,10); })();
               const monthStart = todayStr2.slice(0, 7) + '-01';
-
-              // Revenue pulse — sum expenses from invoiced/sent/paid WOs
-              const revenueFilter = (exp: { total_cost: string; status: string; scheduled_date: string }) =>
-                ['invoiced','sent','paid'].includes(exp.status);
-              const sumAmt = (exps: typeof allExpenses) =>
-                exps.reduce((s, e) => s + (parseFloat(e.total_cost) || 0), 0);
+              const revenueFilter = (exp: { status: string }) => ['invoiced','sent','paid'].includes(exp.status);
+              const sumAmt = (exps: typeof allExpenses) => exps.reduce((s, e) => s + (parseFloat(e.total_cost) || 0), 0);
               const dailyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date === todayStr2));
               const weeklyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date >= weekStart));
               const monthlyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date >= monthStart));
-
-              // Team on clock today
               const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
               const onClock = teamProfiles.filter(p => p.schedule && p.schedule[dayName]);
-
+              const fmt$ = (v: number) => v > 0 ? `$${v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)}` : '—';
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   {/* Team on Clock */}
-                  <div style={{ background: '#f0f4ff', borderRadius: 10, padding: '10px 14px', border: '1px solid #d0d8f0' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>👥 On Clock Today</div>
+                  <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '8px 10px', border: '1px solid #d0d8f0', flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>👥 On Clock</div>
                     {onClock.length === 0
-                      ? <div style={{ fontSize: 12, color: '#aaa' }}>No one scheduled</div>
+                      ? <div style={{ fontSize: 11, color: '#aaa' }}>None today</div>
                       : onClock.map(p => (
-                          <div key={p.userId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
-                            <span style={{ fontWeight: 600, color: '#222' }}>{p.username}</span>
-                            <span style={{ color: '#555' }}>{p.schedule[dayName].start}–{p.schedule[dayName].end}</span>
+                          <div key={p.userId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2, gap: 4 }}>
+                            <span style={{ fontWeight: 600, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.username}</span>
+                            <span style={{ color: '#555', whiteSpace: 'nowrap', fontSize: 10 }}>{p.schedule[dayName].start}–{p.schedule[dayName].end}</span>
                           </div>
                         ))
                     }
                   </div>
-
                   {/* Revenue Pulse */}
-                  <div style={{ background: '#f0fff4', borderRadius: 10, padding: '10px 14px', border: '1px solid #b0e0c0' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#2a9d2a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>📊 Revenue Pulse</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <span style={{ color: '#555' }}>Today</span>
-                        <span style={{ fontWeight: 700, color: dailyRev > 0 ? '#2a9d2a' : '#aaa' }}>{dailyRev > 0 ? `$${dailyRev.toFixed(2)}` : '—'}</span>
+                  <div style={{ background: '#f0fff4', borderRadius: 8, padding: '8px 10px', border: '1px solid #b0e0c0', flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#2a9d2a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>📊 Revenue</div>
+                    {[['Day', dailyRev], ['Week', weeklyRev], ['Month', monthlyRev]].map(([label, val]) => (
+                      <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                        <span style={{ color: '#666' }}>{label}</span>
+                        <span style={{ fontWeight: 700, color: (val as number) > 0 ? '#2a9d2a' : '#bbb' }}>{fmt$(val as number)}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <span style={{ color: '#555' }}>This Week</span>
-                        <span style={{ fontWeight: 700, color: weeklyRev > 0 ? '#2a9d2a' : '#aaa' }}>{weeklyRev > 0 ? `$${weeklyRev.toFixed(2)}` : '—'}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                        <span style={{ color: '#555' }}>This Month</span>
-                        <span style={{ fontWeight: 700, color: monthlyRev > 0 ? '#2a9d2a' : '#aaa' }}>{monthlyRev > 0 ? `$${monthlyRev.toFixed(2)}` : '—'}</span>
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+                  {/* Clock */}
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#1a3a7a', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>{timeStr}</div>
+                    <div style={{ fontSize: 11, color: '#666', marginTop: 2, whiteSpace: 'nowrap' }}>{dateStr}</div>
                   </div>
                 </div>
               );
@@ -3905,21 +3922,21 @@ function App() {
                 if (code <= 99) return '⛈️';
                 return '🌤️';
               };
-              const dayLabel = (dateStr: string, i: number) => {
+              const dayLabel = (ds: string, i: number) => {
                 if (i === 0) return 'Today';
                 if (i === 1) return 'Tom';
-                return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+                return new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
               };
               return (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>Wilmington, NC — 7-Day Forecast</div>
-                  <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, justifyContent: 'center' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, textAlign: 'center' }}>Wilmington, NC — 7-Day Forecast</div>
+                  <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2, justifyContent: 'center' }}>
                     {weather.map((day, i) => (
-                      <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 52, background: i === 0 ? '#e8f0fe' : '#f8f9ff', borderRadius: 8, padding: '8px 6px', border: i === 0 ? '1px solid #b0c4f0' : '1px solid #e8eaf0' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#1a3a7a', marginBottom: 2 }}>{dayLabel(day.date, i)}</div>
-                        <div style={{ fontSize: 20, lineHeight: 1.2 }}>{wmoIcon(day.code)}</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#c00', marginTop: 3 }}>{day.maxTemp}°</div>
-                        <div style={{ fontSize: 11, color: '#666' }}>{day.minTemp}°</div>
+                      <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 46, background: i === 0 ? '#e8f0fe' : '#f8f9ff', borderRadius: 7, padding: '6px 4px', border: i === 0 ? '1px solid #b0c4f0' : '1px solid #e8eaf0' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: '#1a3a7a', marginBottom: 1 }}>{dayLabel(day.date, i)}</div>
+                        <div style={{ fontSize: 17, lineHeight: 1.2 }}>{wmoIcon(day.code)}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#c00', marginTop: 2 }}>{day.maxTemp}°</div>
+                        <div style={{ fontSize: 10, color: '#666' }}>{day.minTemp}°</div>
                       </div>
                     ))}
                   </div>
