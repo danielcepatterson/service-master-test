@@ -883,6 +883,18 @@ app.post("/api/team/days-off", async (c) => {
   const res = await c.env.DB.prepare(
     "INSERT INTO days_off (user_id, date, reason, type, status, created_at) VALUES (?, ?, ?, ?, 'approved', ?)"
   ).bind(userId, date, reason || '', type || 'PTO', now).run();
+  // Deduct from balance
+  if (type === 'PTO') {
+    await c.env.DB.prepare(`INSERT INTO team_profiles (user_id, schedule, pay_rate, pto_total, pto_used, sick_total, sick_used, notes, updated_at)
+      VALUES (?, '{}', '0', 0, 1, 0, 0, '', ?)
+      ON CONFLICT(user_id) DO UPDATE SET pto_used = pto_used + 1, updated_at = excluded.updated_at`
+    ).bind(userId, now).run();
+  } else if (type === 'Sick') {
+    await c.env.DB.prepare(`INSERT INTO team_profiles (user_id, schedule, pay_rate, pto_total, pto_used, sick_total, sick_used, notes, updated_at)
+      VALUES (?, '{}', '0', 0, 0, 0, 1, '', ?)
+      ON CONFLICT(user_id) DO UPDATE SET sick_used = sick_used + 1, updated_at = excluded.updated_at`
+    ).bind(userId, now).run();
+  }
   return c.json({ ok: true, id: res.meta?.last_row_id });
 });
 
@@ -890,7 +902,17 @@ app.delete("/api/team/days-off/:id", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
   const id = c.req.param("id");
+  // Look up type + user before deleting to restore balance
+  const row = await c.env.DB.prepare("SELECT user_id, type FROM days_off WHERE id = ?").bind(id).first();
   await c.env.DB.prepare("DELETE FROM days_off WHERE id = ?").bind(id).run();
+  if (row) {
+    const now = new Date().toISOString();
+    if (row.type === 'PTO') {
+      await c.env.DB.prepare(`UPDATE team_profiles SET pto_used = MAX(0, pto_used - 1), updated_at = ? WHERE user_id = ?`).bind(now, row.user_id).run();
+    } else if (row.type === 'Sick') {
+      await c.env.DB.prepare(`UPDATE team_profiles SET sick_used = MAX(0, sick_used - 1), updated_at = ? WHERE user_id = ?`).bind(now, row.user_id).run();
+    }
+  }
   return c.json({ ok: true });
 });
 

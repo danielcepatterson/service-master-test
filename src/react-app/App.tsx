@@ -2387,57 +2387,75 @@ function App() {
 
   // ── Team Info ────────────────────────────────────────────────────────────
   if (page === 'teaminfo') {
-    const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const fmt12 = (t: string) => {
+      if (!t) return '';
+      const [h, m] = t.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
+    };
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', padding: '1rem' }}>
-        <h1>Team Info</h1>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '28px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 20 }}>Team Info</h1>
         {teamLoading && <p>Loading...</p>}
         {!teamLoading && teamProfiles.length === 0 && <p style={{ color: '#888' }}>No team members found.</p>}
-        {!teamLoading && teamProfiles.map(profile => (
-          <div key={profile.userId} style={{ background: '#fff', border: '1px solid #d0d8f0', borderRadius: 12, padding: 20, marginBottom: 16, width: '100%', maxWidth: 860, boxShadow: '0 2px 8px rgba(26,58,122,0.07)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div>
-                <span style={{ fontWeight: 800, fontSize: 17, color: '#1a3a7a' }}>{profile.username}</span>
-                <span style={{ marginLeft: 10, background: '#e8f0fe', color: '#1a3a7a', borderRadius: 8, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>{profile.userType}</span>
-              </div>
-              <button onClick={() => { setEditingProfile(profile); setProfileForm({ ...profile, schedule: { ...profile.schedule } }); }}
-                style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', cursor: 'pointer', fontWeight: 600 }}>✏️ Edit</button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 12 }}>
-              <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>Pay Rate</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#1a3a7a' }}>${profile.payRate}/hr</div>
-              </div>
-              <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>PTO</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#2a9d2a' }}>{profile.ptoTotal - profile.ptoUsed} left</div>
-                <div style={{ fontSize: 11, color: '#888' }}>{profile.ptoUsed} used / {profile.ptoTotal} total days</div>
-              </div>
-              <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase' }}>Sick Days</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#ff9900' }}>{profile.sickTotal - profile.sickUsed} left</div>
-                <div style={{ fontSize: 11, color: '#888' }}>{profile.sickUsed} used / {profile.sickTotal} total days</div>
-              </div>
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#1a3a7a', marginBottom: 6 }}>Weekly Schedule</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {DAYS.map(day => {
-                  const s = profile.schedule[day];
-                  return s ? (
-                    <div key={day} style={{ background: '#1a3a7a', color: '#fff', borderRadius: 6, padding: '4px 10px', fontSize: 12 }}>
-                      <strong>{day.slice(0,3)}</strong> {s.start}–{s.end} ({s.hours}h)
-                    </div>
-                  ) : (
-                    <div key={day} style={{ background: '#eee', color: '#aaa', borderRadius: 6, padding: '4px 10px', fontSize: 12 }}>{day.slice(0,3)}</div>
-                  );
-                })}
-              </div>
-            </div>
-            {profile.notes && <div style={{ background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6, padding: '8px 12px', fontSize: 13, color: '#555' }}>📝 {profile.notes}</div>}
+        {!teamLoading && teamProfiles.length > 0 && (
+          <div style={{ overflowX: 'auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#1a3a7a', color: '#fff' }}>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', whiteSpace: 'nowrap', fontWeight: 700, fontSize: 13 }}>Team Member</th>
+                  {DAYS.map(d => <th key={d} style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>{d.slice(0,3)}</th>)}
+                  <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>Pay Rate</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>PTO Left</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>Sick Left</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, fontSize: 12 }}>Edit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamProfiles.map((profile, idx) => (
+                  <tr key={profile.userId} style={{ background: idx % 2 === 0 ? '#f7f9ff' : '#fff', borderBottom: '1px solid #e8edf8' }}>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 14 }}>{profile.username}</div>
+                      <div style={{ fontSize: 11, color: '#888', textTransform: 'capitalize' }}>{profile.userType}</div>
+                      {profile.notes && <div style={{ fontSize: 11, color: '#999', fontStyle: 'italic', marginTop: 2 }}>{profile.notes.slice(0,40)}{profile.notes.length>40?'…':''}</div>}
+                    </td>
+                    {DAYS.map(day => {
+                      const s = profile.schedule[day];
+                      return (
+                        <td key={day} style={{ padding: '8px 6px', textAlign: 'center', verticalAlign: 'middle' }}>
+                          {s ? (
+                            <div style={{ background: '#1a3a7a', color: '#fff', borderRadius: 6, padding: '3px 6px', fontSize: 11, lineHeight: 1.4 }}>
+                              <div style={{ fontWeight: 700 }}>{fmt12(s.start)}</div>
+                              <div style={{ opacity: 0.8 }}>{fmt12(s.end)}</div>
+                              <div style={{ fontSize: 10, opacity: 0.7 }}>{s.hours}h</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#ddd', fontSize: 16 }}>—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: '#1a3a7a', whiteSpace: 'nowrap' }}>${profile.payRate}/hr</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: profile.ptoTotal - profile.ptoUsed > 0 ? '#2a9d2a' : '#c00', fontSize: 15 }}>{profile.ptoTotal - profile.ptoUsed}</div>
+                      <div style={{ fontSize: 10, color: '#aaa' }}>{profile.ptoUsed}/{profile.ptoTotal}</div>
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: profile.sickTotal - profile.sickUsed > 0 ? '#e67e22' : '#c00', fontSize: 15 }}>{profile.sickTotal - profile.sickUsed}</div>
+                      <div style={{ fontSize: 10, color: '#aaa' }}>{profile.sickUsed}/{profile.sickTotal}</div>
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      <button onClick={() => { setEditingProfile(profile); setProfileForm({ ...profile, schedule: { ...profile.schedule } }); }}
+                        style={{ background: '#f0f4ff', color: '#1a3a7a', border: '1px solid #c0d0f0', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>✏️ Edit</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-        <button onClick={() => setPage('home')} style={{ marginTop: 16 }}>Return to Home</button>
+        )}
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
 
         {/* Edit Profile Modal */}
         {editingProfile && profileForm && (
@@ -4672,6 +4690,7 @@ function App() {
               const weeklyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date >= weekStart));
               const monthlyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date >= monthStart));
               const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+              const fmt12 = (t: string) => { if (!t) return ''; const [h, m] = t.split(':').map(Number); return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`; };
               const onClock = teamProfiles.filter(p => p.schedule && p.schedule[dayName]);
               const fmt$ = (v: number) => v > 0 ? `$${v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)}` : '—';
               return (
@@ -4684,7 +4703,7 @@ function App() {
                       : onClock.map(p => (
                           <div key={p.userId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2, gap: 4 }}>
                             <span style={{ fontWeight: 600, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.username}</span>
-                            <span style={{ color: '#555', whiteSpace: 'nowrap', fontSize: 10 }}>{p.schedule[dayName].start}–{p.schedule[dayName].end}</span>
+                            <span style={{ color: '#555', whiteSpace: 'nowrap', fontSize: 10 }}>{fmt12(p.schedule[dayName].start)}–{fmt12(p.schedule[dayName].end)}</span>
                           </div>
                         ))
                     }
@@ -4849,11 +4868,17 @@ function App() {
                   const ds = d.toISOString().slice(0, 10);
                   const wos = woByDate[ds] || [];
                   const isToday = ds === todayStr;
+                  const offToday = daysOff.filter(o => o.date === ds);
                   return (
                     <div key={ds} style={{ background: isToday ? '#e8f4ff' : '#fff', minHeight: 160, padding: '6px 8px', borderTop: isToday ? '2px solid #0099FF' : 'none' }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? '#0099FF' : '#1a3a7a', marginBottom: 6 }}>
                         {dayNames[d.getDay()]} {d.getDate()}
                       </div>
+                      {offToday.map(o => (
+                        <div key={`off-${o.id}`} style={{ background: '#fff3cd', color: '#856404', borderRadius: 4, padding: '3px 6px', fontSize: 10, marginBottom: 3, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                          🏖 {o.username} <span style={{ fontWeight: 400, opacity: 0.8 }}>({o.type})</span>
+                        </div>
+                      ))}
                       {wos.map(wo => (
                         <div key={wo.number}
                           onClick={() => openWODetail(wo, 'home')}
@@ -4864,7 +4889,7 @@ function App() {
                           <div style={{ opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 10 }}>{wo.propertyName}{wo.scheduledTime ? ' / ' + wo.scheduledTime : ''}</div>
                         </div>
                       ))}
-                      {wos.length === 0 && <div style={{ fontSize: 11, color: '#ccc' }}>—</div>}
+                      {wos.length === 0 && offToday.length === 0 && <div style={{ fontSize: 11, color: '#ccc' }}>—</div>}
                     </div>
                   );
                 })}
