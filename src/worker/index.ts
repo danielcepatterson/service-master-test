@@ -986,4 +986,34 @@ app.delete("/api/internal-services/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// ─── Personal Settings ──────────────────────────────────────
+app.put("/api/auth/me", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const { newUsername, currentPassword, newPassword } = await c.req.json();
+  // Verify current password
+  const row = await c.env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(user.id).first();
+  if (!row) return c.json({ error: 'User not found' }, 404);
+  const encoder = new TextEncoder();
+  const checkHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(currentPassword || '')))).map(b => b.toString(16).padStart(2,'0')).join('');
+  if (checkHash !== row.password_hash) return c.json({ error: 'Current password is incorrect' }, 400);
+  const updates: string[] = [];
+  const binds: (string | number)[] = [];
+  if (newUsername && newUsername !== user.username) {
+    const existing = await c.env.DB.prepare("SELECT id FROM users WHERE username = ? AND id != ?").bind(newUsername, user.id).first();
+    if (existing) return c.json({ error: 'Username already taken' }, 400);
+    updates.push('username = ?'); binds.push(newUsername);
+  }
+  if (newPassword) {
+    if (newPassword.length < 4) return c.json({ error: 'New password must be at least 4 characters' }, 400);
+    const newHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(newPassword)))).map(b => b.toString(16).padStart(2,'0')).join('');
+    updates.push('password_hash = ?'); binds.push(newHash);
+  }
+  if (updates.length === 0) return c.json({ ok: true, message: 'No changes made' });
+  binds.push(user.id);
+  await c.env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...binds).run();
+  await writeLog(c.env.DB, user.username, 'update', 'user', user.username, 'Updated personal settings');
+  return c.json({ ok: true });
+});
+
 export default app;

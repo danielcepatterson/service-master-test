@@ -296,6 +296,11 @@ function App() {
   const [internalForm, setInternalForm] = React.useState<Omit<InternalService,'id'>>(blankInternal());
   const [internalTab, setInternalTab] = React.useState<'fleet'|'general'>('general');
   const [recurringTab, setRecurringTab] = React.useState<'active'|'inactive'>('active');
+
+  // Personal Settings
+  const [personalForm, setPersonalForm] = React.useState({ newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [personalSaving, setPersonalSaving] = React.useState(false);
+  const [personalMsg, setPersonalMsg] = React.useState<{ type: 'success'|'error'; text: string } | null>(null);
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -3212,6 +3217,105 @@ function App() {
     );
   }
 
+  // ── Settings: Personal ──────────────────────────────────────────────────
+  if (page === 'settingspersonal') {
+    const inputS: React.CSSProperties = { display: 'block', width: '100%', padding: '8px 12px', border: '1px solid #c0cce0', borderRadius: 7, fontSize: 14, boxSizing: 'border-box', marginTop: 5 };
+    const labelS: React.CSSProperties = { fontWeight: 600, fontSize: 13, color: '#333', display: 'block', marginBottom: 12 };
+
+    const handlePersonalSave = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setPersonalMsg(null);
+      if (personalForm.newPassword && personalForm.newPassword !== personalForm.confirmPassword) {
+        setPersonalMsg({ type: 'error', text: 'New passwords do not match.' }); return;
+      }
+      if (!personalForm.currentPassword) {
+        setPersonalMsg({ type: 'error', text: 'Current password is required to save changes.' }); return;
+      }
+      setPersonalSaving(true);
+      try {
+        const res = await api.updateProfile({
+          newUsername: personalForm.newUsername.trim() || undefined,
+          currentPassword: personalForm.currentPassword,
+          newPassword: personalForm.newPassword || undefined,
+        });
+        if (res.error) { setPersonalMsg({ type: 'error', text: res.error }); return; }
+        setPersonalMsg({ type: 'success', text: 'Settings saved! Please log in again if you changed your username or password.' });
+        setPersonalForm({ newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+        // Update displayed username if changed
+        if (personalForm.newUsername.trim() && authUser) {
+          setAuthUser({ ...authUser, username: personalForm.newUsername.trim() });
+        }
+      } catch { setPersonalMsg({ type: 'error', text: 'Failed to save. Please try again.' }); }
+      finally { setPersonalSaving(false); }
+    };
+
+    return (
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>👤 Personal Settings</h1>
+        <p style={{ color: '#666', marginBottom: 28 }}>Update your account username and password.</p>
+
+        <div style={{ background: '#fff', borderRadius: 12, padding: '28px 32px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, padding: '14px 18px', background: '#f0f4ff', borderRadius: 10, border: '1px solid #d0d8f0' }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#1a3a7a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#fff', fontWeight: 700, flexShrink: 0 }}>
+              {authUser?.username?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 17, color: '#1a3a7a' }}>{authUser?.username}</div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 2, textTransform: 'capitalize' }}>{authUser?.userType}</div>
+            </div>
+          </div>
+
+          {personalMsg && (
+            <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 20, fontSize: 13, fontWeight: 600,
+              background: personalMsg.type === 'success' ? '#d4edda' : '#fde8e8',
+              color: personalMsg.type === 'success' ? '#155724' : '#c00',
+              border: `1px solid ${personalMsg.type === 'success' ? '#b0e0c0' : '#f5c0c0'}` }}>
+              {personalMsg.type === 'success' ? '✓ ' : '⚠ '}{personalMsg.text}
+            </div>
+          )}
+
+          <form onSubmit={handlePersonalSave} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 20, marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>Change Username</div>
+              <label style={labelS}>New Username
+                <input style={inputS} value={personalForm.newUsername} onChange={e => setPersonalForm(p => ({ ...p, newUsername: e.target.value }))}
+                  placeholder={authUser?.username || ''} autoComplete="username" />
+                <span style={{ fontSize: 12, color: '#aaa', marginTop: 4, display: 'block' }}>Leave blank to keep current username</span>
+              </label>
+            </div>
+
+            <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 20, marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>Change Password</div>
+              <label style={labelS}>New Password
+                <input type="password" style={inputS} value={personalForm.newPassword} onChange={e => setPersonalForm(p => ({ ...p, newPassword: e.target.value }))}
+                  placeholder="Leave blank to keep current password" autoComplete="new-password" />
+              </label>
+              <label style={labelS}>Confirm New Password
+                <input type="password" style={inputS} value={personalForm.confirmPassword} onChange={e => setPersonalForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                  placeholder="Repeat new password" autoComplete="new-password" />
+              </label>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#c00', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>Confirm Identity</div>
+              <label style={labelS}>Current Password <span style={{ color: '#c00' }}>*</span>
+                <input type="password" style={{ ...inputS, border: '1px solid #f5a0a0' }} value={personalForm.currentPassword}
+                  onChange={e => setPersonalForm(p => ({ ...p, currentPassword: e.target.value }))}
+                  placeholder="Required to save any changes" autoComplete="current-password" required />
+              </label>
+            </div>
+
+            <button type="submit" disabled={personalSaving}
+              style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 28px', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 8, alignSelf: 'flex-start' }}>
+              {personalSaving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </form>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
   // ── Settings: Company Info ─────────────────────────────────────────────────
   if (page === 'settingscompany') {
     return (
@@ -4444,32 +4548,67 @@ function App() {
             )}
           </div>
 
-          {/* ── Settings (admin/mgr) ── */}
-          {(authUser.userType === 'admin' || authUser.userType === 'mgr') && (
-            <div style={{ position: 'relative' }}>
-              <button style={menuBtnStyle(homeMenu === 'settings')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'settings' ? null : 'settings'); setHomeSubMenu(null); }}>
-                Settings <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'settings' ? '▲' : '▼'}</span>
-              </button>
-              {homeMenu === 'settings' && (
-                <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
-                  {[
-                    { label: 'Company Info', page: 'settingscompany' },
-                    { label: 'Tax & Fees', page: 'settingstaxfees' },
-                    { label: 'Markup & Pricing', page: 'settingspricing' },
-                    { label: 'Pay Period Config', page: 'settingspayperiod' },
-                    { label: 'User Management', page: 'userlist' },
-                    { label: 'Audit Log', page: 'systemlogs' },
-                  ].map(item => (
-                    <button key={item.page} style={dropItemStyle}
-                      onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >{item.label}</button>
-                  ))}
+          {/* ── Settings ── */}
+          <div style={{ position: 'relative' }}>
+            <button style={menuBtnStyle(homeMenu === 'settings')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'settings' ? null : 'settings'); setHomeSubMenu(null); }}>
+              Settings <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'settings' ? '▲' : '▼'}</span>
+            </button>
+            {homeMenu === 'settings' && (
+              <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                {/* Company Settings flyout — admin/mgr only */}
+                {(authUser.userType === 'admin' || authUser.userType === 'mgr') && (
+                  <div style={{ position: 'relative' }}
+                    onMouseEnter={() => setHomeSubMenu('companySettings')}
+                    onMouseLeave={() => setHomeSubMenu(null)}
+                  >
+                    <button style={{ ...dropItemStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: homeSubMenu === 'companySettings' ? '#f0f4ff' : 'none', width: '100%' }}>
+                      🏢 Company Settings <span style={{ opacity: 0.5, fontSize: 11 }}>▶</span>
+                    </button>
+                    {homeSubMenu === 'companySettings' && (
+                      <div style={{ ...dropdownStyle, left: '100%', top: 0 }}>
+                        {[
+                          { label: 'Company Info', page: 'settingscompany' },
+                          { label: 'Tax & Fees', page: 'settingstaxfees' },
+                          { label: 'Markup & Pricing', page: 'settingspricing' },
+                          { label: 'Pay Period Config', page: 'settingspayperiod' },
+                          { label: 'User Management', page: 'userlist' },
+                          { label: 'Audit Log', page: 'systemlogs' },
+                        ].map(item => (
+                          <button key={item.page} style={dropItemStyle}
+                            onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                          >{item.label}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Personal Settings — all users */}
+                <div style={{ position: 'relative' }}
+                  onMouseEnter={() => setHomeSubMenu('personalSettings')}
+                  onMouseLeave={() => setHomeSubMenu(null)}
+                >
+                  <button style={{ ...dropItemStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: homeSubMenu === 'personalSettings' ? '#f0f4ff' : 'none', width: '100%' }}>
+                    👤 Personal Settings <span style={{ opacity: 0.5, fontSize: 11 }}>▶</span>
+                  </button>
+                  {homeSubMenu === 'personalSettings' && (
+                    <div style={{ ...dropdownStyle, left: '100%', top: 0 }}>
+                      {[
+                        { label: 'Account & Password', page: 'settingspersonal' },
+                      ].map(item => (
+                        <button key={item.page} style={dropItemStyle}
+                          onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                        >{item.label}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {/* User / Logout */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>

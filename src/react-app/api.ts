@@ -446,3 +446,9 @@ export async function deleteInternalService(id: number) {
   const res = await apiFetch(`/api/internal-services/${id}`, { method: "DELETE" });
   return res.json();
 }
+
+// ─── Personal Settings ──────────────────────────────────────
+export async function updateProfile(data: { newUsername?: string; currentPassword: string; newPassword?: string }) {
+  const res = await apiFetch('/api/auth/me', { method: 'PUT', body: JSON.stringify(data) });
+  return res.json();
+}
