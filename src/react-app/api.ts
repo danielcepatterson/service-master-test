@@ -368,6 +368,11 @@ export async function deleteWorkOrderExpense(expenseId: number) {
   return res.json();
 }
 
+export async function fetchAllExpenses() {
+  const res = await apiFetch("/api/expenses/all");
+  return res.json();
+}
+
 // ─── Team ─────────────────────────────────────────────────
 export async function fetchTeamProfiles() {
   const res = await apiFetch("/api/team/profiles");

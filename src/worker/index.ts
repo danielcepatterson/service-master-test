@@ -770,6 +770,19 @@ app.delete("/api/estimates/:number", async (c) => {
   return c.json({ ok: true });
 });
 
+// ─── All Expenses (for dashboard revenue) ───────────────
+app.get("/api/expenses/all", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const { results } = await c.env.DB.prepare(
+    `SELECT e.total_cost, e.created_at, w.status, w.scheduled_date
+     FROM work_order_expenses e
+     JOIN work_orders w ON e.work_order_number = w.number
+     ORDER BY e.created_at DESC`
+  ).all();
+  return c.json(results || []);
+});
+
 // ─── Work Order Expenses ──────────────────────────────────
 app.get("/api/work-orders/:number/expenses", async (c) => {
   const user = await getUser(c);

@@ -279,6 +279,7 @@ function App() {
   const [profileForm, setProfileForm] = React.useState<TeamProfile | null>(null);
   const [dayOffForm, setDayOffForm] = React.useState({ userId: 0, date: '', reason: '', type: 'PTO' });
   const [teamLoading, setTeamLoading] = React.useState(false);
+  const [allExpenses, setAllExpenses] = React.useState<{ total_cost: string; created_at: string; status: string; scheduled_date: string }[]>([]);
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -372,6 +373,15 @@ function App() {
       setNextWoNumber(num);
       const estNum = await api.fetchNextEstimateNumber();
       setNextEstimateNumber(estNum);
+      // Load dashboard widgets data
+      const [exps, profiles, offs] = await Promise.all([
+        api.fetchAllExpenses().catch(() => []),
+        api.fetchTeamProfiles().catch(() => []),
+        api.fetchDaysOff().catch(() => []),
+      ]);
+      setAllExpenses(exps);
+      setTeamProfiles(profiles);
+      setDaysOff(offs);
     } catch (e) {
       console.error("Failed to load data", e);
     }
@@ -3816,13 +3826,70 @@ function App() {
             ))}
           </div>
 
-          {/* Weather + Clock */}
+          {/* Weather + Clock + Widgets */}
           <div style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Clock */}
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 26, fontWeight: 700, color: '#1a3a7a', letterSpacing: 1 }}>{timeStr}</div>
               <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>{dateStr}</div>
             </div>
+
+            {/* Mini widgets row */}
+            {(() => {
+              const todayStr2 = new Date().toISOString().slice(0, 10);
+              const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d.toISOString().slice(0,10); })();
+              const monthStart = todayStr2.slice(0, 7) + '-01';
+
+              // Revenue pulse — sum expenses from invoiced/sent/paid WOs
+              const revenueFilter = (exp: { total_cost: string; status: string; scheduled_date: string }) =>
+                ['invoiced','sent','paid'].includes(exp.status);
+              const sumAmt = (exps: typeof allExpenses) =>
+                exps.reduce((s, e) => s + (parseFloat(e.total_cost) || 0), 0);
+              const dailyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date === todayStr2));
+              const weeklyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date >= weekStart));
+              const monthlyRev = sumAmt(allExpenses.filter(e => revenueFilter(e) && e.scheduled_date >= monthStart));
+
+              // Team on clock today
+              const dayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+              const onClock = teamProfiles.filter(p => p.schedule && p.schedule[dayName]);
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {/* Team on Clock */}
+                  <div style={{ background: '#f0f4ff', borderRadius: 10, padding: '10px 14px', border: '1px solid #d0d8f0' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>👥 On Clock Today</div>
+                    {onClock.length === 0
+                      ? <div style={{ fontSize: 12, color: '#aaa' }}>No one scheduled</div>
+                      : onClock.map(p => (
+                          <div key={p.userId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                            <span style={{ fontWeight: 600, color: '#222' }}>{p.username}</span>
+                            <span style={{ color: '#555' }}>{p.schedule[dayName].start}–{p.schedule[dayName].end}</span>
+                          </div>
+                        ))
+                    }
+                  </div>
+
+                  {/* Revenue Pulse */}
+                  <div style={{ background: '#f0fff4', borderRadius: 10, padding: '10px 14px', border: '1px solid #b0e0c0' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#2a9d2a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>📊 Revenue Pulse</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                        <span style={{ color: '#555' }}>Today</span>
+                        <span style={{ fontWeight: 700, color: dailyRev > 0 ? '#2a9d2a' : '#aaa' }}>{dailyRev > 0 ? `$${dailyRev.toFixed(2)}` : '—'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                        <span style={{ color: '#555' }}>This Week</span>
+                        <span style={{ fontWeight: 700, color: weeklyRev > 0 ? '#2a9d2a' : '#aaa' }}>{weeklyRev > 0 ? `$${weeklyRev.toFixed(2)}` : '—'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                        <span style={{ color: '#555' }}>This Month</span>
+                        <span style={{ fontWeight: 700, color: monthlyRev > 0 ? '#2a9d2a' : '#aaa' }}>{monthlyRev > 0 ? `$${monthlyRev.toFixed(2)}` : '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             {/* Weather */}
             {weather.length > 0 && (() => {
               const wmoIcon = (code: number) => {
