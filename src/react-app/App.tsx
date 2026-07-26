@@ -363,6 +363,13 @@ function App() {
         .catch(() => {})
         .finally(() => setTeamLoading(false));
     }
+    if ((page === 'recurringworkorders' || page === 'internalservices') && authUser) {
+      setRecurringLoading(true);
+      Promise.all([api.fetchRecurring(), api.fetchInternalServices()])
+        .then(([r, s]) => { setRecurringItems(r); setInternalServices(s); })
+        .catch(() => {})
+        .finally(() => setRecurringLoading(false));
+    }
   }, [page, authUser]);
 
   // ─── Load all data from API when user is authenticated ──
