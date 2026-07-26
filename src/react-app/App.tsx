@@ -3888,29 +3888,22 @@ function App() {
   }
 
   // Main dashboard/homepage UI (non-tech)
-  const listsSubMenus: { key: string; label: string; role?: string[]; items: { label: string; page: string; role?: string[] }[] }[] = [
-    { key: 'properties', label: 'Properties', items: [
-      { label: 'Property List', page: 'propertylist' },
-      { label: 'Create a Property', page: 'property' },
-    ]},
-    { key: 'vendors', label: 'Vendors', items: [
-      { label: 'Vendor List', page: 'vendorlist' },
-      { label: 'Create a Vendor', page: 'vendor' },
-    ]},
-    { key: 'purchases', label: 'Purchases', items: [
-      { label: 'Purchase List', page: 'purchaselist' },
-      { label: 'Create a Purchase', page: 'createpurchase' },
-    ]},
-    { key: 'inventory', label: 'Inventory', items: [
-      { label: 'Inventory List', page: 'inventorylist' },
-      { label: 'Create Inventory Item', page: 'createinventoryitem' },
-      { label: 'Create Category', page: 'createinventorycategory' },
-    ]},
-    { key: 'users', label: 'Users', role: ['mgr', 'admin'], items: [
-      { label: 'User List', page: 'userlist', role: ['mgr', 'admin'] },
-      { label: 'Add New User', page: 'adduser', role: ['mgr', 'admin'] },
-      { label: 'System Logs', page: 'systemlogs', role: ['admin'] },
-    ]},
+  const addNewItems: { label: string; page: string; role?: string[] }[] = [
+    { label: 'Create a Property', page: 'property' },
+    { label: 'Create a Vendor', page: 'vendor' },
+    { label: 'Create a Purchase', page: 'createpurchase' },
+    { label: 'Create Inventory Item', page: 'createinventoryitem' },
+    { label: 'Create Inventory Category', page: 'createinventorycategory' },
+    { label: 'Add New User', page: 'adduser', role: ['mgr', 'admin'] },
+  ];
+
+  const listItems: { label: string; page: string; role?: string[] }[] = [
+    { label: 'Property List', page: 'propertylist' },
+    { label: 'Vendor List', page: 'vendorlist' },
+    { label: 'Purchase List', page: 'purchaselist' },
+    { label: 'Inventory List', page: 'inventorylist' },
+    { label: 'User List', page: 'userlist', role: ['mgr', 'admin'] },
+    { label: 'System Logs', page: 'systemlogs', role: ['admin'] },
   ];
 
   const billingDirectItems = [
@@ -3982,37 +3975,21 @@ function App() {
             <img src="/logo.png" alt="Home" style={{ height: 44, objectFit: 'contain', display: 'block' }} />
           </button>
 
-          {/* ── Lists ── */}
+          {/* ── Add New ── */}
           <div style={{ position: 'relative' }}>
             <button style={menuBtnStyle(homeMenu === 'lists')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'lists' ? null : 'lists'); setHomeSubMenu(null); }}>
-              Lists <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'lists' ? '▲' : '▼'}</span>
+              Add New <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'lists' ? '▲' : '▼'}</span>
             </button>
             {homeMenu === 'lists' && (
               <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
-                {listsSubMenus
-                  .filter((sub: { key: string; label: string; role?: string[]; items: { label: string; page: string; role?: string[] }[] }) => !sub.role || sub.role.includes(authUser.userType))
-                  .map(sub => (
-                    <div key={sub.key} style={{ position: 'relative' }}
-                      onMouseEnter={() => setHomeSubMenu(sub.key)}
-                      onMouseLeave={() => setHomeSubMenu(null)}
-                    >
-                      <button style={{ ...dropItemStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: homeSubMenu === sub.key ? '#f0f4ff' : 'none', width: '100%' }}>
-                        {sub.label} <span style={{ opacity: 0.5, fontSize: 11 }}>▶</span>
-                      </button>
-                      {homeSubMenu === sub.key && (
-                        <div style={{ ...dropdownStyle, left: '100%', top: 0 }}>
-                          {sub.items
-                            .filter(item => !item.role || item.role.includes(authUser.userType))
-                            .map(item => (
-                              <button key={item.page} style={dropItemStyle}
-                                onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
-                                onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
-                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                              >{item.label}</button>
-                            ))}
-                        </div>
-                      )}
-                    </div>
+                {addNewItems
+                  .filter(item => !item.role || item.role.includes(authUser.userType))
+                  .map(item => (
+                    <button key={item.page} style={dropItemStyle}
+                      onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >{item.label}</button>
                   ))}
               </div>
             )}
@@ -4101,7 +4078,7 @@ function App() {
           {/* ── Scheduled Services ── */}
           <div style={{ position: 'relative' }}>
             <button style={menuBtnStyle(homeMenu === 'scheduled')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'scheduled' ? null : 'scheduled'); setHomeSubMenu(null); }}>
-              Scheduled <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'scheduled' ? '▲' : '▼'}</span>
+              Recurring <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'scheduled' ? '▲' : '▼'}</span>
             </button>
             {homeMenu === 'scheduled' && (
               <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
@@ -4138,6 +4115,29 @@ function App() {
                     onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                   >{item.label}</button>
                 ))}
+                <div style={{ borderTop: '1px solid #e8edf8', margin: '4px 0' }} />
+                {/* Lists flyout */}
+                <div style={{ position: 'relative' }}
+                  onMouseEnter={() => setHomeSubMenu('reportLists')}
+                  onMouseLeave={() => setHomeSubMenu(null)}
+                >
+                  <button style={{ ...dropItemStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: homeSubMenu === 'reportLists' ? '#f0f4ff' : 'none', width: '100%' }}>
+                    Lists <span style={{ opacity: 0.5, fontSize: 11 }}>▶</span>
+                  </button>
+                  {homeSubMenu === 'reportLists' && (
+                    <div style={{ ...dropdownStyle, left: '100%', top: 0 }}>
+                      {listItems
+                        .filter(item => !item.role || item.role.includes(authUser.userType))
+                        .map(item => (
+                          <button key={item.page} style={dropItemStyle}
+                            onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                          >{item.label}</button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
