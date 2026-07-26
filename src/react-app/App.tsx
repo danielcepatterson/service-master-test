@@ -281,6 +281,21 @@ function App() {
   const [teamLoading, setTeamLoading] = React.useState(false);
   const [allExpenses, setAllExpenses] = React.useState<{ total_cost: string; created_at: string; status: string; scheduled_date: string }[]>([]);
   const [kpiRange, setKpiRange] = React.useState<'alltime'|'year'|'month'|'week'|'day'>('alltime');
+
+  // Recurring & Internal Services
+  type RecurringItem = { id: number; title: string; property_name: string; instructions: string; frequency: string; day_of_week: string; day_of_month: number; assigned_to: string; active: number; last_generated: string; next_due: string; notes: string; };
+  type InternalService = { id: number; title: string; category: string; description: string; frequency: string; day_of_week: string; day_of_month: number; assigned_to: string; active: number; last_completed: string; next_due: string; notes: string; };
+  const blankRecurring = (): Omit<RecurringItem,'id'> => ({ title:'', property_name:'', instructions:'', frequency:'monthly', day_of_week:'', day_of_month:1, assigned_to:'', active:1, last_generated:'', next_due:'', notes:'' });
+  const blankInternal = (): Omit<InternalService,'id'> => ({ title:'', category:'general', description:'', frequency:'monthly', day_of_week:'', day_of_month:1, assigned_to:'', active:1, last_completed:'', next_due:'', notes:'' });
+  const [recurringItems, setRecurringItems] = React.useState<RecurringItem[]>([]);
+  const [internalServices, setInternalServices] = React.useState<InternalService[]>([]);
+  const [recurringLoading, setRecurringLoading] = React.useState(false);
+  const [editingRecurring, setEditingRecurring] = React.useState<RecurringItem | null>(null);
+  const [recurringForm, setRecurringForm] = React.useState<Omit<RecurringItem,'id'>>(blankRecurring());
+  const [editingInternal, setEditingInternal] = React.useState<InternalService | null>(null);
+  const [internalForm, setInternalForm] = React.useState<Omit<InternalService,'id'>>(blankInternal());
+  const [internalTab, setInternalTab] = React.useState<'fleet'|'general'>('general');
+  const [recurringTab, setRecurringTab] = React.useState<'active'|'inactive'>('active');
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -2688,32 +2703,312 @@ function App() {
 
   // ── Recurring Work Orders ─────────────────────────────────────────────────
   if (page === 'recurringworkorders') {
+    const freqLabel = (f: string, dow: string, dom: number) => {
+      if (f === 'daily') return 'Daily';
+      if (f === 'weekly') return `Weekly on ${dow || '?'}`;
+      if (f === 'biweekly') return `Every 2 Weeks on ${dow || '?'}`;
+      if (f === 'monthly') return `Monthly on day ${dom}`;
+      if (f === 'quarterly') return `Quarterly on day ${dom}`;
+      if (f === 'annually') return 'Annually';
+      return f;
+    };
+    const displayed = recurringItems.filter(r => recurringTab === 'active' ? r.active === 1 : r.active === 0);
+    const isEditing = !!editingRecurring;
+
+    const handleSave = async () => {
+      if (!recurringForm.title.trim()) return;
+      const res = await api.saveRecurring(recurringForm, editingRecurring?.id);
+      if (res.ok) {
+        const fresh = await api.fetchRecurring();
+        setRecurringItems(fresh);
+        setEditingRecurring(null);
+        setRecurringForm(blankRecurring());
+      }
+    };
+    const handleDelete = async (id: number) => {
+      if (!confirm('Delete this recurring work order?')) return;
+      await api.deleteRecurring(id);
+      setRecurringItems(prev => prev.filter(r => r.id !== id));
+    };
+    const handleToggle = async (r: RecurringItem) => {
+      const updated = { ...r, active: r.active === 1 ? 0 : 1 };
+      await api.saveRecurring(updated, r.id);
+      setRecurringItems(prev => prev.map(x => x.id === r.id ? { ...x, active: updated.active } : x));
+    };
+
+    const inputS: React.CSSProperties = { display: 'block', width: '100%', padding: '7px 10px', border: '1px solid #c0cce0', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', marginTop: 4 };
+    const labelS: React.CSSProperties = { fontWeight: 600, fontSize: 13, color: '#333' };
+
     return (
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
-        <h1 style={{ color: '#1a3a7a', marginBottom: 8 }}>🔁 Recurring Work Orders</h1>
-        <p style={{ color: '#666', marginBottom: 24 }}>Manage work orders that repeat on a scheduled basis (weekly, monthly, quarterly, etc.).</p>
-        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
-          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
-          <div style={{ fontSize: 14, marginTop: 8 }}>Recurring scheduling will allow you to auto-generate work orders on a set cadence.</div>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+          <h1 style={{ color: '#1a3a7a', margin: 0 }}>🔁 Recurring Work Orders</h1>
+          <button onClick={() => { setEditingRecurring({} as RecurringItem); setRecurringForm(blankRecurring()); }}
+            style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>+ New Recurring WO</button>
         </div>
-        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+
+        {/* Edit / Create form */}
+        {isEditing && (
+          <div style={{ background: '#fff', borderRadius: 12, padding: '22px 24px', boxShadow: '0 2px 12px rgba(26,58,122,0.12)', marginBottom: 24, border: '2px solid #1a3a7a' }}>
+            <h3 style={{ margin: '0 0 18px', color: '#1a3a7a' }}>{editingRecurring?.id ? 'Edit Recurring WO' : 'New Recurring WO'}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+              <label style={labelS}>Title *
+                <input style={inputS} value={recurringForm.title} onChange={e => setRecurringForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Monthly HVAC Filter" />
+              </label>
+              <label style={labelS}>Property
+                <input style={inputS} value={recurringForm.property_name} onChange={e => setRecurringForm(p => ({ ...p, property_name: e.target.value }))} placeholder="Property name" />
+              </label>
+              <label style={labelS}>Assigned To
+                <input style={inputS} value={recurringForm.assigned_to} onChange={e => setRecurringForm(p => ({ ...p, assigned_to: e.target.value }))} placeholder="Tech name" />
+              </label>
+              <label style={labelS}>Frequency
+                <select style={inputS} value={recurringForm.frequency} onChange={e => setRecurringForm(p => ({ ...p, frequency: e.target.value }))}>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="biweekly">Biweekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="annually">Annually</option>
+                </select>
+              </label>
+              {(recurringForm.frequency === 'weekly' || recurringForm.frequency === 'biweekly') && (
+                <label style={labelS}>Day of Week
+                  <select style={inputS} value={recurringForm.day_of_week} onChange={e => setRecurringForm(p => ({ ...p, day_of_week: e.target.value }))}>
+                    {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </label>
+              )}
+              {(recurringForm.frequency === 'monthly' || recurringForm.frequency === 'quarterly') && (
+                <label style={labelS}>Day of Month
+                  <input type="number" min={1} max={28} style={inputS} value={recurringForm.day_of_month}
+                    onChange={e => setRecurringForm(p => ({ ...p, day_of_month: parseInt(e.target.value) || 1 }))} />
+                </label>
+              )}
+              <label style={labelS}>Next Due Date
+                <input type="date" style={inputS} value={recurringForm.next_due} onChange={e => setRecurringForm(p => ({ ...p, next_due: e.target.value }))} />
+              </label>
+              <label style={labelS}>Last Generated
+                <input type="date" style={inputS} value={recurringForm.last_generated} onChange={e => setRecurringForm(p => ({ ...p, last_generated: e.target.value }))} />
+              </label>
+            </div>
+            <label style={{ ...labelS, display: 'block', marginTop: 14 }}>Instructions
+              <textarea style={{ ...inputS, minHeight: 80, resize: 'vertical' }} value={recurringForm.instructions} onChange={e => setRecurringForm(p => ({ ...p, instructions: e.target.value }))} placeholder="Work order instructions..." />
+            </label>
+            <label style={{ ...labelS, display: 'block', marginTop: 14 }}>Notes
+              <textarea style={{ ...inputS, minHeight: 60, resize: 'vertical' }} value={recurringForm.notes} onChange={e => setRecurringForm(p => ({ ...p, notes: e.target.value }))} placeholder="Internal notes..." />
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={recurringForm.active === 1} onChange={e => setRecurringForm(p => ({ ...p, active: e.target.checked ? 1 : 0 }))} /> Active
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button onClick={handleSave} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Save</button>
+              <button onClick={() => { setEditingRecurring(null); setRecurringForm(blankRecurring()); }} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {(['active','inactive'] as const).map(t => (
+            <button key={t} onClick={() => setRecurringTab(t)}
+              style={{ padding: '7px 20px', borderRadius: 20, border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                background: recurringTab === t ? '#1a3a7a' : '#e8edf8', color: recurringTab === t ? '#fff' : '#555' }}>
+              {t === 'active' ? `✅ Active (${recurringItems.filter(r=>r.active===1).length})` : `⏸ Inactive (${recurringItems.filter(r=>r.active===0).length})`}
+            </button>
+          ))}
+        </div>
+
+        {recurringLoading ? <p style={{ color: '#888' }}>Loading...</p> : displayed.length === 0 ? (
+          <div style={{ background: '#fff', borderRadius: 12, padding: 32, textAlign: 'center', color: '#aaa', boxShadow: '0 2px 8px rgba(26,58,122,0.07)' }}>No {recurringTab} recurring work orders.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {displayed.map(r => (
+              <div key={r.id} style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderLeft: `5px solid ${r.active ? '#1a3a7a' : '#aaa'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#1a3a7a', marginBottom: 4 }}>{r.title}</div>
+                  {r.property_name && <div style={{ fontSize: 13, color: '#555', marginBottom: 2 }}>🏠 {r.property_name}</div>}
+                  <div style={{ fontSize: 13, color: '#0099FF', fontWeight: 600 }}>🔄 {freqLabel(r.frequency, r.day_of_week, r.day_of_month)}</div>
+                  {r.assigned_to && <div style={{ fontSize: 12, color: '#666', marginTop: 3 }}>👷 {r.assigned_to}</div>}
+                  {r.instructions && <div style={{ fontSize: 12, color: '#777', marginTop: 4, fontStyle: 'italic' }}>{r.instructions.slice(0, 120)}{r.instructions.length > 120 ? '…' : ''}</div>}
+                  <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 12, color: '#888' }}>
+                    {r.next_due && <span>Next: <b style={{ color: '#c00' }}>{r.next_due}</b></span>}
+                    {r.last_generated && <span>Last: {r.last_generated}</span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                  <button onClick={() => handleToggle(r)}
+                    style={{ fontSize: 12, padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 600,
+                      background: r.active ? '#fff3cd' : '#d4edda', color: r.active ? '#856404' : '#155724' }}>
+                    {r.active ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button onClick={() => { setEditingRecurring(r); setRecurringForm({ title:r.title, property_name:r.property_name, instructions:r.instructions, frequency:r.frequency, day_of_week:r.day_of_week, day_of_month:r.day_of_month, assigned_to:r.assigned_to, active:r.active, last_generated:r.last_generated, next_due:r.next_due, notes:r.notes }); }}
+                    style={{ fontSize: 12, padding: '5px 14px', borderRadius: 20, border: '1px solid #1a3a7a', cursor: 'pointer', fontWeight: 600, background: '#f0f4ff', color: '#1a3a7a' }}>✏️ Edit</button>
+                  <button onClick={() => handleDelete(r.id)}
+                    style={{ fontSize: 12, padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 600, background: '#fde8e8', color: '#c00' }}>🗑 Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => setPage('home')} style={{ marginTop: 24, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
       </div>
     );
   }
 
   // ── Internal Services ─────────────────────────────────────────────────────
   if (page === 'internalservices') {
+    const freqLabel2 = (f: string, dow: string, dom: number) => {
+      if (f === 'daily') return 'Daily';
+      if (f === 'weekly') return `Weekly on ${dow || '?'}`;
+      if (f === 'biweekly') return `Every 2 Weeks on ${dow || '?'}`;
+      if (f === 'monthly') return `Monthly on day ${dom}`;
+      if (f === 'quarterly') return `Quarterly on day ${dom}`;
+      if (f === 'annually') return 'Annually';
+      return f;
+    };
+    const catConfig = {
+      fleet: { label: 'Fleet', icon: '🚗', color: '#0099FF', desc: 'Vehicle maintenance, oil changes, tire rotations, inspections' },
+      general: { label: 'General Maintenance', icon: '🔧', color: '#e67e22', desc: 'Office, equipment, facilities upkeep' },
+    };
+    const displayed2 = internalServices.filter(s => s.category === internalTab);
+    const isEditingInt = !!editingInternal;
+    const inputS2: React.CSSProperties = { display: 'block', width: '100%', padding: '7px 10px', border: '1px solid #c0cce0', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', marginTop: 4 };
+    const labelS2: React.CSSProperties = { fontWeight: 600, fontSize: 13, color: '#333' };
+
+    const handleSaveInt = async () => {
+      if (!internalForm.title.trim()) return;
+      const res = await api.saveInternalService(internalForm, editingInternal?.id);
+      if (res.ok) {
+        const fresh = await api.fetchInternalServices();
+        setInternalServices(fresh);
+        setEditingInternal(null);
+        setInternalForm(blankInternal());
+      }
+    };
+    const handleDeleteInt = async (id: number) => {
+      if (!confirm('Delete this service?')) return;
+      await api.deleteInternalService(id);
+      setInternalServices(prev => prev.filter(s => s.id !== id));
+    };
+    const handleMarkDone = async (s: InternalService) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const updated = { ...s, last_completed: today };
+      await api.saveInternalService(updated, s.id);
+      setInternalServices(prev => prev.map(x => x.id === s.id ? { ...x, last_completed: today } : x));
+    };
+
     return (
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
-        <h1 style={{ color: '#1a3a7a', marginBottom: 8 }}>🏢 Internal Services</h1>
-        <p style={{ color: '#666', marginBottom: 24 }}>Track internal maintenance tasks, facility work, and company-owned property services.</p>
-        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
-          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
-          <div style={{ fontSize: 14, marginTop: 8 }}>Internal services let you log non-billable maintenance and internal tasks separately from client work.</div>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+          <h1 style={{ color: '#1a3a7a', margin: 0 }}>🏢 Internal Services</h1>
+          <button onClick={() => { setEditingInternal({} as InternalService); setInternalForm({ ...blankInternal(), category: internalTab }); }}
+            style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>+ New Service</button>
         </div>
-        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+
+        {/* Category tabs */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+          {(Object.entries(catConfig) as [typeof internalTab, typeof catConfig[keyof typeof catConfig]][]).map(([key, cfg]) => (
+            <button key={key} onClick={() => setInternalTab(key)}
+              style={{ padding: '9px 22px', borderRadius: 10, border: `2px solid ${internalTab === key ? cfg.color : '#dde3f0'}`, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                background: internalTab === key ? cfg.color : '#fff', color: internalTab === key ? '#fff' : '#555', transition: 'all 0.15s' }}>
+              {cfg.icon} {cfg.label} ({internalServices.filter(s => s.category === key).length})
+            </button>
+          ))}
+        </div>
+
+        <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>{catConfig[internalTab].desc}</p>
+
+        {/* Edit / Create form */}
+        {isEditingInt && (
+          <div style={{ background: '#fff', borderRadius: 12, padding: '22px 24px', boxShadow: '0 2px 12px rgba(26,58,122,0.12)', marginBottom: 24, border: `2px solid ${catConfig[internalTab].color}` }}>
+            <h3 style={{ margin: '0 0 18px', color: '#1a3a7a' }}>{editingInternal?.id ? 'Edit Service' : 'New Service'}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+              <label style={labelS2}>Title *
+                <input style={inputS2} value={internalForm.title} onChange={e => setInternalForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Oil Change — Truck 1" />
+              </label>
+              <label style={labelS2}>Category
+                <select style={inputS2} value={internalForm.category} onChange={e => setInternalForm(p => ({ ...p, category: e.target.value }))}>
+                  <option value="general">General Maintenance</option>
+                  <option value="fleet">Fleet</option>
+                </select>
+              </label>
+              <label style={labelS2}>Assigned To
+                <input style={inputS2} value={internalForm.assigned_to} onChange={e => setInternalForm(p => ({ ...p, assigned_to: e.target.value }))} placeholder="Name" />
+              </label>
+              <label style={labelS2}>Frequency
+                <select style={inputS2} value={internalForm.frequency} onChange={e => setInternalForm(p => ({ ...p, frequency: e.target.value }))}>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="biweekly">Biweekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="annually">Annually</option>
+                </select>
+              </label>
+              {(internalForm.frequency === 'weekly' || internalForm.frequency === 'biweekly') && (
+                <label style={labelS2}>Day of Week
+                  <select style={inputS2} value={internalForm.day_of_week} onChange={e => setInternalForm(p => ({ ...p, day_of_week: e.target.value }))}>
+                    {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </label>
+              )}
+              {(internalForm.frequency === 'monthly' || internalForm.frequency === 'quarterly') && (
+                <label style={labelS2}>Day of Month
+                  <input type="number" min={1} max={28} style={inputS2} value={internalForm.day_of_month}
+                    onChange={e => setInternalForm(p => ({ ...p, day_of_month: parseInt(e.target.value) || 1 }))} />
+                </label>
+              )}
+              <label style={labelS2}>Next Due Date
+                <input type="date" style={inputS2} value={internalForm.next_due} onChange={e => setInternalForm(p => ({ ...p, next_due: e.target.value }))} />
+              </label>
+              <label style={labelS2}>Last Completed
+                <input type="date" style={inputS2} value={internalForm.last_completed} onChange={e => setInternalForm(p => ({ ...p, last_completed: e.target.value }))} />
+              </label>
+            </div>
+            <label style={{ ...labelS2, display: 'block', marginTop: 14 }}>Description
+              <textarea style={{ ...inputS2, minHeight: 70, resize: 'vertical' }} value={internalForm.description} onChange={e => setInternalForm(p => ({ ...p, description: e.target.value }))} placeholder="Service description..." />
+            </label>
+            <label style={{ ...labelS2, display: 'block', marginTop: 14 }}>Notes
+              <textarea style={{ ...inputS2, minHeight: 55, resize: 'vertical' }} value={internalForm.notes} onChange={e => setInternalForm(p => ({ ...p, notes: e.target.value }))} placeholder="Internal notes..." />
+            </label>
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button onClick={handleSaveInt} style={{ background: catConfig[internalTab].color, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Save</button>
+              <button onClick={() => { setEditingInternal(null); setInternalForm(blankInternal()); }} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {recurringLoading ? <p style={{ color: '#888' }}>Loading...</p> : displayed2.length === 0 ? (
+          <div style={{ background: '#fff', borderRadius: 12, padding: 32, textAlign: 'center', color: '#aaa', boxShadow: '0 2px 8px rgba(26,58,122,0.07)' }}>No {catConfig[internalTab].label} services yet. Add one above.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {displayed2.map(s => (
+              <div key={s.id} style={{ background: '#fff', borderRadius: 12, padding: '16px 20px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderLeft: `5px solid ${catConfig[s.category as keyof typeof catConfig]?.color || '#aaa'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#1a3a7a', marginBottom: 4 }}>{s.title}</div>
+                  <div style={{ fontSize: 13, color: catConfig[s.category as keyof typeof catConfig]?.color, fontWeight: 600 }}>{freqLabel2(s.frequency, s.day_of_week, s.day_of_month)}</div>
+                  {s.assigned_to && <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>👷 {s.assigned_to}</div>}
+                  {s.description && <div style={{ fontSize: 12, color: '#777', marginTop: 4, fontStyle: 'italic' }}>{s.description.slice(0, 120)}{s.description.length > 120 ? '…' : ''}</div>}
+                  <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 12, color: '#888' }}>
+                    {s.next_due && <span>Next due: <b style={{ color: '#c00' }}>{s.next_due}</b></span>}
+                    {s.last_completed && <span>Last done: <b style={{ color: '#2a9d2a' }}>{s.last_completed}</b></span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                  <button onClick={() => handleMarkDone(s)}
+                    style={{ fontSize: 12, padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 600, background: '#d4edda', color: '#155724' }}>✓ Mark Done</button>
+                  <button onClick={() => { setEditingInternal(s); setInternalForm({ title:s.title, category:s.category, description:s.description, frequency:s.frequency, day_of_week:s.day_of_week, day_of_month:s.day_of_month, assigned_to:s.assigned_to, active:s.active, last_completed:s.last_completed, next_due:s.next_due, notes:s.notes }); }}
+                    style={{ fontSize: 12, padding: '5px 14px', borderRadius: 20, border: '1px solid #1a3a7a', cursor: 'pointer', fontWeight: 600, background: '#f0f4ff', color: '#1a3a7a' }}>✏️ Edit</button>
+                  <button onClick={() => handleDeleteInt(s.id)}
+                    style={{ fontSize: 12, padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 600, background: '#fde8e8', color: '#c00' }}>🗑 Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => setPage('home')} style={{ marginTop: 24, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
       </div>
     );
   }

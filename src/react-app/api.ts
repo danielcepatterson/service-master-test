@@ -406,3 +406,43 @@ export async function deleteDayOff(id: number) {
   const res = await apiFetch(`/api/team/days-off/${id}`, { method: "DELETE" });
   return res.json();
 }
+
+// ─── Recurring Work Orders ────────────────────────────────
+export async function fetchRecurring() {
+  const res = await apiFetch("/api/recurring");
+  return res.json();
+}
+
+export async function saveRecurring(data: object, id?: number) {
+  if (id) {
+    const res = await apiFetch(`/api/recurring/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    return res.json();
+  }
+  const res = await apiFetch("/api/recurring", { method: "POST", body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteRecurring(id: number) {
+  const res = await apiFetch(`/api/recurring/${id}`, { method: "DELETE" });
+  return res.json();
+}
+
+// ─── Internal Services ────────────────────────────────────
+export async function fetchInternalServices() {
+  const res = await apiFetch("/api/internal-services");
+  return res.json();
+}
+
+export async function saveInternalService(data: object, id?: number) {
+  if (id) {
+    const res = await apiFetch(`/api/internal-services/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    return res.json();
+  }
+  const res = await apiFetch("/api/internal-services", { method: "POST", body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteInternalService(id: number) {
+  const res = await apiFetch(`/api/internal-services/${id}`, { method: "DELETE" });
+  return res.json();
+}

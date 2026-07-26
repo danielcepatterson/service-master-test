@@ -60,6 +60,8 @@ async function runMigrations(db: D1Database) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL DEFAULT '', action TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general', target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS team_profiles (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL UNIQUE, schedule TEXT NOT NULL DEFAULT '{}', pay_rate TEXT NOT NULL DEFAULT '0', pto_total INTEGER NOT NULL DEFAULT 0, pto_used INTEGER NOT NULL DEFAULT 0, sick_total INTEGER NOT NULL DEFAULT 0, sick_used INTEGER NOT NULL DEFAULT 0, notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS days_off (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, date TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT 'PTO', status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS recurring_items (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, property_name TEXT NOT NULL DEFAULT '', instructions TEXT NOT NULL DEFAULT '', frequency TEXT NOT NULL DEFAULT 'monthly', day_of_week TEXT NOT NULL DEFAULT '', day_of_month INTEGER NOT NULL DEFAULT 1, assigned_to TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, last_generated TEXT NOT NULL DEFAULT '', next_due TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS internal_services (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general', description TEXT NOT NULL DEFAULT '', frequency TEXT NOT NULL DEFAULT 'monthly', day_of_week TEXT NOT NULL DEFAULT '', day_of_month INTEGER NOT NULL DEFAULT 1, assigned_to TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, last_completed TEXT NOT NULL DEFAULT '', next_due TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
 }
 
 async function writeLog(db: D1Database, username: string, action: string, category: string, target: string, detail: string) {
@@ -889,6 +891,98 @@ app.delete("/api/team/days-off/:id", async (c) => {
   if (!user) return unauthorized();
   const id = c.req.param("id");
   await c.env.DB.prepare("DELETE FROM days_off WHERE id = ?").bind(id).run();
+  return c.json({ ok: true });
+});
+
+// ─── Recurring Work Orders ────────────────────────────────
+app.get("/api/recurring", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const rows = await c.env.DB.prepare("SELECT * FROM recurring_items ORDER BY title ASC").all();
+  return c.json(rows.results || []);
+});
+
+app.post("/api/recurring", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const b = await c.req.json();
+  const now = new Date().toISOString();
+  const res = await c.env.DB.prepare(
+    `INSERT INTO recurring_items (title, property_name, instructions, frequency, day_of_week, day_of_month, assigned_to, active, last_generated, next_due, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(b.title || '', b.property_name || '', b.instructions || '', b.frequency || 'monthly',
+    b.day_of_week || '', b.day_of_month || 1, b.assigned_to || '', b.active !== false ? 1 : 0,
+    b.last_generated || '', b.next_due || '', b.notes || '', now, now).run();
+  await writeLog(c.env.DB, user.username, 'create', 'recurring', b.title, 'Created recurring WO');
+  return c.json({ ok: true, id: res.meta?.last_row_id });
+});
+
+app.put("/api/recurring/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  const b = await c.req.json();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `UPDATE recurring_items SET title=?, property_name=?, instructions=?, frequency=?, day_of_week=?, day_of_month=?, assigned_to=?, active=?, last_generated=?, next_due=?, notes=?, updated_at=? WHERE id=?`
+  ).bind(b.title || '', b.property_name || '', b.instructions || '', b.frequency || 'monthly',
+    b.day_of_week || '', b.day_of_month || 1, b.assigned_to || '', b.active !== false ? 1 : 0,
+    b.last_generated || '', b.next_due || '', b.notes || '', now, id).run();
+  await writeLog(c.env.DB, user.username, 'update', 'recurring', b.title, 'Updated recurring WO');
+  return c.json({ ok: true });
+});
+
+app.delete("/api/recurring/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM recurring_items WHERE id = ?").bind(id).run();
+  return c.json({ ok: true });
+});
+
+// ─── Internal Services ────────────────────────────────────
+app.get("/api/internal-services", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const rows = await c.env.DB.prepare("SELECT * FROM internal_services ORDER BY category ASC, title ASC").all();
+  return c.json(rows.results || []);
+});
+
+app.post("/api/internal-services", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const b = await c.req.json();
+  const now = new Date().toISOString();
+  const res = await c.env.DB.prepare(
+    `INSERT INTO internal_services (title, category, description, frequency, day_of_week, day_of_month, assigned_to, active, last_completed, next_due, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(b.title || '', b.category || 'general', b.description || '', b.frequency || 'monthly',
+    b.day_of_week || '', b.day_of_month || 1, b.assigned_to || '', b.active !== false ? 1 : 0,
+    b.last_completed || '', b.next_due || '', b.notes || '', now, now).run();
+  await writeLog(c.env.DB, user.username, 'create', 'internal_service', b.title, `Created ${b.category} service`);
+  return c.json({ ok: true, id: res.meta?.last_row_id });
+});
+
+app.put("/api/internal-services/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  const b = await c.req.json();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `UPDATE internal_services SET title=?, category=?, description=?, frequency=?, day_of_week=?, day_of_month=?, assigned_to=?, active=?, last_completed=?, next_due=?, notes=?, updated_at=? WHERE id=?`
+  ).bind(b.title || '', b.category || 'general', b.description || '', b.frequency || 'monthly',
+    b.day_of_week || '', b.day_of_month || 1, b.assigned_to || '', b.active !== false ? 1 : 0,
+    b.last_completed || '', b.next_due || '', b.notes || '', now, id).run();
+  await writeLog(c.env.DB, user.username, 'update', 'internal_service', b.title, `Updated ${b.category} service`);
+  return c.json({ ok: true });
+});
+
+app.delete("/api/internal-services/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const id = c.req.param("id");
+  await c.env.DB.prepare("DELETE FROM internal_services WHERE id = ?").bind(id).run();
   return c.json({ ok: true });
 });
 
