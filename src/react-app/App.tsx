@@ -2686,6 +2686,295 @@ function App() {
     );
   }
 
+  // ── Recurring Work Orders ─────────────────────────────────────────────────
+  if (page === 'recurringworkorders') {
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 8 }}>🔁 Recurring Work Orders</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Manage work orders that repeat on a scheduled basis (weekly, monthly, quarterly, etc.).</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
+          <div style={{ fontSize: 14, marginTop: 8 }}>Recurring scheduling will allow you to auto-generate work orders on a set cadence.</div>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Internal Services ─────────────────────────────────────────────────────
+  if (page === 'internalservices') {
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 8 }}>🏢 Internal Services</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Track internal maintenance tasks, facility work, and company-owned property services.</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
+          <div style={{ fontSize: 14, marginTop: 8 }}>Internal services let you log non-billable maintenance and internal tasks separately from client work.</div>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Report: Revenue ───────────────────────────────────────────────────────
+  if (page === 'reportrevenue') {
+    const now = new Date();
+    const thisMonth = now.toISOString().slice(0, 7);
+    const thisYear = String(now.getFullYear());
+    const revenueWOs = workOrders.filter(w => ['invoiced','sent','paid','nocharge'].includes(w.status));
+    const byMonth: Record<string, number> = {};
+    allExpenses.filter(e => ['invoiced','sent','paid'].includes(e.status)).forEach(e => {
+      const m = (e.scheduled_date || e.created_at || '').slice(0, 7);
+      if (m) byMonth[m] = (byMonth[m] || 0) + (parseFloat(e.total_cost) || 0);
+    });
+    const months = Object.keys(byMonth).sort().reverse().slice(0, 12);
+    const totalRevenue = Object.values(byMonth).reduce((a, b) => a + b, 0);
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>📈 Revenue Report</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Revenue from invoiced, sent, and paid work orders.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 }}>
+          {[
+            { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: '#2a9d2a' },
+            { label: 'Billable WOs', value: revenueWOs.length, color: '#1a3a7a' },
+            { label: `${thisMonth} Revenue`, value: `$${(byMonth[thisMonth] || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: '#0099FF' },
+          ].map(c => (
+            <div key={c.label} style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: `4px solid ${c.color}` }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: c.color }}>{c.value}</div>
+              <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>{c.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+          <h3 style={{ margin: '0 0 16px', color: '#1a3a7a' }}>Monthly Breakdown</h3>
+          {months.length === 0 ? <p style={{ color: '#aaa' }}>No revenue data yet.</p> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr style={{ background: '#f0f4ff' }}>
+                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 13, color: '#1a3a7a' }}>Month</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 13, color: '#1a3a7a' }}>Revenue</th>
+              </tr></thead>
+              <tbody>
+                {months.map(m => (
+                  <tr key={m} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 12px', fontSize: 14 }}>{new Date(m + '-15').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</td>
+                    <td style={{ padding: '8px 12px', fontSize: 14, fontWeight: 700, color: '#2a9d2a', textAlign: 'right' }}>${(byMonth[m] || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Report: Work Orders ───────────────────────────────────────────────────
+  if (page === 'reportworkorders') {
+    const statusCounts: Record<string, number> = {};
+    workOrders.forEach(w => { statusCounts[w.status] = (statusCounts[w.status] || 0) + 1; });
+    const statusColors: Record<string, string> = { draft: '#9b59b6', active: '#0099FF', completed: '#2a9d2a', closed: '#888', invoiced: '#e67e22', sent: '#f39c12', paid: '#27ae60', nocharge: '#95a5a6', deleted: '#e74c3c' };
+    const byMonth: Record<string, number> = {};
+    workOrders.forEach(w => { const m = (w.scheduledDate || '').slice(0,7); if (m) byMonth[m] = (byMonth[m] || 0) + 1; });
+    const months = Object.keys(byMonth).sort().reverse().slice(0, 12);
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>📋 Work Order Report</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Breakdown of all work orders by status and schedule.</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 16px', color: '#1a3a7a' }}>By Status</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {Object.entries(statusCounts).map(([status, count]) => (
+              <div key={status} style={{ background: '#f8f9ff', borderRadius: 10, padding: '12px 18px', borderLeft: `4px solid ${statusColors[status] || '#aaa'}`, minWidth: 120 }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: statusColors[status] || '#aaa' }}>{count}</div>
+                <div style={{ fontSize: 12, color: '#666', textTransform: 'capitalize', marginTop: 2 }}>{status}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+          <h3 style={{ margin: '0 0 16px', color: '#1a3a7a' }}>WOs Scheduled by Month</h3>
+          {months.length === 0 ? <p style={{ color: '#aaa' }}>No data.</p> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr style={{ background: '#f0f4ff' }}>
+                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 13, color: '#1a3a7a' }}>Month</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 13, color: '#1a3a7a' }}>Count</th>
+              </tr></thead>
+              <tbody>
+                {months.map(m => (
+                  <tr key={m} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 12px', fontSize: 14 }}>{new Date(m + '-15').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</td>
+                    <td style={{ padding: '8px 12px', fontSize: 14, fontWeight: 700, color: '#1a3a7a', textAlign: 'right' }}>{byMonth[m]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Report: Tech Productivity ─────────────────────────────────────────────
+  if (page === 'reporttechproductivity') {
+    const techMap: Record<string, { assigned: number; completed: number; active: number }> = {};
+    workOrders.forEach(w => {
+      const tech = (w as any).assignedTo || 'Unassigned';
+      if (!techMap[tech]) techMap[tech] = { assigned: 0, completed: 0, active: 0 };
+      techMap[tech].assigned++;
+      if (w.status === 'completed' || w.status === 'closed' || w.status === 'invoiced' || w.status === 'paid') techMap[tech].completed++;
+      if (w.status === 'active') techMap[tech].active++;
+    });
+    const techs = Object.entries(techMap).sort((a, b) => b[1].assigned - a[1].assigned);
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>👷 Tech Productivity</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Work order counts by assigned technician.</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+          {techs.length === 0 ? <p style={{ color: '#aaa' }}>No data.</p> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr style={{ background: '#f0f4ff' }}>
+                {['Tech', 'Assigned', 'Active', 'Completed', 'Completion %'].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', fontSize: 13, color: '#1a3a7a', textAlign: h === 'Tech' ? 'left' : 'center' }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {techs.map(([tech, s]) => (
+                  <tr key={tech} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: 14 }}>{tech}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 14 }}>{s.assigned}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 14, color: '#0099FF', fontWeight: 600 }}>{s.active}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 14, color: '#2a9d2a', fontWeight: 600 }}>{s.completed}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: 14, fontWeight: 700 }}>{s.assigned > 0 ? Math.round(s.completed / s.assigned * 100) : 0}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Report: Expense Summary ───────────────────────────────────────────────
+  if (page === 'reportexpenses') {
+    const byStatus: Record<string, number> = {};
+    allExpenses.forEach(e => { byStatus[e.status] = (byStatus[e.status] || 0) + (parseFloat(e.total_cost) || 0); });
+    const total = allExpenses.reduce((s, e) => s + (parseFloat(e.total_cost) || 0), 0);
+    const byMonth: Record<string, number> = {};
+    allExpenses.forEach(e => { const m = (e.scheduled_date || e.created_at || '').slice(0,7); if (m) byMonth[m] = (byMonth[m] || 0) + (parseFloat(e.total_cost) || 0); });
+    const months = Object.keys(byMonth).sort().reverse().slice(0, 12);
+    const statusColors: Record<string, string> = { invoiced: '#e67e22', sent: '#f39c12', paid: '#27ae60', active: '#0099FF', closed: '#888', completed: '#2a9d2a' };
+    return (
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>💰 Expense Summary</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Total expenses across all work orders grouped by WO status and month.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)', borderTop: '4px solid #1a3a7a', gridColumn: 'span 3' }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#1a3a7a' }}>${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>Total Expenses (All WOs)</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+          {Object.entries(byStatus).map(([status, amt]) => (
+            <div key={status} style={{ background: '#f8f9ff', borderRadius: 10, padding: '12px 18px', borderLeft: `4px solid ${statusColors[status] || '#aaa'}`, minWidth: 140 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: statusColors[status] || '#aaa' }}>${amt.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+              <div style={{ fontSize: 12, color: '#666', textTransform: 'capitalize', marginTop: 2 }}>{status} WOs</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+          <h3 style={{ margin: '0 0 16px', color: '#1a3a7a' }}>Monthly Expense Totals</h3>
+          {months.length === 0 ? <p style={{ color: '#aaa' }}>No data.</p> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr style={{ background: '#f0f4ff' }}>
+                <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 13, color: '#1a3a7a' }}>Month</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 13, color: '#1a3a7a' }}>Total</th>
+              </tr></thead>
+              <tbody>
+                {months.map(m => (
+                  <tr key={m} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 12px', fontSize: 14 }}>{new Date(m + '-15').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</td>
+                    <td style={{ padding: '8px 12px', fontSize: 14, fontWeight: 700, textAlign: 'right' }}>${(byMonth[m] || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Settings: Company Info ─────────────────────────────────────────────────
+  if (page === 'settingscompany') {
+    return (
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>🏢 Company Info</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Business name, address, contact details, and logo used on invoices.</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
+          <div style={{ fontSize: 14, marginTop: 8 }}>Company settings will populate invoice headers, contact info, and branding.</div>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Settings: Tax & Fees ──────────────────────────────────────────────────
+  if (page === 'settingstaxfees') {
+    return (
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>🧾 Tax & Fees</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Configure default tax rates, service fees, and surcharges applied to invoices.</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
+          <div style={{ fontSize: 14, marginTop: 8 }}>Set default tax %, card service fee amounts, and whether they auto-apply to new invoices.</div>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Settings: Markup & Pricing ────────────────────────────────────────────
+  if (page === 'settingspricing') {
+    return (
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>💲 Markup & Pricing</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Set default parts markup %, labor rates, and pricing tiers by service type.</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
+          <div style={{ fontSize: 14, marginTop: 8 }}>Default markup and labor rates will auto-fill on new work order expenses.</div>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
+  // ── Settings: Pay Period Config ───────────────────────────────────────────
+  if (page === 'settingspayperiod') {
+    return (
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 20px' }}>
+        <h1 style={{ color: '#1a3a7a', marginBottom: 4 }}>📅 Pay Period Config</h1>
+        <p style={{ color: '#666', marginBottom: 24 }}>Set pay period start date, frequency (weekly/biweekly), and payday offset.</p>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 32, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', textAlign: 'center', color: '#aaa' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🚧</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#888' }}>Coming Soon</div>
+          <div style={{ fontSize: 14, marginTop: 8 }}>Pay period settings will drive the payroll page and calendar pay period markers.</div>
+        </div>
+        <button onClick={() => setPage('home')} style={{ marginTop: 20, padding: '8px 20px', background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>← Back to Dashboard</button>
+      </div>
+    );
+  }
+
   // ── Deleted Work Orders (formerly "Close Work Orders") ──────────────────
   if (page === "deletedworkorders") {
     const deletedOrders = workOrders.filter((wo) => wo.status === 'deleted');
@@ -3798,6 +4087,77 @@ function App() {
                     { label: 'Team Info', page: 'teaminfo' },
                     { label: 'Payroll', page: 'payroll' },
                     { label: 'Submit Day Off', page: 'submitdayoff' },
+                  ].map(item => (
+                    <button key={item.page} style={dropItemStyle}
+                      onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >{item.label}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Scheduled Services ── */}
+          <div style={{ position: 'relative' }}>
+            <button style={menuBtnStyle(homeMenu === 'scheduled')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'scheduled' ? null : 'scheduled'); setHomeSubMenu(null); }}>
+              Scheduled <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'scheduled' ? '▲' : '▼'}</span>
+            </button>
+            {homeMenu === 'scheduled' && (
+              <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                {[
+                  { label: 'Recurring Work Orders', page: 'recurringworkorders' },
+                  { label: 'Internal Services', page: 'internalservices' },
+                ].map(item => (
+                  <button key={item.page} style={dropItemStyle}
+                    onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >{item.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Reports ── */}
+          <div style={{ position: 'relative' }}>
+            <button style={menuBtnStyle(homeMenu === 'reports')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'reports' ? null : 'reports'); setHomeSubMenu(null); }}>
+              Reports <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'reports' ? '▲' : '▼'}</span>
+            </button>
+            {homeMenu === 'reports' && (
+              <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                {[
+                  { label: 'Revenue Report', page: 'reportrevenue' },
+                  { label: 'Work Order Report', page: 'reportworkorders' },
+                  { label: 'Tech Productivity', page: 'reporttechproductivity' },
+                  { label: 'Expense Summary', page: 'reportexpenses' },
+                ].map(item => (
+                  <button key={item.page} style={dropItemStyle}
+                    onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0f4ff')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >{item.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Settings (admin/mgr) ── */}
+          {(authUser.userType === 'admin' || authUser.userType === 'mgr') && (
+            <div style={{ position: 'relative' }}>
+              <button style={menuBtnStyle(homeMenu === 'settings')} onClick={e => { e.stopPropagation(); setHomeMenu(homeMenu === 'settings' ? null : 'settings'); setHomeSubMenu(null); }}>
+                Settings <span style={{ fontSize: 10, opacity: 0.7 }}>{homeMenu === 'settings' ? '▲' : '▼'}</span>
+              </button>
+              {homeMenu === 'settings' && (
+                <div style={dropdownStyle} onClick={e => e.stopPropagation()}>
+                  {[
+                    { label: 'Company Info', page: 'settingscompany' },
+                    { label: 'Tax & Fees', page: 'settingstaxfees' },
+                    { label: 'Markup & Pricing', page: 'settingspricing' },
+                    { label: 'Pay Period Config', page: 'settingspayperiod' },
+                    { label: 'User Management', page: 'userlist' },
+                    { label: 'Audit Log', page: 'systemlogs' },
                   ].map(item => (
                     <button key={item.page} style={dropItemStyle}
                       onClick={() => { setPage(item.page); setHomeMenu(null); setHomeSubMenu(null); }}
