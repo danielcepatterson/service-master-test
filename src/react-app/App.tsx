@@ -301,6 +301,9 @@ function App() {
   const [personalForm, setPersonalForm] = React.useState({ newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '' });
   const [personalSaving, setPersonalSaving] = React.useState(false);
   const [personalMsg, setPersonalMsg] = React.useState<{ type: 'success'|'error'; text: string } | null>(null);
+  const [techDashStyle, setTechDashStyleState] = React.useState<'classic'|'dropdown'>(() => (localStorage.getItem('techDashStyle') as 'classic'|'dropdown') || 'classic');
+  const setTechDashStyle = (v: 'classic'|'dropdown') => { localStorage.setItem('techDashStyle', v); setTechDashStyleState(v); };
+  const [techUserMenuOpen, setTechUserMenuOpen] = React.useState(false);
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -3239,6 +3242,7 @@ function App() {
   if (page === 'settingspersonal') {
     const inputS: React.CSSProperties = { display: 'block', width: '100%', padding: '8px 12px', border: '1px solid #c0cce0', borderRadius: 7, fontSize: 14, boxSizing: 'border-box', marginTop: 5 };
     const labelS: React.CSSProperties = { fontWeight: 600, fontSize: 13, color: '#333', display: 'block', marginBottom: 12 };
+    const isTech = authUser?.userType === 'tech';
 
     const handlePersonalSave = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -3289,6 +3293,30 @@ function App() {
               color: personalMsg.type === 'success' ? '#155724' : '#c00',
               border: `1px solid ${personalMsg.type === 'success' ? '#b0e0c0' : '#f5c0c0'}` }}>
               {personalMsg.type === 'success' ? '✓ ' : '⚠ '}{personalMsg.text}
+            </div>
+          )}
+
+          {/* Dashboard Type — tech only */}
+          {isTech && (
+            <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 22, marginBottom: 22 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>Dashboard Style</div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                {([
+                  { key: 'classic' as const, label: 'Classic', icon: '📦', desc: 'New WO, Drafts, Active, and Done buttons always visible in the bottom nav bar.' },
+                  { key: 'dropdown' as const, label: 'Dropdown', icon: '▼', desc: 'New WO, Drafts, and Done move into a dropdown under your name. Only Active WOs remain in the bottom nav.' },
+                ]).map(opt => (
+                  <div key={opt.key} onClick={() => setTechDashStyle(opt.key)}
+                    style={{ flex: '1 1 180px', border: `2px solid ${techDashStyle === opt.key ? '#1a3a7a' : '#d0d8f0'}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer',
+                      background: techDashStyle === opt.key ? '#f0f4ff' : '#fafbff', transition: 'all 0.15s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 18 }}>{opt.icon}</span>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: techDashStyle === opt.key ? '#1a3a7a' : '#444' }}>{opt.label}</span>
+                      {techDashStyle === opt.key && <span style={{ marginLeft: 'auto', background: '#1a3a7a', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>✓ Active</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{opt.desc}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
