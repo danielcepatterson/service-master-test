@@ -4373,7 +4373,10 @@ function App() {
   // Main dashboard/homepage UI
   // ── Tech mobile dashboard ──────────────────────────────
   if (authUser.userType === 'tech' || (authUser.userType === 'mgr' && mgrViewMode === 'tech')) {
-    const activeOrders = workOrders.filter(wo => wo.status === 'active');
+    const rawActive = workOrders.filter(wo => wo.status === 'active');
+    const activeOrders = (authUser.userType === 'tech' && techWOFilter === 'assigned')
+      ? rawActive.filter(wo => wo.assignedTo === authUser.username)
+      : rawActive;
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100%', display: 'flex', flexDirection: 'column', background: '#e8edf8', overflow: 'hidden' }}>
         {/* Header */}
@@ -4434,7 +4437,17 @@ function App() {
 
         {/* Active WO cards — scrollable center */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 6px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <h2 style={{ margin: '0 0 4px', fontSize: 16, color: '#1a3a7a', fontWeight: 700 }}>Active Work Orders</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 0 4px' }}>
+            <h2 style={{ margin: 0, fontSize: 16, color: '#1a3a7a', fontWeight: 700 }}>Active Work Orders</h2>
+            {authUser.userType === 'tech' && (
+              <span onClick={() => setTechWOFilter(techWOFilter === 'assigned' ? 'all' : 'assigned')}
+                style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 10, cursor: 'pointer',
+                  background: techWOFilter === 'assigned' ? '#1a3a7a' : '#e0e0e0',
+                  color: techWOFilter === 'assigned' ? '#fff' : '#555' }}>
+                {techWOFilter === 'assigned' ? '👤 Mine' : '🌐 All'}
+              </span>
+            )}
+          </div>
           {activeOrders.length === 0 && (
             <div style={{ background: '#fff', borderRadius: 12, padding: '28px 20px', textAlign: 'center', color: '#888', boxShadow: '0 2px 6px rgba(26,58,122,0.07)' }}>
               No active work orders.
