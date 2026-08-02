@@ -303,7 +303,6 @@ function App() {
   const [personalMsg, setPersonalMsg] = React.useState<{ type: 'success'|'error'; text: string } | null>(null);
   const [techDashStyle, setTechDashStyleState] = React.useState<'classic'|'dropdown'>(() => (localStorage.getItem('techDashStyle') as 'classic'|'dropdown') || 'classic');
   const setTechDashStyle = (v: 'classic'|'dropdown') => { localStorage.setItem('techDashStyle', v); setTechDashStyleState(v); };
-  const [techUserMenuOpen, setTechUserMenuOpen] = React.useState(false);
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -4281,10 +4280,21 @@ function App() {
                 style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 16px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               >
                 <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" fill="#fff"/><path d="M2 18c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
-                {authUser.username}
+                {authUser.username} <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>▼</span>
               </button>
               {showLogout && (
-                <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #d0d8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, minWidth: 140, padding: 8 }}>
+                <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', border: '1px solid #d0d8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 200, minWidth: 180, padding: 8 }}
+                  onClick={() => setShowLogout(false)}>
+                  {techDashStyle === 'dropdown' && (
+                    <>
+                      <button onClick={() => setPage('workorder')} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 6, padding: '9px 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#1a3a7a' }}>📋 New Work Order</button>
+                      <button onClick={() => setPage('workorderlistdraft')} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 6, padding: '9px 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#1a3a7a' }}>📂 Drafts</button>
+                      <button onClick={() => setPage('completedworkorders')} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 6, padding: '9px 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#2a9d2a' }}>✓ Completed</button>
+                      <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }} />
+                    </>
+                  )}
+                  <button onClick={() => setPage('settingspersonal')} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 6, padding: '9px 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#555' }}>⚙️ Settings</button>
+                  <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }} />
                   <button onClick={handleLogout} style={{ width: '100%', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Logout</button>
                 </div>
               )}
@@ -4323,17 +4333,27 @@ function App() {
 
         {/* Bottom nav bar */}
         <div style={{ display: 'flex', background: '#fff', boxShadow: '0 -2px 10px rgba(26,58,122,0.10)', flexShrink: 0, zIndex: 10 }}>
-          {[
-            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><line x1="13" y1="4" x2="13" y2="22" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><line x1="4" y1="13" x2="22" y2="13" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/></svg>, label: 'New WO', action: () => setPage('workorder') },
-            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M5 21L21 5" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><path d="M13 5h8v8" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Drafts', action: () => setPage('workorderlistdraft') },
-            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="4" y="5" width="18" height="16" rx="3" stroke="#1a3a7a" strokeWidth="2"/><line x1="8" y1="10" x2="18" y2="10" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="14" x2="18" y2="14" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="18" x2="14" y2="18" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/></svg>, label: 'Active', action: () => setPage('workorderlist') },
-            { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M4 13l6 6L22 7" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Done', action: () => setPage('completedworkorders') },
-          ].map(({ icon, label, action }) => (
-            <button key={label} onClick={action} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 3 }}>
-              {icon}
-              <span style={{ fontSize: 10, color: '#555', fontWeight: 600 }}>{label}</span>
+          {techDashStyle === 'classic' && (
+            <>
+              {[
+                { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><line x1="13" y1="4" x2="13" y2="22" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><line x1="4" y1="13" x2="22" y2="13" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/></svg>, label: 'New WO', action: () => setPage('workorder') },
+                { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M5 21L21 5" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round"/><path d="M13 5h8v8" stroke="#1a3a7a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Drafts', action: () => setPage('workorderlistdraft') },
+                { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="4" y="5" width="18" height="16" rx="3" stroke="#1a3a7a" strokeWidth="2"/><line x1="8" y1="10" x2="18" y2="10" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="14" x2="18" y2="14" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="18" x2="14" y2="18" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/></svg>, label: 'Active', action: () => setPage('workorderlist') },
+                { icon: <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M4 13l6 6L22 7" stroke="#2a9d2a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>, label: 'Done', action: () => setPage('completedworkorders') },
+              ].map(({ icon, label, action }) => (
+                <button key={label} onClick={action} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 3 }}>
+                  {icon}
+                  <span style={{ fontSize: 10, color: '#555', fontWeight: 600 }}>{label}</span>
+                </button>
+              ))}
+            </>
+          )}
+          {techDashStyle === 'dropdown' && (
+            <button onClick={() => setPage('workorderlist')} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0 8px', background: 'none', border: 'none', cursor: 'pointer', gap: 3 }}>
+              <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="4" y="5" width="18" height="16" rx="3" stroke="#1a3a7a" strokeWidth="2"/><line x1="8" y1="10" x2="18" y2="10" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="14" x2="18" y2="14" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/><line x1="8" y1="18" x2="14" y2="18" stroke="#1a3a7a" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              <span style={{ fontSize: 10, color: '#555', fontWeight: 600 }}>Active WOs</span>
             </button>
-          ))}
+          )}
         </div>
       </div>
     );
