@@ -306,6 +306,8 @@ function App() {
   const [personalMsg, setPersonalMsg] = React.useState<{ type: 'success'|'error'; text: string } | null>(null);
   const [techDashStyle, setTechDashStyleState] = React.useState<'classic'|'dropdown'>(() => (localStorage.getItem('techDashStyle') as 'classic'|'dropdown') || 'classic');
   const setTechDashStyle = (v: 'classic'|'dropdown') => { localStorage.setItem('techDashStyle', v); setTechDashStyleState(v); };
+  const [techWOFilter, setTechWOFilterState] = React.useState<'assigned'|'all'>(() => (localStorage.getItem('techWOFilter') as 'assigned'|'all') || 'assigned');
+  const setTechWOFilter = (v: 'assigned'|'all') => { localStorage.setItem('techWOFilter', v); setTechWOFilterState(v); };
   const [mgrViewMode, setMgrViewModeState] = React.useState<'dash'|'tech'>(() => (localStorage.getItem('mgrViewMode') as 'dash'|'tech') || 'dash');
   const setMgrViewMode = (v: 'dash'|'tech') => { localStorage.setItem('mgrViewMode', v); setMgrViewModeState(v); };
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
@@ -1918,10 +1920,22 @@ function App() {
     );
   }
   if (page === "workorderlistdraft") {
-    const draftOrders = workOrders.filter((wo) => wo.status === 'draft');
+    const rawDraft = workOrders.filter((wo) => wo.status === 'draft');
+    const draftOrders = (authUser?.userType === 'tech' && techWOFilter === 'assigned')
+      ? rawDraft.filter(wo => wo.assignedTo === authUser.username)
+      : rawDraft;
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
-        <h1>Draft Work Orders</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <h1 style={{ margin: 0 }}>Draft Work Orders</h1>
+          {authUser?.userType === 'tech' && (
+            <span onClick={() => setTechWOFilter(techWOFilter === 'assigned' ? 'all' : 'assigned')}
+              style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 12, cursor: 'pointer',
+                background: techWOFilter === 'assigned' ? '#1a3a7a' : '#e0e0e0', color: techWOFilter === 'assigned' ? '#fff' : '#555' }}>
+              {techWOFilter === 'assigned' ? '👤 My WOs' : '🌐 All WOs'}
+            </span>
+          )}
+        </div>
         {draftOrders.length === 0 ? (
           <p>No draft work orders.</p>
         ) : (
@@ -1960,10 +1974,22 @@ function App() {
 
   // Active Work Orders
   if (page === "workorderlist") {
-    const activeOrders = workOrders.filter((wo) => wo.status === 'active');
+    const rawActive = workOrders.filter((wo) => wo.status === 'active');
+    const activeOrders = (authUser?.userType === 'tech' && techWOFilter === 'assigned')
+      ? rawActive.filter(wo => wo.assignedTo === authUser.username)
+      : rawActive;
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
-        <h1>Active Work Order List</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <h1 style={{ margin: 0 }}>Active Work Order List</h1>
+          {authUser?.userType === 'tech' && (
+            <span onClick={() => setTechWOFilter(techWOFilter === 'assigned' ? 'all' : 'assigned')}
+              style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 12, cursor: 'pointer',
+                background: techWOFilter === 'assigned' ? '#1a3a7a' : '#e0e0e0', color: techWOFilter === 'assigned' ? '#fff' : '#555' }}>
+              {techWOFilter === 'assigned' ? '👤 My WOs' : '🌐 All WOs'}
+            </span>
+          )}
+        </div>
         {activeOrders.length === 0 ? (
           <p>No active work orders.</p>
         ) : (
@@ -1997,10 +2023,22 @@ function App() {
 
   // Completed Work Orders
   if (page === "completedworkorders") {
-    const completedOrders = workOrders.filter((wo) => wo.status === 'completed');
+    const rawCompleted = workOrders.filter((wo) => wo.status === 'completed');
+    const completedOrders = (authUser?.userType === 'tech' && techWOFilter === 'assigned')
+      ? rawCompleted.filter(wo => wo.assignedTo === authUser.username)
+      : rawCompleted;
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", padding: "1rem" }}>
-        <h1>Completed Work Orders</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <h1 style={{ margin: 0 }}>Completed Work Orders</h1>
+          {authUser?.userType === 'tech' && (
+            <span onClick={() => setTechWOFilter(techWOFilter === 'assigned' ? 'all' : 'assigned')}
+              style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 12, cursor: 'pointer',
+                background: techWOFilter === 'assigned' ? '#1a3a7a' : '#e0e0e0', color: techWOFilter === 'assigned' ? '#fff' : '#555' }}>
+              {techWOFilter === 'assigned' ? '👤 My WOs' : '🌐 All WOs'}
+            </span>
+          )}
+        </div>
         {completedOrders.length === 0 ? (
           <p>No work orders have been completed yet.</p>
         ) : (
@@ -3365,6 +3403,31 @@ function App() {
                       <span style={{ fontSize: 18 }}>{opt.icon}</span>
                       <span style={{ fontWeight: 700, fontSize: 15, color: techDashStyle === opt.key ? '#1a3a7a' : '#444' }}>{opt.label}</span>
                       {techDashStyle === opt.key && <span style={{ marginLeft: 'auto', background: '#1a3a7a', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>✓ Active</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{opt.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Work Order Filter — tech only */}
+          {isTech && (
+            <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 22, marginBottom: 22 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1a3a7a', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>Work Order Visibility</div>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 14 }}>Control which work orders appear in your Draft, Active, and Completed lists.</div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                {([
+                  { key: 'assigned' as const, label: 'My Work Orders', icon: '👤', desc: 'Only show work orders assigned directly to you.' },
+                  { key: 'all' as const, label: 'All Work Orders', icon: '🌐', desc: 'Show all work orders regardless of assignment.' },
+                ]).map(opt => (
+                  <div key={opt.key} onClick={() => setTechWOFilter(opt.key)}
+                    style={{ flex: '1 1 180px', border: `2px solid ${techWOFilter === opt.key ? '#1a3a7a' : '#d0d8f0'}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer',
+                      background: techWOFilter === opt.key ? '#f0f4ff' : '#fafbff', transition: 'all 0.15s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 18 }}>{opt.icon}</span>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: techWOFilter === opt.key ? '#1a3a7a' : '#444' }}>{opt.label}</span>
+                      {techWOFilter === opt.key && <span style={{ marginLeft: 'auto', background: '#1a3a7a', color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>✓ Active</span>}
                     </div>
                     <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{opt.desc}</div>
                   </div>
