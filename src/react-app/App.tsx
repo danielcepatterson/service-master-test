@@ -305,6 +305,15 @@ function App() {
   const setTechDashStyle = (v: 'classic'|'dropdown') => { localStorage.setItem('techDashStyle', v); setTechDashStyleState(v); };
   const [mgrViewMode, setMgrViewModeState] = React.useState<'dash'|'tech'>(() => (localStorage.getItem('mgrViewMode') as 'dash'|'tech') || 'dash');
   const setMgrViewMode = (v: 'dash'|'tech') => { localStorage.setItem('mgrViewMode', v); setMgrViewModeState(v); };
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [mobileOpenSection, setMobileOpenSection] = React.useState<string | null>(null);
+  const [mobileOpenSubSection, setMobileOpenSubSection] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -4458,9 +4467,12 @@ function App() {
       <div style={{ background: '#1a3a7a', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', position: 'sticky', top: 0, zIndex: 100, overflow: 'visible' }}>
         <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '0 12px', height: 56, gap: 4, overflowX: 'auto', overflowY: 'visible', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
           {/* Logo top-left */}
-          <button onClick={() => { setHomeMenu(null); setHomeSubMenu(null); setPage('home'); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginRight: 20, flexShrink: 0 }}>
+          <button onClick={() => { setHomeMenu(null); setHomeSubMenu(null); setPage('home'); setMobileMenuOpen(false); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginRight: 20, flexShrink: 0 }}>
             <img src="/logo.png" alt="Home" style={{ height: 44, objectFit: 'contain', display: 'block' }} />
           </button>
+
+          {/* ── Desktop Nav Items (hidden on mobile) ── */}
+          {!isMobile && (<>
 
           {/* ── Add New ── */}
           <div style={{ position: 'relative' }}>
@@ -4691,8 +4703,10 @@ function App() {
             )}
           </div>
 
-          {/* User / Logout */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          </>)} {/* end desktop nav */}
+
+          {/* User / Logout — desktop only */}
+          {!isMobile && (<div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>)
             {authUser.userType === 'mgr' && (
               <button onClick={() => setMgrViewMode('tech')}
                 style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.35)', borderRadius: 20, padding: '5px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -4701,9 +4715,208 @@ function App() {
             )}
             <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>{authUser.username}</span>
             <button onClick={handleLogout} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Logout</button>
-          </div>
+          </div>)}
+          {/* Mobile hamburger */}
+          {isMobile && (
+            <button onClick={e => { e.stopPropagation(); setMobileMenuOpen(o => !o); setMobileOpenSection(null); setMobileOpenSubSection(null); }}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#fff', fontSize: 28, lineHeight: 1, cursor: 'pointer', padding: '0 10px', flexShrink: 0 }}>
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── Mobile Menu Overlay ── */}
+      {isMobile && mobileMenuOpen && (
+        <div style={{ position: 'fixed', top: 56, left: 0, right: 0, bottom: 0, background: '#fff', zIndex: 499, overflowY: 'auto' }}
+          onClick={e => e.stopPropagation()}>
+          <div style={{ padding: '12px 20px', borderBottom: '2px solid #e8edf8', color: '#666', fontSize: 13 }}>
+            Logged in as <strong style={{ color: '#1a3a7a' }}>{authUser.username}</strong>
+          </div>
+          {/* Add New */}
+          <div style={{ borderBottom: '1px solid #e8edf8' }}>
+            <button onClick={() => setMobileOpenSection(mobileOpenSection === 'addnew' ? null : 'addnew')}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '14px 20px', textAlign: 'left', fontSize: 16, fontWeight: 700, color: '#1a3a7a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Add New <span style={{ opacity: 0.5 }}>{mobileOpenSection === 'addnew' ? '▲' : '▼'}</span>
+            </button>
+            {mobileOpenSection === 'addnew' && (
+              <div style={{ background: '#f8f9ff', paddingBottom: 8 }}>
+                {addNewItems.filter(i => !i.role || i.role.includes(authUser.userType)).map(item => (
+                  <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Work Orders */}
+          <div style={{ borderBottom: '1px solid #e8edf8' }}>
+            <button onClick={() => setMobileOpenSection(mobileOpenSection === 'wo' ? null : 'wo')}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '14px 20px', textAlign: 'left', fontSize: 16, fontWeight: 700, color: '#1a3a7a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Work Orders <span style={{ opacity: 0.5 }}>{mobileOpenSection === 'wo' ? '▲' : '▼'}</span>
+            </button>
+            {mobileOpenSection === 'wo' && (
+              <div style={{ background: '#f8f9ff', paddingBottom: 8 }}>
+                {woItems.map(item => (
+                  <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Billing */}
+          <div style={{ borderBottom: '1px solid #e8edf8' }}>
+            <button onClick={() => setMobileOpenSection(mobileOpenSection === 'billing' ? null : 'billing')}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '14px 20px', textAlign: 'left', fontSize: 16, fontWeight: 700, color: '#1a3a7a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Billing <span style={{ opacity: 0.5 }}>{mobileOpenSection === 'billing' ? '▲' : '▼'}</span>
+            </button>
+            {mobileOpenSection === 'billing' && (
+              <div style={{ background: '#f8f9ff', paddingBottom: 8 }}>
+                {billingDirectItems.map(item => (
+                  <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    {item.label}
+                  </button>
+                ))}
+                <button onClick={() => setMobileOpenSubSection(mobileOpenSubSection === 'billing-archive' ? null : 'billing-archive')}
+                  style={{ display: 'flex', width: '100%', justifyContent: 'space-between', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#555', cursor: 'pointer', fontWeight: 600 }}>
+                  Archive <span style={{ opacity: 0.5 }}>{mobileOpenSubSection === 'billing-archive' ? '▲' : '▼'}</span>
+                </button>
+                {mobileOpenSubSection === 'billing-archive' && billingArchiveItems.map(item => (
+                  <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); setMobileOpenSubSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 52px', fontSize: 14, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Team */}
+          {(authUser.userType === 'admin' || authUser.userType === 'mgr') && (
+            <div style={{ borderBottom: '1px solid #e8edf8' }}>
+              <button onClick={() => setMobileOpenSection(mobileOpenSection === 'team' ? null : 'team')}
+                style={{ width: '100%', background: 'none', border: 'none', padding: '14px 20px', textAlign: 'left', fontSize: 16, fontWeight: 700, color: '#1a3a7a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                Team <span style={{ opacity: 0.5 }}>{mobileOpenSection === 'team' ? '▲' : '▼'}</span>
+              </button>
+              {mobileOpenSection === 'team' && (
+                <div style={{ background: '#f8f9ff', paddingBottom: 8 }}>
+                  {[{ label: 'Team Info', page: 'teaminfo' }, { label: 'Payroll', page: 'payroll' }, { label: 'Submit Day Off', page: 'submitdayoff' }].map(item => (
+                    <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {/* Recurring */}
+          <div style={{ borderBottom: '1px solid #e8edf8' }}>
+            <button onClick={() => setMobileOpenSection(mobileOpenSection === 'recurring' ? null : 'recurring')}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '14px 20px', textAlign: 'left', fontSize: 16, fontWeight: 700, color: '#1a3a7a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Recurring <span style={{ opacity: 0.5 }}>{mobileOpenSection === 'recurring' ? '▲' : '▼'}</span>
+            </button>
+            {mobileOpenSection === 'recurring' && (
+              <div style={{ background: '#f8f9ff', paddingBottom: 8 }}>
+                {[{ label: 'Recurring Work Orders', page: 'recurringworkorders' }, { label: 'Internal Services', page: 'internalservices' }].map(item => (
+                  <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Reports */}
+          <div style={{ borderBottom: '1px solid #e8edf8' }}>
+            <button onClick={() => setMobileOpenSection(mobileOpenSection === 'reports' ? null : 'reports')}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '14px 20px', textAlign: 'left', fontSize: 16, fontWeight: 700, color: '#1a3a7a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Reports <span style={{ opacity: 0.5 }}>{mobileOpenSection === 'reports' ? '▲' : '▼'}</span>
+            </button>
+            {mobileOpenSection === 'reports' && (
+              <div style={{ background: '#f8f9ff', paddingBottom: 8 }}>
+                {[
+                  { label: 'Revenue Report', page: 'reportrevenue' },
+                  { label: 'Work Order Report', page: 'reportworkorders' },
+                  { label: 'Tech Productivity', page: 'reporttechproductivity' },
+                  { label: 'Expense Summary', page: 'reportexpenses' },
+                ].map(item => (
+                  <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    {item.label}
+                  </button>
+                ))}
+                <button onClick={() => setMobileOpenSubSection(mobileOpenSubSection === 'report-lists' ? null : 'report-lists')}
+                  style={{ display: 'flex', width: '100%', justifyContent: 'space-between', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#555', cursor: 'pointer', fontWeight: 600 }}>
+                  Lists <span style={{ opacity: 0.5 }}>{mobileOpenSubSection === 'report-lists' ? '▲' : '▼'}</span>
+                </button>
+                {mobileOpenSubSection === 'report-lists' && listItems.filter(i => !i.role || i.role.includes(authUser.userType)).map(item => (
+                  <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); setMobileOpenSubSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 52px', fontSize: 14, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Settings */}
+          <div style={{ borderBottom: '1px solid #e8edf8' }}>
+            <button onClick={() => setMobileOpenSection(mobileOpenSection === 'settings' ? null : 'settings')}
+              style={{ width: '100%', background: 'none', border: 'none', padding: '14px 20px', textAlign: 'left', fontSize: 16, fontWeight: 700, color: '#1a3a7a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Settings <span style={{ opacity: 0.5 }}>{mobileOpenSection === 'settings' ? '▲' : '▼'}</span>
+            </button>
+            {mobileOpenSection === 'settings' && (
+              <div style={{ background: '#f8f9ff', paddingBottom: 8 }}>
+                {(authUser.userType === 'admin' || authUser.userType === 'mgr') && (<>
+                  <button onClick={() => setMobileOpenSubSection(mobileOpenSubSection === 'company-settings' ? null : 'company-settings')}
+                    style={{ display: 'flex', width: '100%', justifyContent: 'space-between', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#555', cursor: 'pointer', fontWeight: 600 }}>
+                    🏢 Company Settings <span style={{ opacity: 0.5 }}>{mobileOpenSubSection === 'company-settings' ? '▲' : '▼'}</span>
+                  </button>
+                  {mobileOpenSubSection === 'company-settings' && [
+                    { label: 'Company Info', page: 'settingscompany' },
+                    { label: 'Tax & Fees', page: 'settingstaxfees' },
+                    { label: 'Markup & Pricing', page: 'settingspricing' },
+                    { label: 'Pay Period Config', page: 'settingspayperiod' },
+                    { label: 'User Management', page: 'userlist' },
+                    { label: 'Audit Log', page: 'systemlogs' },
+                  ].map(item => (
+                    <button key={item.page} onClick={() => { setPage(item.page); setMobileMenuOpen(false); setMobileOpenSection(null); setMobileOpenSubSection(null); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 52px', fontSize: 14, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                      {item.label}
+                    </button>
+                  ))}
+                </>)}
+                <button onClick={() => setMobileOpenSubSection(mobileOpenSubSection === 'personal-settings' ? null : 'personal-settings')}
+                  style={{ display: 'flex', width: '100%', justifyContent: 'space-between', background: 'none', border: 'none', padding: '11px 36px', fontSize: 15, color: '#555', cursor: 'pointer', fontWeight: 600 }}>
+                  👤 Personal Settings <span style={{ opacity: 0.5 }}>{mobileOpenSubSection === 'personal-settings' ? '▲' : '▼'}</span>
+                </button>
+                {mobileOpenSubSection === 'personal-settings' && (
+                  <button onClick={() => { setPage('settingspersonal'); setMobileMenuOpen(false); setMobileOpenSection(null); setMobileOpenSubSection(null); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '11px 52px', fontSize: 14, color: '#1a3a7a', cursor: 'pointer', fontWeight: 500 }}>
+                    Account & Password
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          {/* Bottom actions */}
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {authUser.userType === 'mgr' && (
+              <button onClick={() => { setMgrViewMode('tech'); setMobileMenuOpen(false); }}
+                style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, padding: '13px', fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
+                📱 Switch to Tech View
+              </button>
+            )}
+            <button onClick={handleLogout}
+              style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 8, padding: '13px', fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Dashboard Body */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 20px' }}>
