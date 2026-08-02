@@ -4302,6 +4302,13 @@ function App() {
                     </>
                   )}
                   <button onClick={() => setPage('settingspersonal')} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 6, padding: '9px 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#555' }}>⚙️ Settings</button>
+                  {(authUser.userType as string) === 'mgr' && (
+                    <>
+                      <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }} />
+                      <button onClick={() => setPage('invoicelist')} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 6, padding: '9px 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#e67e22' }}>🧾 Invoice List</button>
+                      <button onClick={() => setPage('closedworkorders')} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 6, padding: '9px 12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#888' }}>📁 Closed WOs</button>
+                    </>
+                  )}
                   <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }} />
                   <button onClick={handleLogout} style={{ width: '100%', background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 0', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Logout</button>
                 </div>
