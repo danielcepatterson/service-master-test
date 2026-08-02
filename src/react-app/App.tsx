@@ -17,8 +17,9 @@ type PropertyForm = {
 type WorkOrderStatus = 'draft' | 'active' | 'completed' | 'closed' | 'invoiced' | 'sent' | 'nocharge' | 'deleted' | 'paid';
 
 type WorkOrderHistoryEntry = {
-  status: WorkOrderStatus;
+  status: string; // WorkOrderStatus or 'assigned:username' or 'unassigned'
   timestamp: string; // ISO string
+  changedBy?: string;
 };
 
 type WorkOrder = {
@@ -30,6 +31,8 @@ type WorkOrder = {
   scheduledDate: string;
   status: WorkOrderStatus;
   completedAt?: string;
+  assignedTo?: string;
+  createdBy?: string;
   history: WorkOrderHistoryEntry[];
 };
 type VendorForm = {
@@ -130,12 +133,12 @@ function App() {
   const [submitted, setSubmitted] = React.useState(false);
 
   // Work order state
-  const [woForm, setWoForm] = React.useState<Omit<WorkOrder, 'number' | 'status' | 'history'> & { status?: WorkOrderStatus, history?: WorkOrderHistoryEntry[] }>({
-    propertyName: '',
+  const [woForm, setWoForm] = React.useState<Omit<WorkOrder, 'number' | 'status' | 'history'> & { status?: WorkOrderStatus, history?: WorkOrderHistoryEntry[] }>({    propertyName: '',
     title: '',
     instructions: '',
     scheduledTime: '',
     scheduledDate: '',
+    assignedTo: '',
     status: 'draft',
     history: [],
   });
@@ -479,11 +482,12 @@ function App() {
       instructions: woForm.instructions,
       scheduledTime: woForm.scheduledTime,
       scheduledDate: woForm.scheduledDate,
+      assignedTo: woForm.assignedTo || '',
     };
     await api.createWorkOrder(newWO);
     await loadAllData();
     setWoSubmitted(true);
-    setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', status: 'draft', history: [] });
+    setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', assignedTo: '', status: 'draft', history: [] });
   };
 
   const activateWorkOrder = async (number: string) => {
@@ -1014,6 +1018,25 @@ function App() {
                   <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Date</span><br />{viewingWO.scheduledDate || '—'}</div>
                   <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Scheduled Time</span><br />{viewingWO.scheduledTime || '—'}</div>
                   {viewingWO.completedAt && <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Completed At</span><br />{new Date(viewingWO.completedAt).toLocaleString()}</div>}
+                  {viewingWO.createdBy && <div><span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Created By</span><br />{viewingWO.createdBy}</div>}
+                  <div>
+                    <span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Assigned To</span><br />
+                    {(authUser?.userType === 'admin' || authUser?.userType === 'mgr' || authUser?.userType === 'dispatch') ? (
+                      <select value={viewingWO.assignedTo || ''} onChange={async e => {
+                        const val = e.target.value;
+                        await api.assignWorkOrder(viewingWO.number, val);
+                        await loadAllData();
+                        setViewingWO(prev => prev ? { ...prev, assignedTo: val } : prev);
+                      }} style={{ marginTop: 4, padding: '4px 8px', border: '1px solid #b0c0e0', borderRadius: 6, fontSize: 13 }}>
+                        <option value="">— Unassigned —</option>
+                        {teamProfiles.map(tp => (
+                          <option key={tp.userId} value={tp.username}>{tp.username}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{viewingWO.assignedTo || '— Unassigned'}</span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ marginTop: 16 }}>
                   <span style={{ fontWeight: 600, color: '#555', fontSize: 13 }}>Instructions / Scope of Work</span>
@@ -1294,12 +1317,18 @@ function App() {
             <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>History</h2>
             {viewingWO.history.length === 0 && <p style={{ color: '#888' }}>No history.</p>}
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {viewingWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
-                <li key={idx} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 12px', marginBottom: 6, background: idx % 2 === 0 ? '#f0f4ff' : '#e8edf8', borderRadius: 6, borderLeft: `4px solid ${statusColors[entry.status] || '#888'}` }}>
-                  <span style={{ background: statusColors[entry.status] || '#888', color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{entry.status}</span>
-                  <span style={{ color: '#333', fontSize: 13, fontWeight: 500 }}>{new Date(entry.timestamp).toLocaleString()}</span>
-                </li>
-              ))}
+              {viewingWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => {
+                const isAssign = entry.status.startsWith('assigned:') || entry.status === 'unassigned';
+                const label = isAssign ? (entry.status === 'unassigned' ? 'Unassigned' : `Assigned → ${entry.status.replace('assigned:', '')}`) : entry.status;
+                const color = isAssign ? '#e67e00' : (statusColors[entry.status as WorkOrderStatus] || '#888');
+                return (
+                  <li key={idx} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 12px', marginBottom: 6, background: idx % 2 === 0 ? '#f0f4ff' : '#e8edf8', borderRadius: 6, borderLeft: `4px solid ${color}` }}>
+                    <span style={{ background: color, color: '#fff', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600, textTransform: isAssign ? 'none' : 'uppercase', whiteSpace: 'nowrap' }}>{label}</span>
+                    <span style={{ color: '#333', fontSize: 13, fontWeight: 500 }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                    {entry.changedBy && <span style={{ marginLeft: 'auto', color: '#666', fontSize: 12 }}>👤 {entry.changedBy}</span>}
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
@@ -1776,6 +1805,15 @@ function App() {
               Scheduled Date
               <input name="scheduledDate" type="date" value={woForm.scheduledDate} onChange={handleWoFormChange} />
             </label>
+            <label>
+              Assign To (optional)
+              <select name="assignedTo" value={woForm.assignedTo || ''} onChange={handleWoFormChange}>
+                <option value="">— Unassigned —</option>
+                {teamProfiles.map(tp => (
+                  <option key={tp.userId} value={tp.username}>{tp.username}</option>
+                ))}
+              </select>
+            </label>
             <button type="submit">Draft Work Order</button>
             <button type="button" onClick={async () => {
               const form = document.querySelector('form') as HTMLFormElement;
@@ -1787,12 +1825,13 @@ function App() {
                 instructions: woForm.instructions,
                 scheduledTime: woForm.scheduledTime,
                 scheduledDate: woForm.scheduledDate,
+                assignedTo: woForm.assignedTo || '',
               };
               await api.createWorkOrder(newWO);
               await api.updateWorkOrderStatus(newWO.number, 'active');
               await loadAllData();
               setWoSubmitted(true);
-              setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', status: 'draft', history: [] });
+              setWoForm({ propertyName: '', title: '', instructions: '', scheduledTime: '', scheduledDate: '', assignedTo: '', status: 'draft', history: [] });
             }}>Activate Work Order</button>
             <button type="button" onClick={() => setPage("home")}>Return to Home</button>
           </form>
@@ -2098,11 +2137,15 @@ function App() {
           <div style={{ marginTop: 24, background: '#f8f8f8', padding: 16, borderRadius: 8, maxWidth: '90%', width: 350 }}>
             <h2>Work Order History: {viewHistoryWO.number}</h2>
             <ul style={{ textAlign: 'left' }}>
-              {viewHistoryWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => (
-                <li key={idx}>
-                  {entry.status} at {new Date(entry.timestamp).toLocaleString()}
-                </li>
-              ))}
+              {viewHistoryWO.history.map((entry: WorkOrderHistoryEntry, idx: number) => {
+                const isAssign = entry.status.startsWith('assigned:') || entry.status === 'unassigned';
+                const label = isAssign ? (entry.status === 'unassigned' ? 'Unassigned' : `Assigned → ${entry.status.replace('assigned:', '')}`) : entry.status;
+                return (
+                  <li key={idx} style={{ marginBottom: 4 }}>
+                    <strong>{label}</strong> at {new Date(entry.timestamp).toLocaleString()}{entry.changedBy ? ` — 👤 ${entry.changedBy}` : ''}
+                  </li>
+                );
+              })}
             </ul>
             <button onClick={() => setViewHistoryWO(null)}>Close</button>
           </div>

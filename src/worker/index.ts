@@ -60,6 +60,9 @@ async function runMigrations(db: D1Database) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS system_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL DEFAULT '', action TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general', target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS team_profiles (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL UNIQUE, schedule TEXT NOT NULL DEFAULT '{}', pay_rate TEXT NOT NULL DEFAULT '0', pto_total INTEGER NOT NULL DEFAULT 0, pto_used INTEGER NOT NULL DEFAULT 0, sick_total INTEGER NOT NULL DEFAULT 0, sick_used INTEGER NOT NULL DEFAULT 0, notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS days_off (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, date TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT 'PTO', status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+  try { await db.prepare(`ALTER TABLE work_orders ADD COLUMN assigned_to TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
+  try { await db.prepare(`ALTER TABLE work_orders ADD COLUMN created_by TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
+  try { await db.prepare(`ALTER TABLE work_order_history ADD COLUMN changed_by TEXT NOT NULL DEFAULT ''`).run(); } catch (_) {}
   await db.prepare(`CREATE TABLE IF NOT EXISTS recurring_items (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, property_name TEXT NOT NULL DEFAULT '', instructions TEXT NOT NULL DEFAULT '', frequency TEXT NOT NULL DEFAULT 'monthly', day_of_week TEXT NOT NULL DEFAULT '', day_of_month INTEGER NOT NULL DEFAULT 1, assigned_to TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, last_generated TEXT NOT NULL DEFAULT '', next_due TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS internal_services (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general', description TEXT NOT NULL DEFAULT '', frequency TEXT NOT NULL DEFAULT 'monthly', day_of_week TEXT NOT NULL DEFAULT '', day_of_month INTEGER NOT NULL DEFAULT 1, assigned_to TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, last_completed TEXT NOT NULL DEFAULT '', next_due TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
 }
@@ -442,7 +445,7 @@ app.get("/api/work-orders", async (c) => {
   const enriched = await Promise.all(
     (orders || []).map(async (wo: any) => {
       const { results: history } = await c.env.DB.prepare(
-        "SELECT status, timestamp FROM work_order_history WHERE work_order_number = ? ORDER BY id ASC"
+        "SELECT status, timestamp, changed_by FROM work_order_history WHERE work_order_number = ? ORDER BY id ASC"
       )
         .bind(wo.number)
         .all();
@@ -455,7 +458,9 @@ app.get("/api/work-orders", async (c) => {
         scheduledDate: wo.scheduled_date,
         status: wo.status,
         completedAt: wo.completed_at,
-        history: history || [],
+        assignedTo: wo.assigned_to || '',
+        createdBy: wo.created_by || '',
+        history: (history || []).map((h: any) => ({ status: h.status, timestamp: h.timestamp, changedBy: h.changed_by || '' })),
       };
     })
   );
@@ -501,10 +506,22 @@ app.put("/api/work-orders/:number/status", async (c) => {
   } else {
     await c.env.DB.prepare("UPDATE work_orders SET status = ? WHERE number = ?").bind(status, woNumber).run();
   }
-  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp) VALUES (?, ?, ?)")
-    .bind(woNumber, status, now)
+  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp, changed_by) VALUES (?, ?, ?, ?)")    .bind(woNumber, status, now, user.username)
     .run();
   await writeLog(c.env.DB, user.username, 'update_workorder', 'workorder', woNumber, `Status changed to ${status}`);
+  return c.json({ ok: true });
+});
+
+app.put("/api/work-orders/:number/assign", async (c) => {
+  const user = await getUser(c);
+  if (!user) return unauthorized();
+  const woNumber = c.req.param("number");
+  const { assignedTo } = await c.req.json();
+  await c.env.DB.prepare("UPDATE work_orders SET assigned_to = ? WHERE number = ?").bind(assignedTo || '', woNumber).run();
+  const now2 = new Date().toISOString();
+  const label = assignedTo ? `assigned:${assignedTo}` : 'unassigned';
+  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp, changed_by) VALUES (?, ?, ?, ?)").bind(woNumber, label, now2, user.username).run();
+  await writeLog(c.env.DB, user.username, 'assign_workorder', 'workorder', woNumber, `Assigned to: ${assignedTo || '(none)'}`);
   return c.json({ ok: true });
 });
 
@@ -512,10 +529,10 @@ app.put("/api/work-orders/:number", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
   const woNumber = c.req.param("number");
-  const { propertyName, title, instructions, scheduledDate, scheduledTime } = await c.req.json();
+  const { propertyName, title, instructions, scheduledDate, scheduledTime, assignedTo } = await c.req.json();
   await c.env.DB.prepare(
-    "UPDATE work_orders SET property_name = ?, title = ?, instructions = ?, scheduled_date = ?, scheduled_time = ? WHERE number = ?"
-  ).bind(propertyName, title, instructions, scheduledDate, scheduledTime, woNumber).run();
+    "UPDATE work_orders SET property_name = ?, title = ?, instructions = ?, scheduled_date = ?, scheduled_time = ?, assigned_to = ? WHERE number = ?"
+  ).bind(propertyName, title, instructions, scheduledDate, scheduledTime, assignedTo ?? '', woNumber).run();
   await writeLog(c.env.DB, user.username, 'update_workorder', 'workorder', woNumber, `Updated WO details`);
   return c.json({ ok: true });
 });
@@ -526,8 +543,7 @@ app.delete("/api/work-orders/:number", async (c) => {
   const woNumber = c.req.param("number");
   const now = new Date().toISOString();
   await c.env.DB.prepare("UPDATE work_orders SET status = 'deleted' WHERE number = ?").bind(woNumber).run();
-  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp) VALUES (?, 'deleted', ?)") 
-    .bind(woNumber, now).run();
+  await c.env.DB.prepare("INSERT INTO work_order_history (work_order_number, status, timestamp, changed_by) VALUES (?, 'deleted', ?, ?)")    .bind(woNumber, now, user.username).run();
   await writeLog(c.env.DB, user.username, 'delete_workorder', 'workorder', woNumber, `Work order marked deleted`);
   return c.json({ ok: true });
 });

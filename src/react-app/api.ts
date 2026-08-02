@@ -125,10 +125,19 @@ export async function updateWorkOrder(number: string, fields: {
   instructions: string;
   scheduledDate: string;
   scheduledTime: string;
+  assignedTo?: string;
 }) {
   const res = await apiFetch(`/api/work-orders/${number}`, {
     method: "PUT",
     body: JSON.stringify(fields),
+  });
+  return res.json();
+}
+
+export async function assignWorkOrder(number: string, assignedTo: string) {
+  const res = await apiFetch(`/api/work-orders/${number}/assign`, {
+    method: "PUT",
+    body: JSON.stringify({ assignedTo }),
   });
   return res.json();
 }
