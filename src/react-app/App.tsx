@@ -303,6 +303,8 @@ function App() {
   const [personalMsg, setPersonalMsg] = React.useState<{ type: 'success'|'error'; text: string } | null>(null);
   const [techDashStyle, setTechDashStyleState] = React.useState<'classic'|'dropdown'>(() => (localStorage.getItem('techDashStyle') as 'classic'|'dropdown') || 'classic');
   const setTechDashStyle = (v: 'classic'|'dropdown') => { localStorage.setItem('techDashStyle', v); setTechDashStyleState(v); };
+  const [mgrViewMode, setMgrViewModeState] = React.useState<'dash'|'tech'>(() => (localStorage.getItem('mgrViewMode') as 'dash'|'tech') || 'dash');
+  const setMgrViewMode = (v: 'dash'|'tech') => { localStorage.setItem('mgrViewMode', v); setMgrViewModeState(v); };
   React.useEffect(() => {
     const t = setInterval(() => setClockTime(new Date()), 1000);
     return () => clearInterval(t);
@@ -4273,6 +4275,12 @@ function App() {
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><rect x="4" y="2" width="12" height="16" rx="2" stroke="#fff" strokeWidth="1.8"/><line x1="7" y1="7" x2="13" y2="7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="7" y1="10" x2="13" y2="10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="7" y1="13" x2="10" y2="13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><text x="13" y="7.5" style={{fontSize:6,fontWeight:900,fill:'#6fdd6f',dominantBaseline:'middle',textAnchor:'middle'}}>$</text></svg>
               $
             </button>
+            {(authUser.userType as string) === 'mgr' && (
+              <button onClick={() => { setMgrViewMode('dash'); setPage('home'); }}
+                style={{ background: '#e8f0fe', color: '#1a3a7a', border: '1px solid #c0d0f0', borderRadius: 20, padding: '5px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                🖥️ Dash View
+              </button>
+            )}
             <div style={{ width: 1, height: 28, background: 'rgba(26,58,122,0.15)', margin: '0 4px' }} />
             <div style={{ position: 'relative' }}>
               <button
@@ -4678,6 +4686,12 @@ function App() {
 
           {/* User / Logout */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            {authUser.userType === 'mgr' && (
+              <button onClick={() => setMgrViewMode('tech')}
+                style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.35)', borderRadius: 20, padding: '5px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                📱 Tech View
+              </button>
+            )}
             <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>{authUser.username}</span>
             <button onClick={handleLogout} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Logout</button>
           </div>
