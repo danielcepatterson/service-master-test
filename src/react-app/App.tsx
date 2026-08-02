@@ -4455,8 +4455,8 @@ function App() {
   return (
     <div style={{ minHeight: '100vh', background: '#e8edf8' }} onClick={() => { setHomeMenu(null); setHomeSubMenu(null); }}>
       {/* Top Nav Bar */}
-      <div style={{ background: '#1a3a7a', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '0 20px', height: 56, gap: 8 }}>
+      <div style={{ background: '#1a3a7a', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', position: 'sticky', top: 0, zIndex: 100, overflow: 'visible' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', alignItems: 'center', padding: '0 12px', height: 56, gap: 4, overflowX: 'auto', overflowY: 'visible', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
           {/* Logo top-left */}
           <button onClick={() => { setHomeMenu(null); setHomeSubMenu(null); setPage('home'); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginRight: 20, flexShrink: 0 }}>
             <img src="/logo.png" alt="Home" style={{ height: 44, objectFit: 'contain', display: 'block' }} />
