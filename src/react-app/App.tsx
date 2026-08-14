@@ -1504,8 +1504,9 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e8edf8', paddingTop: 14 }}>
                 <table style={{ borderCollapse: 'collapse', minWidth: 280 }}>
                   <tbody>
-                    <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Materials{estimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.matTotal)}</td></tr>
-                    <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Labor</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.laborBase)}</td></tr>
+                    {totals.matTotal > 0 && <tr><td style={{ padding: '4px 14px', fontSize: 13, color: '#666' }}>Materials Subtotal{estimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '4px 14px', textAlign: 'right', fontSize: 13 }}>{fmtC(totals.matTotal)}</td></tr>}
+                    {totals.laborBase > 0 && <tr><td style={{ padding: '4px 14px', fontSize: 13, color: '#666' }}>Labor Subtotal</td><td style={{ padding: '4px 14px', textAlign: 'right', fontSize: 13 }}>{fmtC(totals.laborBase)}</td></tr>}
+                    <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#333', fontWeight: 700, borderTop: '2px solid #c0c8e0' }}>Subtotal</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 700, fontSize: 13, borderTop: '2px solid #c0c8e0' }}>{fmtC(totals.matTotal + totals.laborBase)}</td></tr>
                     {(estimateApplyTax || estimateApplyTaxAll) && <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Sales Tax (7%{estimateApplyTax ? ' on Labor' : ' on All'})</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.taxAmt)}</td></tr>}
                     <tr style={{ background: '#1a3a7a', color: '#fff' }}>
                       <td style={{ padding: '9px 14px', fontWeight: 900, fontSize: 16, borderRadius: '6px 0 0 6px' }}>TOTAL</td>
@@ -1657,8 +1658,9 @@ function App() {
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <table style={{ borderCollapse: 'collapse', minWidth: 260 }}>
                       <tbody>
-                        <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Materials{editEstimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.matTotal)}</td></tr>
-                        <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Labor</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.laborBase)}</td></tr>
+                        {editTotals.matTotal > 0 && <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#666' }}>Materials Subtotal{editEstimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '4px 12px', textAlign: 'right', fontSize: 13 }}>{fmtE(editTotals.matTotal)}</td></tr>}
+                        {editTotals.laborBase > 0 && <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#666' }}>Labor Subtotal</td><td style={{ padding: '4px 12px', textAlign: 'right', fontSize: 13 }}>{fmtE(editTotals.laborBase)}</td></tr>}
+                        <tr><td style={{ padding: '5px 12px', fontSize: 13, color: '#333', fontWeight: 700, borderTop: '2px solid #c0c8e0' }}>Subtotal</td><td style={{ padding: '5px 12px', textAlign: 'right', fontWeight: 700, fontSize: 13, borderTop: '2px solid #c0c8e0' }}>{fmtE(editTotals.matTotal + editTotals.laborBase)}</td></tr>
                         {(editEstimateApplyTax || editEstimateApplyTaxAll) && <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Sales Tax (7%{editEstimateApplyTax ? ' on Labor' : ' on All'})</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.taxAmt)}</td></tr>}
                         <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '7px 12px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtE(editTotals.grandTotal)}</td></tr>
                       </tbody>
@@ -1687,8 +1689,10 @@ function App() {
           // Owner-visible unit price: materials get 10% added silently
           const ownerUnit = (item: EstimateLineItem) => item.type === 'material' && applyMu ? item.unitPrice * 1.1 : item.unitPrice;
           const ownerLine = (item: EstimateLineItem) => item.qty * ownerUnit(item);
-          const lineSubtotal = lines.reduce((s, i) => s + ownerLine(i), 0);
-          const laborBase = lines.filter(i => i.type === 'labor').reduce((s, i) => s + i.qty * i.unitPrice, 0);
+          const matSubtotal = lines.filter(i => i.type === 'material').reduce((s, i) => s + ownerLine(i), 0);
+          const laborSubtotal = lines.filter(i => i.type === 'labor').reduce((s, i) => s + ownerLine(i), 0);
+          const lineSubtotal = matSubtotal + laborSubtotal;
+          const laborBase = laborSubtotal; // labor has no markup so they're the same
           const taxableBase = applyTxAll ? lineSubtotal : (applyTx ? laborBase : 0);
           const taxAmt = taxableBase * 0.07;
           const taxLabel = applyTxAll ? 'Sales Tax (7% on All Items)' : 'Sales Tax (7% on Labor)';
@@ -1779,7 +1783,9 @@ function App() {
                     {/* Totals */}
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
                       <table style={{ borderCollapse: 'collapse', minWidth: 260 }}><tbody>
-                        <tr><td style={{ padding: '7px 14px', fontWeight: 600, color: '#555', borderTop: '1px solid #ddd', fontSize: 13 }}>Subtotal</td><td style={{ padding: '7px 14px', textAlign: 'right', borderTop: '1px solid #ddd', fontSize: 13 }}>{fmtMoney(hasLines ? lineSubtotal : legacyCost)}</td></tr>
+                        {hasLines && matSubtotal > 0 && <tr><td style={{ padding: '6px 14px', color: '#666', borderTop: '1px solid #ddd', fontSize: 13 }}>Materials Subtotal</td><td style={{ padding: '6px 14px', textAlign: 'right', borderTop: '1px solid #ddd', fontSize: 13 }}>{fmtMoney(matSubtotal)}</td></tr>}
+                        {hasLines && laborSubtotal > 0 && <tr><td style={{ padding: '6px 14px', color: '#666', fontSize: 13 }}>{matSubtotal === 0 ? <span style={{ borderTop: '1px solid #ddd', display: 'block' }}/> : ''}Labor Subtotal</td><td style={{ padding: '6px 14px', textAlign: 'right', fontSize: 13 }}>{fmtMoney(laborSubtotal)}</td></tr>}
+                        <tr><td style={{ padding: '7px 14px', fontWeight: 700, color: '#333', borderTop: '2px solid #c0c8e0', fontSize: 13 }}>Subtotal</td><td style={{ padding: '7px 14px', textAlign: 'right', borderTop: '2px solid #c0c8e0', fontWeight: 700, fontSize: 13 }}>{fmtMoney(hasLines ? lineSubtotal : legacyCost)}</td></tr>
                         {(applyTx || applyTxAll) && hasLines && <tr><td style={{ padding: '7px 14px', fontWeight: 600, color: '#555', fontSize: 13 }}>{taxLabel}</td><td style={{ padding: '7px 14px', textAlign: 'right', fontSize: 13 }}>{fmtMoney(taxAmt)}</td></tr>}
                         <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '10px 14px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtMoney(hasLines ? grandTotal : legacyCost)}</td></tr>
                       </tbody></table>
