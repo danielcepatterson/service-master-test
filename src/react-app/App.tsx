@@ -93,13 +93,15 @@ type Estimate = {
   lineItems?: EstimateLineItem[];
   applyMarkup?: boolean;
   applyTax?: boolean;
+  applyTaxAll?: boolean;
 };
 
-function calcEstTotals(items: EstimateLineItem[], markup: boolean, tax: boolean) {
+function calcEstTotals(items: EstimateLineItem[], markup: boolean, tax: boolean, taxAll: boolean = false) {
   const matBase = items.filter(i => i.type === 'material').reduce((s, i) => s + i.qty * i.unitPrice, 0);
   const laborBase = items.filter(i => i.type === 'labor').reduce((s, i) => s + i.qty * i.unitPrice, 0);
   const matTotal = matBase * (markup ? 1.1 : 1);
-  const taxAmt = tax ? laborBase * 0.07 : 0;
+  const taxableBase = taxAll ? (matTotal + laborBase) : (tax ? laborBase : 0);
+  const taxAmt = taxableBase * 0.07;
   return { matBase, matTotal, laborBase, taxAmt, grandTotal: matTotal + laborBase + taxAmt };
 }
 
@@ -227,6 +229,7 @@ function App() {
   const [estimateLineItems, setEstimateLineItems] = React.useState<EstimateLineItem[]>([{ qty: 1, description: '', unitPrice: 0, type: 'labor' }]);
   const [estimateApplyMarkup, setEstimateApplyMarkup] = React.useState(false);
   const [estimateApplyTax, setEstimateApplyTax] = React.useState(false);
+  const [estimateApplyTaxAll, setEstimateApplyTaxAll] = React.useState(false);
 
   // Edit estimate state
   const [editingEstimate, setEditingEstimate] = React.useState<Estimate | null>(null);
@@ -235,6 +238,7 @@ function App() {
   const [editEstimateLineItems, setEditEstimateLineItems] = React.useState<EstimateLineItem[]>([]);
   const [editEstimateApplyMarkup, setEditEstimateApplyMarkup] = React.useState(false);
   const [editEstimateApplyTax, setEditEstimateApplyTax] = React.useState(false);
+  const [editEstimateApplyTaxAll, setEditEstimateApplyTaxAll] = React.useState(false);
 
   // Preview estimate state
   const [previewEstimate, setPreviewEstimate] = React.useState<Estimate | null>(null);
@@ -801,7 +805,7 @@ function App() {
 
   const handleEstimateFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const totals = calcEstTotals(estimateLineItems, estimateApplyMarkup, estimateApplyTax);
+    const totals = calcEstTotals(estimateLineItems, estimateApplyMarkup, estimateApplyTax, estimateApplyTaxAll);
     const descSummary = estimateLineItems.filter(i => i.description).map(i => `${i.qty}× ${i.description} (${i.type})`).join(', ');
     try {
       const result = await api.createEstimate({
@@ -811,6 +815,7 @@ function App() {
         lineItems: estimateLineItems,
         applyMarkup: estimateApplyMarkup,
         applyTax: estimateApplyTax,
+        applyTaxAll: estimateApplyTaxAll,
       });
       if (result.error) { alert('Failed to submit estimate: ' + result.error); return; }
       await loadAllData();
@@ -819,6 +824,7 @@ function App() {
       setEstimateLineItems([{ qty: 1, description: '', unitPrice: 0, type: 'labor' }]);
       setEstimateApplyMarkup(false);
       setEstimateApplyTax(false);
+      setEstimateApplyTaxAll(false);
     } catch (err) {
       console.error('Estimate submit error', err);
       alert('Failed to submit estimate. Please try again.');
@@ -830,7 +836,7 @@ function App() {
     if (!editingEstimate) return;
     setEditEstimateSaving(true);
     try {
-      const totals = calcEstTotals(editEstimateLineItems, editEstimateApplyMarkup, editEstimateApplyTax);
+      const totals = calcEstTotals(editEstimateLineItems, editEstimateApplyMarkup, editEstimateApplyTax, editEstimateApplyTaxAll);
       const descSummary = editEstimateLineItems.filter(i => i.description).map(i => `${i.qty}× ${i.description} (${i.type})`).join(', ');
       await api.updateEstimate(editingEstimate.number, {
         ...editEstimateForm,
@@ -839,6 +845,7 @@ function App() {
         lineItems: editEstimateLineItems,
         applyMarkup: editEstimateApplyMarkup,
         applyTax: editEstimateApplyTax,
+        applyTaxAll: editEstimateApplyTaxAll,
       });
       await loadAllData();
       setEditingEstimate(null);
@@ -1407,7 +1414,7 @@ function App() {
   }
 
   if (page === "createestimate") {
-    const totals = calcEstTotals(estimateLineItems, estimateApplyMarkup, estimateApplyTax);
+    const totals = calcEstTotals(estimateLineItems, estimateApplyMarkup, estimateApplyTax, estimateApplyTaxAll);
     const fmtC = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return (
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 16px' }}>
@@ -1480,10 +1487,17 @@ function App() {
                   </div>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '12px 14px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={estimateApplyTax} onChange={e => setEstimateApplyTax(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+                  <input type="checkbox" checked={estimateApplyTax} onChange={e => { setEstimateApplyTax(e.target.checked); if (e.target.checked) setEstimateApplyTaxAll(false); }} style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1a3a7a' }}>7% Sales Tax on Labor</div>
                     <div style={{ fontSize: 12, color: '#666', marginTop: 3, lineHeight: 1.4 }}>Shown to owner as a “Sales Tax” line item at the bottom of the estimate.</div>
+                  </div>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '12px 14px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={estimateApplyTaxAll} onChange={e => { setEstimateApplyTaxAll(e.target.checked); if (e.target.checked) setEstimateApplyTax(false); }} style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1a3a7a' }}>7% Sales Tax on All Items</div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 3, lineHeight: 1.4 }}>Shown to owner as a “Sales Tax” line item covering labor and materials.</div>
                   </div>
                 </label>
               </div>
@@ -1492,7 +1506,7 @@ function App() {
                   <tbody>
                     <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Materials{estimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.matTotal)}</td></tr>
                     <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Labor</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.laborBase)}</td></tr>
-                    {estimateApplyTax && <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Sales Tax (7% on Labor)</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.taxAmt)}</td></tr>}
+                    {(estimateApplyTax || estimateApplyTaxAll) && <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Sales Tax (7%{estimateApplyTax ? ' on Labor' : ' on All'})</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.taxAmt)}</td></tr>}
                     <tr style={{ background: '#1a3a7a', color: '#fff' }}>
                       <td style={{ padding: '9px 14px', fontWeight: 900, fontSize: 16, borderRadius: '6px 0 0 6px' }}>TOTAL</td>
                       <td style={{ padding: '9px 14px', fontWeight: 900, fontSize: 16, textAlign: 'right', borderRadius: '0 6px 6px 0' }}>{fmtC(totals.grandTotal)}</td>
@@ -1535,7 +1549,7 @@ function App() {
             <button style={{ background: '#555', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => setPreviewEstimate(est)}>📄 Preview</button>
             {est.status === 'pending' && (
               <>
-                <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => { setEditingEstimate(est); setEditEstimateForm({ propertyName: est.propertyName, title: est.title, description: est.description, estimatedCost: est.estimatedCost }); setEditEstimateLineItems(est.lineItems && est.lineItems.length > 0 ? est.lineItems : [{ qty: 1, description: '', unitPrice: 0, type: 'labor' as const }]); setEditEstimateApplyMarkup(est.applyMarkup || false); setEditEstimateApplyTax(est.applyTax || false); }}>✏️ Edit</button>
+                <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => { setEditingEstimate(est); setEditEstimateForm({ propertyName: est.propertyName, title: est.title, description: est.description, estimatedCost: est.estimatedCost }); setEditEstimateLineItems(est.lineItems && est.lineItems.length > 0 ? est.lineItems : [{ qty: 1, description: '', unitPrice: 0, type: 'labor' as const }]); setEditEstimateApplyMarkup(est.applyMarkup || false); setEditEstimateApplyTax(est.applyTax || false); setEditEstimateApplyTaxAll(est.applyTaxAll || false); }}>✏️ Edit</button>
                 <button style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => convertEstimateToWorkOrder(est)}>▶ Convert to WO</button>
                 <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => rejectEstimate(est.number)}>✕ Reject</button>
               </>
@@ -1584,7 +1598,7 @@ function App() {
 
         {/* ── Edit Estimate Modal ── */}
         {editingEstimate && (() => {
-          const editTotals = calcEstTotals(editEstimateLineItems, editEstimateApplyMarkup, editEstimateApplyTax);
+          const editTotals = calcEstTotals(editEstimateLineItems, editEstimateApplyMarkup, editEstimateApplyTax, editEstimateApplyTaxAll);
           const fmtE = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           return (
             <div className="photo-modal">
@@ -1625,14 +1639,18 @@ function App() {
                     </div>
                   </div>
                   {/* Options */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
                       <input type="checkbox" checked={editEstimateApplyMarkup} onChange={e => setEditEstimateApplyMarkup(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
                       <div><div style={{ fontWeight: 700, fontSize: 13, color: '#1a3a7a' }}>10% Material Markup</div><div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>Silently applied at line-item level.</div></div>
                     </label>
                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={editEstimateApplyTax} onChange={e => setEditEstimateApplyTax(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
-                      <div><div style={{ fontWeight: 700, fontSize: 13, color: '#1a3a7a' }}>7% Sales Tax on Labor</div><div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>Shown as a line item to owner.</div></div>
+                      <input type="checkbox" checked={editEstimateApplyTax} onChange={e => { setEditEstimateApplyTax(e.target.checked); if (e.target.checked) setEditEstimateApplyTaxAll(false); }} style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div><div style={{ fontWeight: 700, fontSize: 13, color: '#1a3a7a' }}>7% Tax on Labor</div><div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>Shown as a line item to owner.</div></div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editEstimateApplyTaxAll} onChange={e => { setEditEstimateApplyTaxAll(e.target.checked); if (e.target.checked) setEditEstimateApplyTax(false); }} style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div><div style={{ fontWeight: 700, fontSize: 13, color: '#1a3a7a' }}>7% Tax on All Items</div><div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>Covers labor &amp; materials.</div></div>
                     </label>
                   </div>
                   {/* Totals */}
@@ -1641,7 +1659,7 @@ function App() {
                       <tbody>
                         <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Materials{editEstimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.matTotal)}</td></tr>
                         <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Labor</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.laborBase)}</td></tr>
-                        {editEstimateApplyTax && <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Sales Tax (7% labor)</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.taxAmt)}</td></tr>}
+                        {(editEstimateApplyTax || editEstimateApplyTaxAll) && <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Sales Tax (7%{editEstimateApplyTax ? ' on Labor' : ' on All'})</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.taxAmt)}</td></tr>}
                         <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '7px 12px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtE(editTotals.grandTotal)}</td></tr>
                       </tbody>
                     </table>
@@ -1665,12 +1683,15 @@ function App() {
           const hasLines = lines.length > 0;
           const applyMu = previewEstimate.applyMarkup || false;
           const applyTx = previewEstimate.applyTax || false;
+          const applyTxAll = previewEstimate.applyTaxAll || false;
           // Owner-visible unit price: materials get 10% added silently
           const ownerUnit = (item: EstimateLineItem) => item.type === 'material' && applyMu ? item.unitPrice * 1.1 : item.unitPrice;
           const ownerLine = (item: EstimateLineItem) => item.qty * ownerUnit(item);
           const lineSubtotal = lines.reduce((s, i) => s + ownerLine(i), 0);
           const laborBase = lines.filter(i => i.type === 'labor').reduce((s, i) => s + i.qty * i.unitPrice, 0);
-          const taxAmt = applyTx ? laborBase * 0.07 : 0;
+          const taxableBase = applyTxAll ? lineSubtotal : (applyTx ? laborBase : 0);
+          const taxAmt = taxableBase * 0.07;
+          const taxLabel = applyTxAll ? 'Sales Tax (7% on All Items)' : 'Sales Tax (7% on Labor)';
           const grandTotal = lineSubtotal + taxAmt;
           const legacyCost = parseFloat(previewEstimate.estimatedCost) || 0;
 
@@ -1759,7 +1780,7 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
                       <table style={{ borderCollapse: 'collapse', minWidth: 260 }}><tbody>
                         <tr><td style={{ padding: '7px 14px', fontWeight: 600, color: '#555', borderTop: '1px solid #ddd', fontSize: 13 }}>Subtotal</td><td style={{ padding: '7px 14px', textAlign: 'right', borderTop: '1px solid #ddd', fontSize: 13 }}>{fmtMoney(hasLines ? lineSubtotal : legacyCost)}</td></tr>
-                        {applyTx && hasLines && <tr><td style={{ padding: '7px 14px', fontWeight: 600, color: '#555', fontSize: 13 }}>Sales Tax (7% on Labor)</td><td style={{ padding: '7px 14px', textAlign: 'right', fontSize: 13 }}>{fmtMoney(taxAmt)}</td></tr>}
+                        {(applyTx || applyTxAll) && hasLines && <tr><td style={{ padding: '7px 14px', fontWeight: 600, color: '#555', fontSize: 13 }}>{taxLabel}</td><td style={{ padding: '7px 14px', textAlign: 'right', fontSize: 13 }}>{fmtMoney(taxAmt)}</td></tr>}
                         <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '10px 14px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtMoney(hasLines ? grandTotal : legacyCost)}</td></tr>
                       </tbody></table>
                     </div>

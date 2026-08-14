@@ -66,6 +66,7 @@ async function runMigrations(db: D1Database) {
   try { await db.prepare(`ALTER TABLE estimates ADD COLUMN line_items TEXT NOT NULL DEFAULT '[]'`).run(); } catch (_) {}
   try { await db.prepare(`ALTER TABLE estimates ADD COLUMN apply_markup INTEGER NOT NULL DEFAULT 0`).run(); } catch (_) {}
   try { await db.prepare(`ALTER TABLE estimates ADD COLUMN apply_tax INTEGER NOT NULL DEFAULT 0`).run(); } catch (_) {}
+  try { await db.prepare(`ALTER TABLE estimates ADD COLUMN apply_tax_all INTEGER NOT NULL DEFAULT 0`).run(); } catch (_) {}
   await db.prepare(`CREATE TABLE IF NOT EXISTS recurring_items (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, property_name TEXT NOT NULL DEFAULT '', instructions TEXT NOT NULL DEFAULT '', frequency TEXT NOT NULL DEFAULT 'monthly', day_of_week TEXT NOT NULL DEFAULT '', day_of_month INTEGER NOT NULL DEFAULT 1, assigned_to TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, last_generated TEXT NOT NULL DEFAULT '', next_due TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
   await db.prepare(`CREATE TABLE IF NOT EXISTS internal_services (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general', description TEXT NOT NULL DEFAULT '', frequency TEXT NOT NULL DEFAULT 'monthly', day_of_week TEXT NOT NULL DEFAULT '', day_of_month INTEGER NOT NULL DEFAULT 1, assigned_to TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL DEFAULT 1, last_completed TEXT NOT NULL DEFAULT '', next_due TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
 }
@@ -738,6 +739,7 @@ app.get("/api/estimates", async (c) => {
       lineItems: (() => { try { return JSON.parse(e.line_items || '[]'); } catch { return []; } })(),
       applyMarkup: e.apply_markup === 1,
       applyTax: e.apply_tax === 1,
+      applyTaxAll: e.apply_tax_all === 1,
     }))
   );
 });
@@ -753,10 +755,10 @@ app.get("/api/estimates/next-number", async (c) => {
 app.post("/api/estimates", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
-  const { number, propertyName, title, description, estimatedCost, lineItems, applyMarkup, applyTax } = await c.req.json();
+  const { number, propertyName, title, description, estimatedCost, lineItems, applyMarkup, applyTax, applyTaxAll } = await c.req.json();
   await c.env.DB.prepare(
-    "INSERT INTO estimates (number, property_name, title, description, estimated_cost, status, line_items, apply_markup, apply_tax) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)"
-  ).bind(number, propertyName, title, description, estimatedCost || '', JSON.stringify(lineItems || []), applyMarkup ? 1 : 0, applyTax ? 1 : 0).run();
+    "INSERT INTO estimates (number, property_name, title, description, estimated_cost, status, line_items, apply_markup, apply_tax, apply_tax_all) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)"
+  ).bind(number, propertyName, title, description, estimatedCost || '', JSON.stringify(lineItems || []), applyMarkup ? 1 : 0, applyTax ? 1 : 0, applyTaxAll ? 1 : 0).run();
   return c.json({ ok: true });
 });
 
@@ -764,10 +766,10 @@ app.put("/api/estimates/:number", async (c) => {
   const user = await getUser(c);
   if (!user) return unauthorized();
   const estNumber = c.req.param("number");
-  const { propertyName, title, description, estimatedCost, lineItems, applyMarkup, applyTax } = await c.req.json();
+  const { propertyName, title, description, estimatedCost, lineItems, applyMarkup, applyTax, applyTaxAll } = await c.req.json();
   await c.env.DB.prepare(
-    "UPDATE estimates SET property_name = ?, title = ?, description = ?, estimated_cost = ?, line_items = ?, apply_markup = ?, apply_tax = ? WHERE number = ?"
-  ).bind(propertyName, title, description, estimatedCost || '', JSON.stringify(lineItems || []), applyMarkup ? 1 : 0, applyTax ? 1 : 0, estNumber).run();
+    "UPDATE estimates SET property_name = ?, title = ?, description = ?, estimated_cost = ?, line_items = ?, apply_markup = ?, apply_tax = ?, apply_tax_all = ? WHERE number = ?"
+  ).bind(propertyName, title, description, estimatedCost || '', JSON.stringify(lineItems || []), applyMarkup ? 1 : 0, applyTax ? 1 : 0, applyTaxAll ? 1 : 0, estNumber).run();
   return c.json({ ok: true });
 });
 
