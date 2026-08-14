@@ -1790,6 +1790,11 @@ function App() {
                         <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '10px 14px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtMoney(hasLines ? grandTotal : legacyCost)}</td></tr>
                       </tbody></table>
                     </div>
+                    {/* Deposit notice */}
+                    <div style={{ background: '#fff8e1', border: '1px solid #f0c040', borderRadius: 6, padding: '10px 16px', marginBottom: 20, fontSize: 13, fontWeight: 600, color: '#7a5500' }}>
+                      ⚠️ Material deposit required prior to scheduling of job.
+                    </div>
+
                     {/* Signature */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, paddingTop: 16, borderTop: '1px solid #ddd' }}>
                       <div><div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 28 }}>Client Signature &amp; Acceptance</div><div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div><div style={{ fontSize: 11, color: '#555' }}>Signature &nbsp;&nbsp;&nbsp;&nbsp; Date</div></div>
