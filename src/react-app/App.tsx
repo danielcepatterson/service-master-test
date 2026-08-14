@@ -1704,7 +1704,7 @@ function App() {
             if (!el) return;
             const win = window.open('', '_blank', 'width=820,height=1000');
             if (!win) return;
-            win.document.write(`<!DOCTYPE html><html><head><title>Estimate ${previewEstimate.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>${el.innerHTML}</body></html>`);
+            win.document.write(`<!DOCTYPE html><html><head><title>Estimate ${previewEstimate.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@page{margin:0.5cm;}@media print{body{padding:8px;zoom:0.82;}}</style></head><body>${el.innerHTML}</body></html>`);
             win.document.close(); win.focus();
             setTimeout(() => { win.print(); win.close(); }, 400);
           };
