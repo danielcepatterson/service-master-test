@@ -336,6 +336,9 @@ export async function updateEstimate(number: string, fields: {
   title: string;
   description: string;
   estimatedCost: string;
+  lineItems?: any[];
+  applyMarkup?: boolean;
+  applyTax?: boolean;
 }) {
   const res = await apiFetch(`/api/estimates/${number}`, {
     method: "PUT",

@@ -73,6 +73,13 @@ type WorkOrderPhoto = {
 
 type EstimateStatus = 'pending' | 'converted' | 'rejected';
 
+type EstimateLineItem = {
+  qty: number;
+  description: string;
+  unitPrice: number;
+  type: 'labor' | 'material';
+};
+
 type Estimate = {
   id?: number;
   number: string;
@@ -83,7 +90,18 @@ type Estimate = {
   status: EstimateStatus;
   convertedTo?: string;
   createdAt?: string;
+  lineItems?: EstimateLineItem[];
+  applyMarkup?: boolean;
+  applyTax?: boolean;
 };
+
+function calcEstTotals(items: EstimateLineItem[], markup: boolean, tax: boolean) {
+  const matBase = items.filter(i => i.type === 'material').reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const laborBase = items.filter(i => i.type === 'labor').reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const matTotal = matBase * (markup ? 1.1 : 1);
+  const taxAmt = tax ? laborBase * 0.07 : 0;
+  return { matBase, matTotal, laborBase, taxAmt, grandTotal: matTotal + laborBase + taxAmt };
+}
 
 type WorkOrderExpense = {
   id: number;
@@ -206,11 +224,17 @@ function App() {
   const [estimates, setEstimates] = React.useState<Estimate[]>([]);
   const [estimateSubmitted, setEstimateSubmitted] = React.useState(false);
   const [nextEstimateNumber, setNextEstimateNumber] = React.useState('EST-1001');
+  const [estimateLineItems, setEstimateLineItems] = React.useState<EstimateLineItem[]>([{ qty: 1, description: '', unitPrice: 0, type: 'labor' }]);
+  const [estimateApplyMarkup, setEstimateApplyMarkup] = React.useState(false);
+  const [estimateApplyTax, setEstimateApplyTax] = React.useState(false);
 
   // Edit estimate state
   const [editingEstimate, setEditingEstimate] = React.useState<Estimate | null>(null);
   const [editEstimateForm, setEditEstimateForm] = React.useState({ propertyName: '', title: '', description: '', estimatedCost: '' });
   const [editEstimateSaving, setEditEstimateSaving] = React.useState(false);
+  const [editEstimateLineItems, setEditEstimateLineItems] = React.useState<EstimateLineItem[]>([]);
+  const [editEstimateApplyMarkup, setEditEstimateApplyMarkup] = React.useState(false);
+  const [editEstimateApplyTax, setEditEstimateApplyTax] = React.useState(false);
 
   // Preview estimate state
   const [previewEstimate, setPreviewEstimate] = React.useState<Estimate | null>(null);
@@ -777,12 +801,24 @@ function App() {
 
   const handleEstimateFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const totals = calcEstTotals(estimateLineItems, estimateApplyMarkup, estimateApplyTax);
+    const descSummary = estimateLineItems.filter(i => i.description).map(i => `${i.qty}× ${i.description} (${i.type})`).join(', ');
     try {
-      const result = await api.createEstimate({ ...estimateForm, number: nextEstimateNumber });
+      const result = await api.createEstimate({
+        ...estimateForm, number: nextEstimateNumber,
+        description: descSummary,
+        estimatedCost: totals.grandTotal.toFixed(2),
+        lineItems: estimateLineItems,
+        applyMarkup: estimateApplyMarkup,
+        applyTax: estimateApplyTax,
+      });
       if (result.error) { alert('Failed to submit estimate: ' + result.error); return; }
       await loadAllData();
       setEstimateSubmitted(true);
       setEstimateForm({ propertyName: '', title: '', description: '', estimatedCost: '' });
+      setEstimateLineItems([{ qty: 1, description: '', unitPrice: 0, type: 'labor' }]);
+      setEstimateApplyMarkup(false);
+      setEstimateApplyTax(false);
     } catch (err) {
       console.error('Estimate submit error', err);
       alert('Failed to submit estimate. Please try again.');
@@ -794,7 +830,16 @@ function App() {
     if (!editingEstimate) return;
     setEditEstimateSaving(true);
     try {
-      await api.updateEstimate(editingEstimate.number, editEstimateForm);
+      const totals = calcEstTotals(editEstimateLineItems, editEstimateApplyMarkup, editEstimateApplyTax);
+      const descSummary = editEstimateLineItems.filter(i => i.description).map(i => `${i.qty}× ${i.description} (${i.type})`).join(', ');
+      await api.updateEstimate(editingEstimate.number, {
+        ...editEstimateForm,
+        description: descSummary,
+        estimatedCost: totals.grandTotal.toFixed(2),
+        lineItems: editEstimateLineItems,
+        applyMarkup: editEstimateApplyMarkup,
+        applyTax: editEstimateApplyTax,
+      });
       await loadAllData();
       setEditingEstimate(null);
     } catch (err) {
@@ -808,11 +853,14 @@ function App() {
   const convertEstimateToWorkOrder = async (estimate: Estimate) => {
     if (!confirm(`Convert estimate ${estimate.number} to a work order?`)) return;
     const woNum = await api.fetchNextWorkOrderNumber();
+    const instructions = estimate.lineItems && estimate.lineItems.length > 0
+      ? estimate.lineItems.map(i => `${i.qty}× ${i.description} (${i.type}) @ $${i.unitPrice.toFixed(2)}`).join('\n')
+      : estimate.description;
     await api.createWorkOrder({
       number: woNum,
       propertyName: estimate.propertyName,
       title: estimate.title,
-      instructions: estimate.description,
+      instructions,
       scheduledTime: '',
       scheduledDate: '',
     });
@@ -1359,44 +1407,105 @@ function App() {
   }
 
   if (page === "createestimate") {
+    const totals = calcEstTotals(estimateLineItems, estimateApplyMarkup, estimateApplyTax);
+    const fmtC = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <h1>Create an Estimate</h1>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setPage('home')} style={{ background: 'none', border: 'none', color: '#1a3a7a', cursor: 'pointer', fontSize: 22, padding: 0, fontWeight: 700 }}>←</button>
+          <h1 style={{ margin: 0, color: '#1a3a7a', fontSize: 22 }}>Create an Estimate</h1>
+          <span style={{ marginLeft: 'auto', background: '#e8edf8', color: '#1a3a7a', borderRadius: 8, padding: '4px 12px', fontWeight: 700, fontSize: 14 }}>{nextEstimateNumber}</span>
+        </div>
         {estimateSubmitted ? (
-          <>
-            <p style={{ color: 'green' }}>Estimate submitted!</p>
-            <button onClick={() => { setPage("estimatelist"); setEstimateSubmitted(false); }}>View Estimates</button>
-            <button style={{ marginTop: 8 }} onClick={() => { setPage("home"); setEstimateSubmitted(false); }}>Return to Home</button>
-          </>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 40, textAlign: 'center', boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+            <div style={{ fontSize: 48 }}>✅</div>
+            <p style={{ color: '#2a9d2a', fontWeight: 700, fontSize: 18 }}>Estimate submitted!</p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
+              <button onClick={() => { setPage('estimatelist'); setEstimateSubmitted(false); }} style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, cursor: 'pointer' }}>View Estimates</button>
+              <button onClick={() => { setPage('home'); setEstimateSubmitted(false); }} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, cursor: 'pointer' }}>Return to Home</button>
+            </div>
+          </div>
         ) : (
-          <form onSubmit={handleEstimateFormSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 350, maxWidth: 500, width: '90%' }}>
-            <label>
-              Estimate Number
-              <input value={nextEstimateNumber} disabled style={{ background: '#eee' }} />
-            </label>
-            <label>
-              Property
-              <select name="propertyName" value={estimateForm.propertyName} onChange={handleEstimateFormChange} required>
-                <option value="" disabled>Select a property</option>
-                {properties.map((prop: PropertyForm, idx: number) => (
-                  <option key={idx} value={prop.propertyName}>{prop.propertyName}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Title
-              <input name="title" value={estimateForm.title} onChange={handleEstimateFormChange} required />
-            </label>
-            <label>
-              Description / Scope of Work
-              <textarea name="description" value={estimateForm.description} onChange={handleEstimateFormChange} required rows={4} />
-            </label>
-            <label>
-              Estimated Cost ($)
-              <input name="estimatedCost" type="text" value={estimateForm.estimatedCost} onChange={handleEstimateFormChange} placeholder="e.g. 1500.00" />
-            </label>
-            <button type="submit">Submit Estimate</button>
-            <button type="button" onClick={() => setPage("home")}>Return to Home</button>
+          <form onSubmit={handleEstimateFormSubmit}>
+            {/* Header info */}
+            <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', marginBottom: 16, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <label style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>
+                Property *
+                <select name="propertyName" value={estimateForm.propertyName} onChange={handleEstimateFormChange} required style={{ display: 'block', width: '100%', marginTop: 5, padding: '8px 10px', border: '1px solid #c0cce0', borderRadius: 7, fontSize: 14 }}>
+                  <option value="" disabled>Select a property</option>
+                  {properties.map((prop: PropertyForm, idx: number) => <option key={idx} value={prop.propertyName}>{prop.propertyName}</option>)}
+                </select>
+              </label>
+              <label style={{ fontWeight: 600, fontSize: 13, color: '#333' }}>
+                Project Title *
+                <input name="title" value={estimateForm.title} onChange={handleEstimateFormChange} required style={{ display: 'block', width: '100%', marginTop: 5, padding: '8px 10px', border: '1px solid #c0cce0', borderRadius: 7, fontSize: 14, boxSizing: 'border-box' }} />
+              </label>
+            </div>
+
+            {/* Line Items */}
+            <div style={{ background: '#fff', borderRadius: 12, marginBottom: 16, boxShadow: '0 2px 8px rgba(26,58,122,0.08)', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 20px', borderBottom: '1px solid #e8edf8' }}>
+                <h3 style={{ margin: 0, color: '#1a3a7a', fontSize: 15 }}>Line Items</h3>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 96px 122px 80px 34px', gap: 6, padding: '7px 16px', background: '#f0f4ff', fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <span>Qty</span><span>Description</span><span style={{ textAlign: 'right' }}>Unit $</span><span style={{ textAlign: 'center' }}>Type</span><span style={{ textAlign: 'right' }}>Total</span><span />
+              </div>
+              {estimateLineItems.map((item, idx) => (
+                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 96px 122px 80px 34px', gap: 6, padding: '7px 16px', background: idx % 2 === 0 ? '#fafbff' : '#fff', alignItems: 'center', borderTop: '1px solid #eef0f8' }}>
+                  <input type="number" min="0" step="any" value={item.qty} onChange={e => setEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, qty: parseFloat(e.target.value)||0} : r))} style={{ padding: '5px', border: '1px solid #c0cce0', borderRadius: 5, fontSize: 13, width: '100%', boxSizing: 'border-box', textAlign: 'center' }} />
+                  <input type="text" value={item.description} placeholder="Description…" onChange={e => setEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, description: e.target.value} : r))} style={{ padding: '5px 8px', border: '1px solid #c0cce0', borderRadius: 5, fontSize: 13, width: '100%', boxSizing: 'border-box' }} />
+                  <input type="number" min="0" step="0.01" value={item.unitPrice || ''} placeholder="0.00" onChange={e => setEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, unitPrice: parseFloat(e.target.value)||0} : r))} style={{ padding: '5px', border: '1px solid #c0cce0', borderRadius: 5, fontSize: 13, width: '100%', boxSizing: 'border-box', textAlign: 'right' }} />
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    <button type="button" onClick={() => setEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, type:'labor'} : r))} style={{ flex: 1, padding: '5px 0', borderRadius: 4, border: '1px solid', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: item.type==='labor' ? '#0099FF' : '#f0f4ff', color: item.type==='labor' ? '#fff' : '#666', borderColor: item.type==='labor' ? '#0077dd' : '#c0cce0' }}>Labor</button>
+                    <button type="button" onClick={() => setEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, type:'material'} : r))} style={{ flex: 1, padding: '5px 0', borderRadius: 4, border: '1px solid', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: item.type==='material' ? '#e67e00' : '#f0f4ff', color: item.type==='material' ? '#fff' : '#666', borderColor: item.type==='material' ? '#c06000' : '#c0cce0' }}>Mat.</button>
+                  </div>
+                  <div style={{ textAlign: 'right', fontWeight: 600, fontSize: 13, color: '#1a3a7a' }}>{fmtC(item.qty * item.unitPrice)}</div>
+                  <button type="button" onClick={() => setEstimateLineItems(p => p.filter((_,i) => i!==idx))} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, width: 28, height: 28, cursor: 'pointer', fontWeight: 900, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                </div>
+              ))}
+              <div style={{ padding: '10px 16px', borderTop: '1px solid #e8edf8' }}>
+                <button type="button" onClick={() => setEstimateLineItems(p => [...p, { qty: 1, description: '', unitPrice: 0, type: 'labor' }])} style={{ background: '#f0f4ff', color: '#1a3a7a', border: '1px dashed #a0b0e0', borderRadius: 6, padding: '6px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>+ Add Line Item</button>
+              </div>
+            </div>
+
+            {/* Pricing options + totals */}
+            <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', marginBottom: 20, boxShadow: '0 2px 8px rgba(26,58,122,0.08)' }}>
+              <h3 style={{ margin: '0 0 14px', color: '#1a3a7a', fontSize: 15 }}>Pricing Options &amp; Summary</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '12px 14px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={estimateApplyMarkup} onChange={e => setEstimateApplyMarkup(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1a3a7a' }}>10% Material Markup</div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 3, lineHeight: 1.4 }}>Applied silently at line-item level — owner sees marked-up prices, not a separate markup line.</div>
+                  </div>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '12px 14px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={estimateApplyTax} onChange={e => setEstimateApplyTax(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1a3a7a' }}>7% Sales Tax on Labor</div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 3, lineHeight: 1.4 }}>Shown to owner as a “Sales Tax” line item at the bottom of the estimate.</div>
+                  </div>
+                </label>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e8edf8', paddingTop: 14 }}>
+                <table style={{ borderCollapse: 'collapse', minWidth: 280 }}>
+                  <tbody>
+                    <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Materials{estimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.matTotal)}</td></tr>
+                    <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Labor</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.laborBase)}</td></tr>
+                    {estimateApplyTax && <tr><td style={{ padding: '5px 14px', fontSize: 13, color: '#555' }}>Sales Tax (7% on Labor)</td><td style={{ padding: '5px 14px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtC(totals.taxAmt)}</td></tr>}
+                    <tr style={{ background: '#1a3a7a', color: '#fff' }}>
+                      <td style={{ padding: '9px 14px', fontWeight: 900, fontSize: 16, borderRadius: '6px 0 0 6px' }}>TOTAL</td>
+                      <td style={{ padding: '9px 14px', fontWeight: 900, fontSize: 16, textAlign: 'right', borderRadius: '0 6px 6px 0' }}>{fmtC(totals.grandTotal)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="submit" style={{ background: '#1a3a7a', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 28px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Submit Estimate</button>
+              <button type="button" onClick={() => setPage('home')} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+            </div>
           </form>
         )}
       </div>
@@ -1426,7 +1535,7 @@ function App() {
             <button style={{ background: '#555', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => setPreviewEstimate(est)}>📄 Preview</button>
             {est.status === 'pending' && (
               <>
-                <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => { setEditingEstimate(est); setEditEstimateForm({ propertyName: est.propertyName, title: est.title, description: est.description, estimatedCost: est.estimatedCost }); }}>✏️ Edit</button>
+                <button style={{ background: '#6c3db5', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => { setEditingEstimate(est); setEditEstimateForm({ propertyName: est.propertyName, title: est.title, description: est.description, estimatedCost: est.estimatedCost }); setEditEstimateLineItems(est.lineItems && est.lineItems.length > 0 ? est.lineItems : [{ qty: 1, description: '', unitPrice: 0, type: 'labor' as const }]); setEditEstimateApplyMarkup(est.applyMarkup || false); setEditEstimateApplyTax(est.applyTax || false); }}>✏️ Edit</button>
                 <button style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => convertEstimateToWorkOrder(est)}>▶ Convert to WO</button>
                 <button style={{ background: '#ff9900', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer' }} onClick={() => rejectEstimate(est.number)}>✕ Reject</button>
               </>
@@ -1474,45 +1583,198 @@ function App() {
         <button style={{ marginTop: 24 }} onClick={() => setPage("home")}>Return to Home</button>
 
         {/* ── Edit Estimate Modal ── */}
-        {editingEstimate && (
-          <div className="photo-modal">
-            <div className="photo-modal-content" style={{ maxWidth: 520 }}>
-              <h2>Edit Estimate — {editingEstimate.number}</h2>
-              <form onSubmit={saveEditEstimate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Property
-                  <select value={editEstimateForm.propertyName} onChange={(e) => setEditEstimateForm((p) => ({ ...p, propertyName: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
-                    <option value="" disabled>Select a property</option>
-                    {properties.map((prop: PropertyForm, i: number) => <option key={i} value={prop.propertyName}>{prop.propertyName}</option>)}
-                  </select>
-                </label>
-                <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Title (Project Name)
-                  <input value={editEstimateForm.title} onChange={(e) => setEditEstimateForm((p) => ({ ...p, title: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
-                </label>
-                <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Description / Scope of Work
-                  <textarea value={editEstimateForm.description} onChange={(e) => setEditEstimateForm((p) => ({ ...p, description: e.target.value }))} required rows={4} style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box', resize: 'vertical' }} />
-                </label>
-                <label style={{ fontWeight: 600, fontSize: 13 }}>
-                  Estimated Cost ($)
-                  <input value={editEstimateForm.estimatedCost} onChange={(e) => setEditEstimateForm((p) => ({ ...p, estimatedCost: e.target.value }))} placeholder="e.g. 1500.00" style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
-                </label>
-                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                  <button type="submit" disabled={editEstimateSaving} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{editEstimateSaving ? 'Saving...' : '✓ Save'}</button>
-                  <button type="button" onClick={() => setEditingEstimate(null)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
-                </div>
-              </form>
+        {editingEstimate && (() => {
+          const editTotals = calcEstTotals(editEstimateLineItems, editEstimateApplyMarkup, editEstimateApplyTax);
+          const fmtE = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return (
+            <div className="photo-modal">
+              <div className="photo-modal-content" style={{ maxWidth: 820 }}>
+                <h2 style={{ margin: '0 0 16px', color: '#1a3a7a' }}>Edit Estimate — {editingEstimate.number}</h2>
+                <form onSubmit={saveEditEstimate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ fontWeight: 600, fontSize: 13 }}>Property
+                      <select value={editEstimateForm.propertyName} onChange={e => setEditEstimateForm(p => ({ ...p, propertyName: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14 }}>
+                        <option value="" disabled>Select a property</option>
+                        {properties.map((prop: PropertyForm, i: number) => <option key={i} value={prop.propertyName}>{prop.propertyName}</option>)}
+                      </select>
+                    </label>
+                    <label style={{ fontWeight: 600, fontSize: 13 }}>Title (Project Name)
+                      <input value={editEstimateForm.title} onChange={e => setEditEstimateForm(p => ({ ...p, title: e.target.value }))} required style={{ display: 'block', width: '100%', marginTop: 4, padding: '7px 10px', border: '1px solid #aaa', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                    </label>
+                  </div>
+                  {/* Line Items */}
+                  <div style={{ border: '1px solid #d0d8f0', borderRadius: 8, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 90px 122px 80px 34px', gap: 6, padding: '7px 14px', background: '#f0f4ff', fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase' }}>
+                      <span>Qty</span><span>Description</span><span style={{ textAlign: 'right' }}>Unit $</span><span style={{ textAlign: 'center' }}>Type</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                    </div>
+                    {editEstimateLineItems.map((item, idx) => (
+                      <div key={idx} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 90px 122px 80px 34px', gap: 6, padding: '7px 14px', background: idx % 2 === 0 ? '#fafbff' : '#fff', alignItems: 'center', borderTop: '1px solid #eef0f8' }}>
+                        <input type="number" min="0" step="any" value={item.qty} onChange={e => setEditEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, qty: parseFloat(e.target.value)||0} : r))} style={{ padding: '5px', border: '1px solid #c0cce0', borderRadius: 5, fontSize: 13, width: '100%', boxSizing: 'border-box', textAlign: 'center' }} />
+                        <input type="text" value={item.description} placeholder="Description…" onChange={e => setEditEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, description: e.target.value} : r))} style={{ padding: '5px 8px', border: '1px solid #c0cce0', borderRadius: 5, fontSize: 13, width: '100%', boxSizing: 'border-box' }} />
+                        <input type="number" min="0" step="0.01" value={item.unitPrice || ''} placeholder="0.00" onChange={e => setEditEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, unitPrice: parseFloat(e.target.value)||0} : r))} style={{ padding: '5px', border: '1px solid #c0cce0', borderRadius: 5, fontSize: 13, width: '100%', boxSizing: 'border-box', textAlign: 'right' }} />
+                        <div style={{ display: 'flex', gap: 3 }}>
+                          <button type="button" onClick={() => setEditEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, type:'labor'} : r))} style={{ flex: 1, padding: '5px 0', borderRadius: 4, border: '1px solid', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: item.type==='labor' ? '#0099FF' : '#f0f4ff', color: item.type==='labor' ? '#fff' : '#666', borderColor: item.type==='labor' ? '#0077dd' : '#c0cce0' }}>Labor</button>
+                          <button type="button" onClick={() => setEditEstimateLineItems(p => p.map((r,i) => i===idx ? {...r, type:'material'} : r))} style={{ flex: 1, padding: '5px 0', borderRadius: 4, border: '1px solid', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: item.type==='material' ? '#e67e00' : '#f0f4ff', color: item.type==='material' ? '#fff' : '#666', borderColor: item.type==='material' ? '#c06000' : '#c0cce0' }}>Mat.</button>
+                        </div>
+                        <div style={{ textAlign: 'right', fontWeight: 600, fontSize: 13, color: '#1a3a7a' }}>{fmtE(item.qty * item.unitPrice)}</div>
+                        <button type="button" onClick={() => setEditEstimateLineItems(p => p.filter((_,i) => i!==idx))} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, width: 28, height: 28, cursor: 'pointer', fontWeight: 900, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                      </div>
+                    ))}
+                    <div style={{ padding: '8px 14px', borderTop: '1px solid #e8edf8' }}>
+                      <button type="button" onClick={() => setEditEstimateLineItems(p => [...p, { qty: 1, description: '', unitPrice: 0, type: 'labor' as const }])} style={{ background: '#f0f4ff', color: '#1a3a7a', border: '1px dashed #a0b0e0', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>+ Add Line Item</button>
+                    </div>
+                  </div>
+                  {/* Options */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editEstimateApplyMarkup} onChange={e => setEditEstimateApplyMarkup(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div><div style={{ fontWeight: 700, fontSize: 13, color: '#1a3a7a' }}>10% Material Markup</div><div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>Silently applied at line-item level.</div></div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#f8f9ff', border: '1px solid #d0d8f0', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editEstimateApplyTax} onChange={e => setEditEstimateApplyTax(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div><div style={{ fontWeight: 700, fontSize: 13, color: '#1a3a7a' }}>7% Sales Tax on Labor</div><div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>Shown as a line item to owner.</div></div>
+                    </label>
+                  </div>
+                  {/* Totals */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <table style={{ borderCollapse: 'collapse', minWidth: 260 }}>
+                      <tbody>
+                        <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Materials{editEstimateApplyMarkup ? ' (+10%)' : ''}</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.matTotal)}</td></tr>
+                        <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Labor</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.laborBase)}</td></tr>
+                        {editEstimateApplyTax && <tr><td style={{ padding: '4px 12px', fontSize: 13, color: '#555' }}>Sales Tax (7% labor)</td><td style={{ padding: '4px 12px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtE(editTotals.taxAmt)}</td></tr>}
+                        <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '7px 12px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtE(editTotals.grandTotal)}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button type="submit" disabled={editEstimateSaving} style={{ background: '#2a9d2a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 22px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>{editEstimateSaving ? 'Saving...' : '✓ Save'}</button>
+                    <button type="button" onClick={() => setEditingEstimate(null)} style={{ background: '#888', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Preview / Print Estimate Modal ── */}
         {previewEstimate && (() => {
           const prop = properties.find((p: PropertyForm) => p.propertyName === previewEstimate.propertyName);
           const today = new Date(previewEstimate.createdAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-          const fmtMoney = (v: string) => v ? `$${parseFloat(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+          const fmtMoney = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          const lines: EstimateLineItem[] = (previewEstimate.lineItems && previewEstimate.lineItems.length > 0) ? previewEstimate.lineItems : [];
+          const hasLines = lines.length > 0;
+          const applyMu = previewEstimate.applyMarkup || false;
+          const applyTx = previewEstimate.applyTax || false;
+          // Owner-visible unit price: materials get 10% added silently
+          const ownerUnit = (item: EstimateLineItem) => item.type === 'material' && applyMu ? item.unitPrice * 1.1 : item.unitPrice;
+          const ownerLine = (item: EstimateLineItem) => item.qty * ownerUnit(item);
+          const lineSubtotal = lines.reduce((s, i) => s + ownerLine(i), 0);
+          const laborBase = lines.filter(i => i.type === 'labor').reduce((s, i) => s + i.qty * i.unitPrice, 0);
+          const taxAmt = applyTx ? laborBase * 0.07 : 0;
+          const grandTotal = lineSubtotal + taxAmt;
+          const legacyCost = parseFloat(previewEstimate.estimatedCost) || 0;
+
           const printEstimate = () => {
+            const el = document.getElementById('estimate-print-doc');
+            if (!el) return;
+            const win = window.open('', '_blank', 'width=820,height=1000');
+            if (!win) return;
+            win.document.write(`<!DOCTYPE html><html><head><title>Estimate ${previewEstimate.number}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#111;}table{border-collapse:collapse;width:100%;}th,td{padding:9px 12px;}@media print{body{padding:16px;}}</style></head><body>${el.innerHTML}</body></html>`);
+            win.document.close(); win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 400);
+          };
+          return (
+            <div className="photo-modal">
+              <div className="photo-modal-content" style={{ maxWidth: 760, padding: 0, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: '#1a3a7a', color: '#fff' }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>Estimate {previewEstimate.number}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={printEstimate} style={{ background: '#0099FF', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 16px', cursor: 'pointer', fontWeight: 700 }}>🖨️ Download / Print</button>
+                    <button onClick={() => setPreviewEstimate(null)} style={{ background: '#ff4d4d', color: '#fff', border: 'none', borderRadius: 4, padding: '7px 14px', cursor: 'pointer', fontWeight: 700 }}>✕ Close</button>
+                  </div>
+                </div>
+                <div style={{ overflowY: 'auto', maxHeight: '80vh' }}>
+                  <div id="estimate-print-doc" style={{ padding: '36px', fontFamily: 'Arial, sans-serif', background: '#fff', color: '#111' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottom: '3px solid #1a3a7a' }}>
+                      <img src="/logo.png" alt="First Choice" style={{ height: 80, objectFit: 'contain' }} />
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 30, fontWeight: 900, color: '#1a3a7a', letterSpacing: 2 }}>ESTIMATE</div>
+                        <table style={{ marginTop: 8, fontSize: 13, borderCollapse: 'collapse' }}><tbody>
+                          <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Estimate #</td><td style={{ fontWeight: 700 }}>{previewEstimate.number}</td></tr>
+                          <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Date</td><td>{today}</td></tr>
+                          <tr><td style={{ paddingRight: 12, color: '#555', fontWeight: 600 }}>Status</td><td style={{ textTransform: 'capitalize', fontWeight: 600 }}>{previewEstimate.status}</td></tr>
+                        </tbody></table>
+                      </div>
+                    </div>
+                    {/* Bill To / Project */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+                      <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
+                        <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>{prop?.ownerName || previewEstimate.propertyName}</div>
+                        {prop && <><div style={{ marginTop: 2 }}>{prop.street}</div><div>{prop.city}{prop.city && prop.state ? ', ' : ''}{prop.state} {prop.zip}</div>{prop.ownerPhone && <div style={{ marginTop: 2 }}>{prop.ownerPhone}</div>}</>
+                        }
+                      </div>
+                      <div style={{ background: '#f0f4ff', border: '1px solid #c0d0f0', borderRadius: 8, padding: 14 }}>
+                        <div style={{ fontWeight: 800, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Project</div>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>{previewEstimate.title}</div>
+                        <div style={{ marginTop: 4, color: '#555', fontSize: 13 }}>{previewEstimate.propertyName}</div>
+                      </div>
+                    </div>
+                    {/* Line Items */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 4 }}>
+                      <thead>
+                        <tr style={{ background: '#1a3a7a', color: '#fff' }}>
+                          <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, width: 32 }}>#</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12 }}>Description</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: 12, width: 48 }}>Qty</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, width: 100 }}>Unit Price</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, width: 100 }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hasLines ? lines.map((item, idx) => {
+                          const up = ownerUnit(item);
+                          return (
+                            <tr key={idx} style={{ background: idx % 2 === 0 ? '#f0f4ff' : '#fff' }}>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}>{idx + 1}</td>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}>{item.description}</td>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'center' }}>{item.qty}</td>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'right' }}>{fmtMoney(up)}</td>
+                              <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'right', fontWeight: 600 }}>{fmtMoney(item.qty * up)}</td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr style={{ background: '#f0f4ff' }}>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13 }}>1</td>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, whiteSpace: 'pre-wrap' }}>{previewEstimate.description}</td>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'center' }}>1</td>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'right' }}>{previewEstimate.estimatedCost ? '$' + parseFloat(previewEstimate.estimatedCost).toFixed(2) : '—'}</td>
+                            <td style={{ padding: '10px 12px', borderBottom: '1px solid #dde', fontSize: 13, textAlign: 'right', fontWeight: 600 }}>{previewEstimate.estimatedCost ? '$' + parseFloat(previewEstimate.estimatedCost).toFixed(2) : '—'}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                    {/* Totals */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 32 }}>
+                      <table style={{ borderCollapse: 'collapse', minWidth: 260 }}><tbody>
+                        <tr><td style={{ padding: '7px 14px', fontWeight: 600, color: '#555', borderTop: '1px solid #ddd', fontSize: 13 }}>Subtotal</td><td style={{ padding: '7px 14px', textAlign: 'right', borderTop: '1px solid #ddd', fontSize: 13 }}>{fmtMoney(hasLines ? lineSubtotal : legacyCost)}</td></tr>
+                        {applyTx && hasLines && <tr><td style={{ padding: '7px 14px', fontWeight: 600, color: '#555', fontSize: 13 }}>Sales Tax (7% on Labor)</td><td style={{ padding: '7px 14px', textAlign: 'right', fontSize: 13 }}>{fmtMoney(taxAmt)}</td></tr>}
+                        <tr style={{ background: '#1a3a7a', color: '#fff' }}><td style={{ padding: '10px 14px', fontWeight: 900, fontSize: 15 }}>TOTAL</td><td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 15 }}>{fmtMoney(hasLines ? grandTotal : legacyCost)}</td></tr>
+                      </tbody></table>
+                    </div>
+                    {/* Signature */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, paddingTop: 16, borderTop: '1px solid #ddd' }}>
+                      <div><div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 28 }}>Client Signature &amp; Acceptance</div><div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div><div style={{ fontSize: 11, color: '#555' }}>Signature &nbsp;&nbsp;&nbsp;&nbsp; Date</div></div>
+                      <div><div style={{ fontWeight: 700, color: '#1a3a7a', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 28 }}>Authorized By</div><div style={{ borderBottom: '1px solid #333', marginBottom: 6 }}>&nbsp;</div><div style={{ fontSize: 11, color: '#555' }}>First Choice Maintenance &amp; Home Repair</div></div>
+                    </div>
+                    <div style={{ marginTop: 24, textAlign: 'center', fontSize: 11, color: '#999', borderTop: '1px solid #eee', paddingTop: 12 }}>First Choice Maintenance &amp; Home Repair — Thank you for your business!</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
             const el = document.getElementById('estimate-print-doc');
             if (!el) return;
             const win = window.open('', '_blank', 'width=800,height=900');
