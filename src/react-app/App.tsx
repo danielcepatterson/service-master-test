@@ -1791,8 +1791,11 @@ function App() {
                       </tbody></table>
                     </div>
                     {/* Deposit notice */}
-                    <div style={{ background: '#fff8e1', border: '1px solid #f0c040', borderRadius: 6, padding: '10px 16px', marginBottom: 20, fontSize: 13, fontWeight: 600, color: '#7a5500' }}>
+                    <div style={{ background: '#fff8e1', border: '1px solid #f0c040', borderRadius: 6, padding: '10px 16px', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#7a5500' }}>
                       ⚠️ Material deposit required prior to scheduling of job.
+                    </div>
+                    <div style={{ background: '#fff8e1', border: '1px solid #f0c040', borderRadius: 6, padding: '10px 16px', marginBottom: 20, fontSize: 13, fontWeight: 600, color: '#7a5500' }}>
+                      💳 A 2.9% Credit Processing Fee is required for all credit card payments.
                     </div>
 
                     {/* Signature */}
